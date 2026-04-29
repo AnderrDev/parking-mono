@@ -1,0 +1,84 @@
+// =============================================================================
+// Global Stylesheet — parqueadero-web
+// Importado por angular.json como primer stylesheet de la app
+// =============================================================================
+@use './tokens';
+@use './reset';
+
+// -----------------------------------------------------------------------------
+// Base typography
+// -----------------------------------------------------------------------------
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+// Monospace para elementos que muestran placas y montos
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+// -----------------------------------------------------------------------------
+// Utilidades globales mínimas (no un framework — solo lo que usamos en el shell)
+// -----------------------------------------------------------------------------
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-4);
+  z-index: var(--z-tooltip);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  transition: top var(--motion-fast) var(--ease-out);
+
+  &:focus {
+    top: var(--space-4);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CDK Dialog overlay
+// -----------------------------------------------------------------------------
+.cdk-overlay-backdrop {
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.cdk-overlay-container {
+  z-index: var(--z-modal);
+}
+
+// -----------------------------------------------------------------------------
+// Scrollbar styling (webkit)
+// -----------------------------------------------------------------------------
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-pill);
+}
