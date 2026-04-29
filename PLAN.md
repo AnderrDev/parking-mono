@@ -84,7 +84,7 @@ Otros skills útiles bajo demanda: `simplify` (revisar código nuevo antes de ce
 
 **Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ✅ Fase 0 cerrada — siguiente: ⏳ Fase 1 (Backend foundation).
+**Fase actual:** ✅ Fase 1 cerrada — siguiente: ⏳ Fase 2 (Core Angular + design system).
 
 ---
 
@@ -175,45 +175,47 @@ cd parqueadero-web && npm run lint
 📋 **Tareas:**
 
 **Migration `00001_extensions_and_helpers.sql`**
-- [ ] `CREATE EXTENSION IF NOT EXISTS pgcrypto;`
-- [ ] Función `set_updated_at()` (trigger genérico).
-- [ ] Tabla `audit_log` (id UUID, user_id UUID NULL, action TEXT, entity_type TEXT, entity_id UUID, before_json JSONB, after_json JSONB, created_at TIMESTAMPTZ).
-- [ ] Función `write_audit_log()` (trigger genérico que recibe `entity_type` por argumento o por TG_TABLE_NAME).
-- [ ] Sequence `invoice_number_seq START 1`.
-- [ ] RLS de `audit_log`: SELECT solo admin/contador; sin INSERT/UPDATE/DELETE para nadie excepto trigger (service_role bypass).
+- [x] `CREATE EXTENSION IF NOT EXISTS pgcrypto;`
+- [x] Función `set_updated_at()` (trigger genérico).
+- [x] Tabla `audit_log` (sin FK a users — preservar log si user se borra).
+- [x] Función `audit_log_prevent_mutation()` + 2 triggers BEFORE UPDATE/DELETE (defensa contra service_role).
+- [x] Función `write_audit_log()` (TG_TABLE_NAME, SECURITY DEFINER).
+- [x] Sequence `invoice_number_seq START 1` + función `assign_invoice_number()` con LPAD 4 dígitos + timezone Bogotá.
+- [x] RLS de `audit_log`: ENABLE (sin FORCE para que SECURITY DEFINER funcione). SELECT admin/contador; sin INSERT/UPDATE/DELETE para clientes.
 
 **Migration `00002_initial_schema.sql`** (transacción atómica `BEGIN; ... COMMIT;`)
-- [ ] Crear las 11 tablas según spec: `users`, `vehicles`, `tariffs`, `monthly_plans`, `customers`, `parking_sessions`, `cashier_shifts`, `payments`, `invoices`, `invoice_lines`, (la 11 según spec).
-- [ ] Constraints clave (verificar contra spec):
-  - `parking_sessions`: `UNIQUE INDEX uq_sessions_active ON (vehicle_plate) WHERE status='active' AND _deleted=FALSE`.
-  - `cashier_shifts`: `UNIQUE INDEX uq_shifts_open_per_user ON (user_id) WHERE status='open'`.
-  - `invoices`: `number TEXT UNIQUE NOT NULL`, `cufe TEXT UNIQUE` (NULLable hasta DIAN real).
-- [ ] Índices secundarios para queries hot:
-  - `idx_sessions_entry_user_date` en `parking_sessions(entry_user_id, DATE(entry_at AT TIME ZONE 'America/Bogota'))`.
-  - `idx_plans_active_end` en `monthly_plans(end_date) WHERE status='active'`.
-  - `idx_invoices_status` en `invoices(dian_status)`.
-- [ ] Foreign keys con `ON DELETE` apropiado (RESTRICT para datos contables, SET NULL para denormalizados).
+- [x] 10 tablas operativas en orden de dependencias FK: users → customers → vehicles → tariffs → monthly_plans → cashier_shifts → parking_sessions → invoices → invoice_lines → payments. (audit_log queda en 00001, total 11.)
+- [x] Constraints clave:
+  - `parking_sessions`: `uq_sessions_active ON (vehicle_plate) WHERE status='active' AND _deleted=FALSE` ✓
+  - `cashier_shifts`: `uq_shifts_open_per_user ON (user_id) WHERE status='open' AND _deleted=FALSE` ✓
+  - `invoices`: `number TEXT UNIQUE NOT NULL` + `cufe TEXT UNIQUE` ✓
+- [x] Índices secundarios (idx_sessions_entry_user_date con `AT TIME ZONE 'America/Bogota'`, idx_plans_active_end, idx_invoices_dian_status, etc.).
+- [x] FK con ON DELETE: RESTRICT para datos contables (customers, users, tariffs, shifts), SET NULL para denormalizados (vehicles.owner, sessions.monthly_plan, payments.invoice).
+- [x] FK circular `invoices.payment_id ↔ payments.invoice_id` resuelta vía `ALTER TABLE ADD CONSTRAINT` al final.
+- [x] `users.id REFERENCES auth.users(id) ON DELETE CASCADE` (mirror pattern para que `auth.uid() = users.id`).
 
 **Migration `00003_rls_policies.sql`**
-- [ ] `ALTER TABLE ... ENABLE ROW LEVEL SECURITY; FORCE ROW LEVEL SECURITY;` en cada tabla con datos de usuario.
-- [ ] Policies por rol según matriz del spec. Patrón mínimo por tabla operativa: `admin_all` (admin: ALL), `contador_read` (contador: SELECT), `operador_<scoped>` (operador: scope al día propio).
-- [ ] Cada policy `INSERT`/`UPDATE`/`ALL` lleva **ambos** `USING` y `WITH CHECK`.
+- [x] `ENABLE + FORCE ROW LEVEL SECURITY` en las 10 tablas operativas.
+- [x] Policies por rol según matriz del spec (admin_all + scoped operador + read-only contador).
+- [x] `WITH CHECK` en todas las INSERT/UPDATE/ALL.
+- [x] **Pendiente para Fase 3**: column-level update de `users` para operador (Postgres RLS no lo soporta; se hace vía trigger BEFORE UPDATE en Fase 3 que verifica role/email/is_active sin cambiar para no-admin).
+- [x] **Dependencia**: el claim `role` lo inyecta el JWT custom hook que se implementa en Fase 3. Tests Fase 1 simulan claim manualmente.
 
 **Migration `00004_triggers.sql`**
-- [ ] Trigger `set_updated_at` BEFORE UPDATE en cada tabla con `updated_at`.
-- [ ] Trigger `write_audit_log` AFTER INSERT/UPDATE/DELETE en `parking_sessions`, `payments`, `invoices`, `monthly_plans`, `cashier_shifts`.
-- [ ] Trigger `assign_invoice_number` BEFORE INSERT en `invoices` (ver patrón en skill `supabase-expert`).
+- [x] `trg_<table>_updated_at` BEFORE UPDATE en las 10 tablas con `updated_at`.
+- [x] `trg_<table>_audit` AFTER INSERT/UPDATE/DELETE en `parking_sessions`, `payments`, `invoices`, `monthly_plans`, `cashier_shifts`.
+- [x] `trg_invoices_assign_number` BEFORE INSERT en `invoices`.
 
 **Seed (`supabase/seed.sql`)**
-- [ ] Tarifas default según spec (carro/moto por hora, grace 10min, daily cap).
-- [ ] 1 plan mensual de ejemplo.
-- [ ] Pedir al usuario el email del admin de dev (no inventar). Crear el usuario con `auth.admin.createUser` o vía Studio.
+- [x] Tarifas default: carro $5.000/h grace 10min cap $30k; moto $2.500/h grace 10min cap $15k; bicicleta $1.000/día.
+- [x] Cliente demo (cédula 1000000001, Cliente Demo) + plan mensual ABC123 30 días.
+- [x] Admin user: `admin@parqueadero.local` / `admin12345` (autorizado por usuario, dev local). UUID fijo `a0000000-0000-0000-0000-000000000001`. Insertado tanto en `auth.users` (con bcrypt password) como en `public.users` (role='admin').
 
 **Tests SQL (`supabase/tests/rls/`)**
-- [ ] `test_parking_sessions_rls.sql`: para cada rol (admin, operador, contador), simular con `SET LOCAL request.jwt.claims = '...'` y verificar matriz INSERT/SELECT/UPDATE permitido o denegado. Cada test imprime PASS/FAIL.
-- [ ] `test_audit_log_immutable.sql`: UPDATE retorna 0 filas / DELETE retorna error.
-- [ ] `test_invoice_number_sequence.sql`: 5 INSERTs producen números únicos y crecientes.
-- [ ] Crear script `supabase/tests/run-rls-tests.sh` que corra los `.sql` con `psql` y exit 1 si alguno falla.
+- [x] `01_audit_log_immutable.test.sql`: UPDATE y DELETE en audit_log → SQLSTATE 42501 ✓
+- [x] `02_invoice_number_sequence.test.sql`: 5 INSERTs → `FAC-2026-04-28-0001..0005` únicos y formato válido ✓
+- [x] `03_parking_sessions_rls.test.sql`: 4 subtests — operador inserta propio ✓ / operador NO puede con uid ajeno ✓ / contador no inserta + lee todo ✓ / admin all ✓
+- [x] `run-rls-tests.sh`: bash runner que itera `*.test.sql`, ejecuta con `psql`, grep "FAIL:" o exit_code != 0, reporta totales. Exit 1 si algún test falla. Ejecutable.
 
 ✅ **DoD (comandos verificables):**
 ```bash
@@ -692,8 +694,8 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 
 ## Estado actual
 
-- [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28; commit pendiente de confirmar con el usuario)*
-- [ ] **Fase 1** — Backend foundation
+- [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28, commit `5fd559b`)*
+- [x] **Fase 1** — Backend foundation *(cerrada 2026-04-28, commit pendiente)*
 - [ ] **Fase 2** — Core Angular + design system
 - [ ] **Fase 3** — Auth
 - [ ] **Fase 4** — Parking
@@ -704,11 +706,11 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 - [ ] **Fase 9** — Invoicing + DIAN stub
 - [ ] **Fase 10** — QA + deploy
 
-**Fase actual:** ✅ Fase 0 cerrada — siguiente: ⏳ Fase 1 (Backend foundation).
+**Fase actual:** ✅ Fase 1 cerrada — siguiente: ⏳ Fase 2 (Core Angular + design system + shared).
 
 **Próxima acción del agente:**
-1. Confirmar con el usuario el commit de bootstrap pendiente (mensaje sugerido: `chore: bootstrap web (Angular 18 PWA) + backend (Supabase) + tooling base`).
-2. Para iniciar Fase 1: crear `sessions/YYYY-MM-DD-fase-1-schema-rls.md`.
-3. Leer `parqueadero-backend/specs/database-schema.spec.md` y `rls-policies.spec.md` completos.
-4. Invocar skill `supabase-expert`.
-5. Ejecutar Fase 1 sección por sección, marcando `[x]`.
+1. Crear `sessions/YYYY-MM-DD-fase-2-core-angular.md`.
+2. Trabajar SOLO en `parqueadero-web/`. Backend ya cerrado.
+3. Invocar skills `angular-architect`, `ui-ux-parqueadero`, `frontend-quality`.
+4. Leer `parqueadero-web/CLAUDE.md` §3 (estructura), `parqueadero-web/specs/components/data-table.spec.md`, `parqueadero-web/specs/infrastructure/offline-sync.spec.md`.
+5. Construir `core/` (Either, Failures, BaseEntity, UseCase, DI tokens, Supabase service, NetworkInfo) + `shared/` (utils, validators, pipes, dumb components con design tokens) + shell de la app con lazy routes placeholder.

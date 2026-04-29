@@ -10,6 +10,22 @@ Define exactamente qué puede ver, insertar, actualizar y deletar cada rol de us
 - `contador`: Lectura de reportes y auditoría
 - `anon`: Sin acceso a nada (login requerido)
 
+## Dependencia: JWT custom claim `role`
+
+Las policies usan `auth.jwt() ->> 'role'`. El claim `role` se inyecta vía un `custom_access_token_hook` que se implementa en **Fase 3 (Auth)**. Sin ese hook el JWT solo trae los claims default de Supabase (`role` = `authenticated` o `anon`, no el rol app).
+
+**En Fase 1** (esta) los tests RLS simulan el claim manualmente:
+```sql
+SET LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"admin","email":"..."}';
+```
+Esto permite validar la matriz de permisos antes de tener el hook real.
+
+## `audit_log` — doble defensa contra mutación
+
+RLS sola NO basta para inmutabilidad: `service_role` (Edge Functions) bypassa RLS. La inmutabilidad real se garantiza con DOS capas:
+1. **RLS**: nadie tiene policy de UPDATE/DELETE (default DENY).
+2. **Trigger `BEFORE UPDATE OR DELETE` que `RAISE EXCEPTION`** — corre incluso para `service_role`.
+
 ## Tabla: `users`
 
 | Rol | SELECT | INSERT | UPDATE | DELETE |
@@ -265,11 +281,12 @@ FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
 
 ## Consideraciones de Seguridad
 
-1. **RLS debe estar ENABLED**: `ALTER TABLE [table_name] ENABLE ROW LEVEL SECURITY;`
-2. **Default DENY**: Si no hay política que permite, se rechaza
-3. **Service Role**: El backend usa `service_role` (bypassa RLS) para operaciones administrativas
-4. **JWT claims**: `auth.jwt() ->> 'role'` viene de Supabase Auth, no es falsificable por cliente
-5. **Auditoría completa**: Todos los cambios sensibles quedan registrados
+1. **RLS debe estar ENABLED y FORCE**: `ALTER TABLE [t] ENABLE ROW LEVEL SECURITY; ALTER TABLE [t] FORCE ROW LEVEL SECURITY;`. `FORCE` aplica RLS también al table owner (defensa contra leaks de connection-string).
+2. **Default DENY**: Si no hay política que permite, se rechaza.
+3. **Service Role**: El backend usa `service_role` (bypassa RLS) para operaciones administrativas. Para tablas append-only (audit_log) usar trigger adicional.
+4. **JWT claims**: `auth.jwt() ->> 'role'` viene del JWT firmado, no es falsificable por cliente. El claim se inyecta vía hook (Fase 3).
+5. **`WITH CHECK` siempre** en INSERT/UPDATE/ALL — sin él una policy "abierta" en USING leaks data en escrituras.
+6. **Auditoría completa**: Todos los cambios sensibles quedan registrados.
 
 ---
-Status: Pendiente de Implementación
+Status: Implementado en migration 00003 (Fase 1, 2026-04-28). Hook JWT pendiente de Fase 3.
