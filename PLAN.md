@@ -31,7 +31,7 @@ Ver `CLAUDE.md` raíz — protocolo lazy, reglas absolutas y skills disponibles 
 
 **Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ✅ Fase 1 cerrada — siguiente: ⏳ Fase 2 (Core Angular + design system).
+**Fase actual:** ✅ Fase 3 cerrada — siguiente: ⏳ Fase 4 (Parking: entrada/salida/cobro).
 
 ---
 

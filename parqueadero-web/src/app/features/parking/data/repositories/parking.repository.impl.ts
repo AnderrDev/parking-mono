@@ -1,0 +1,66 @@
+import { Inject, Injectable } from '@angular/core';
+import { Either } from '../../../../core/either/either';
+import { Failure } from '../../../../core/either/failures';
+import {
+  PARKING_REMOTE_DATASOURCE_TOKEN,
+} from '../../../../core/di/injection-tokens';
+import { NetworkInfoService } from '../../../../core/services/network-info.service';
+import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
+import { ParkingSessionEntity } from '../../domain/entities/parking-session.entity';
+import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
+import {
+  ParkingRepository,
+  RegisterEntryParams,
+  ActiveSessionsFilter,
+  ActiveSessionsSort,
+  ActiveSessionsResult,
+  VehicleSearchResult,
+} from '../../domain/repositories/parking.repository';
+import { ParkingDataSource } from '../datasources/parking.datasource';
+
+@Injectable()
+export class ParkingRepositoryImpl extends ParkingRepository {
+  constructor(
+    @Inject(PARKING_REMOTE_DATASOURCE_TOKEN) private readonly remoteDs: ParkingDataSource,
+    private readonly networkInfo: NetworkInfoService,
+  ) {
+    super();
+  }
+
+  async registerEntry(
+    params: RegisterEntryParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>> {
+    // Fase 8: route to local datasource when offline
+    return this.remoteDs.insertSession(params);
+  }
+
+  async getActiveSessionByPlate(
+    plate: string,
+  ): Promise<Either<Failure, ParkingSessionEntity | null>> {
+    return this.remoteDs.getActiveSessionByPlate(plate);
+  }
+
+  async getActiveSessions(
+    filter: ActiveSessionsFilter,
+    pagination: { page: number; pageSize: number },
+    sort: ActiveSessionsSort,
+  ): Promise<Either<Failure, ActiveSessionsResult>> {
+    const result = await this.remoteDs.getActiveSessions(filter, pagination, sort);
+    return result.map((page) => ({
+      data: page.data,
+      pagination: page.pagination as Pagination,
+    }));
+  }
+
+  async searchVehicleByPlate(plate: string): Promise<Either<Failure, VehicleSearchResult>> {
+    return this.remoteDs.searchVehicle(plate);
+  }
+
+  async getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>> {
+    return this.remoteDs.getOpenCashierShiftId(userId);
+  }
+
+  async getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {
+    return this.remoteDs.getActivePlanByPlate(plate);
+  }
+}
