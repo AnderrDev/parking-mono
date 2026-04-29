@@ -1,0 +1,290 @@
+================================================================================
+PROYECTO PARQUEADERO — INICIACIÓN COMPLETADA
+================================================================================
+
+FECHA: 2026-04-28
+METODOLOGÍA: Spec-Driven Development (SDD) + Arquitectura Limpia
+STATUS: ✅ ESTRUCTURA COMPLETA CREADA
+
+================================================================================
+RESUMEN DE ENTREGABLES
+================================================================================
+
+1. ESTRUCTURA DE CARPETAS
+   ✅ 164 carpetas creadas
+   ✅ Arquitectura limpia en 3 capas (Domain, Data, Presentation)
+   ✅ Naming conventions aplicadas en todos lados
+   ✅ .gitkeep en carpetas vacías para preservar estructura en git
+
+2. ESPECIFICACIONES TÉCNICAS (15 specs completas)
+   
+   PARQUEADERO-WEB (8 specs):
+   ✅ specs/features/parking/
+      - register-vehicle-entry.spec.md
+      - register-vehicle-exit.spec.md
+      - calculate-parking-fee.spec.md
+      - get-active-sessions.spec.md
+      - search-vehicle-by-plate.spec.md
+   
+   ✅ specs/components/
+      - vehicle-entry-form.spec.md
+      - active-sessions-table.spec.md
+      - data-table.spec.md
+   
+   ✅ specs/infrastructure/
+      - offline-sync.spec.md
+   
+   PARQUEADERO-BACKEND (2 specs):
+   ✅ specs/
+      - database-schema.spec.md (11 tablas completas con constraints)
+      - rls-policies.spec.md (políticas de seguridad por rol)
+   
+   DIAN-FE-SERVICE (4 specs):
+   ✅ specs/
+      - emit-invoice.spec.md (flujo completo de emisión)
+      - cufe-calculation.spec.md (los 14 campos + SHA-384)
+      - xades-signature.spec.md (estructura firma XAdES-EPES)
+      - dian-soap-integration.spec.md (endpoints DIAN, WS-Security)
+
+3. DOCUMENTACIÓN (4 archivos maestros)
+   ✅ parqueadero-web/CLAUDE.md (SDD, arquitectura Angular, convenciones)
+   ✅ parqueadero-backend/CLAUDE.md (Schema, RLS, Edge Functions)
+   ✅ dian-fe-service/CLAUDE.md (CUFE, XAdES, SOAP, Python)
+   ✅ README.md (raíz - visión general del proyecto)
+
+================================================================================
+QUÉ ESTÁ LISTO PARA EL PRÓXIMO PASO
+================================================================================
+
+TODO LO ANTERIOR ES ESPECIFICACIÓN Y DOCUMENTACIÓN PURA.
+NO HAY CÓDIGO [IMPLEMENTAR] NI [STUB] TODAVÍA.
+
+Cuando estés listo para implementar:
+
+PASO 1: PARQUEADERO-WEB (Angular)
+   → Crear entities en domain/entities/ (ParkingSessionEntity, etc)
+   → Crear repository contracts en domain/repositories/
+   → Crear usecases en domain/usecases/
+   → Crear models y mappers en data/models/
+   → Crear datasources en data/datasources/
+   → Crear repository implementations en data/repositories/
+   → Crear forms en presentation/forms/
+   → Crear components en presentation/components/
+   → Crear pages en presentation/pages/
+
+PASO 2: PARQUEADERO-BACKEND (Supabase)
+   → Ejecutar migration 00001_initial_schema.sql
+   → Crear Edge Functions
+   → Seed data (tarifas default, usuario admin)
+
+PASO 3: DIAN-FE-SERVICE (Python)
+   → Implementar Either pattern
+   → Implementar UBLBuilder (XML UBL 2.1)
+   → Implementar CUFECalculator (SHA-384)
+   → Implementar XADESSigner (firma digital)
+   → Implementar DianSoapClient (SOAP)
+   → Rutas FastAPI
+
+PASO 4: TESTING
+   → Tests unitarios de UseCases
+   → Tests de componentes
+   → Tests del CUFE contra ejemplos DIAN
+   → Tests de RLS por rol
+
+PASO 5: INTEGRACIÓN
+   → Conectar parqueadero-web a Supabase
+   → Conectar Edge Function a dian-fe-service
+   → Pruebas end-to-end
+
+================================================================================
+FLUJO PARA DESARROLLO: REGLA DE ORO
+================================================================================
+
+Cuando implementes un feature o componente:
+
+  1. ¿Existe la spec en specs/?
+     → Si no: CREA LA SPEC PRIMERO
+     → Si sí: Lee la spec completa
+  
+  2. ¿Los contratos en domain/ reflejan la spec?
+     → Si no: ACTUALIZA LOS CONTRATOS
+     → Si sí: Continúa
+  
+  3. Implementa
+  
+  4. Verifica punto por punto vs spec
+  
+  5. Si algo cambia: ACTUALIZA LA SPEC PRIMERO
+
+NO IMPLEMENTES SIN SPEC. NUNCA.
+
+================================================================================
+ARCHIVOS MÁS IMPORTANTES PARA LEER PRIMERO
+================================================================================
+
+1. parqueadero-web/CLAUDE.md
+   → Explica SDD, arquitectura limpia, estructura Angular
+   → Lee esto para entender cómo funciona todo
+
+2. parqueadero-backend/specs/database-schema.spec.md
+   → Todas las tablas, relaciones, constraints
+   → Ref rápida para BD
+
+3. dian-fe-service/specs/cufe-calculation.spec.md
+   → Los 14 campos exactos del CUFE
+   → Algoritmo SHA-384
+   → Crítico para facturación
+
+4. README.md (raíz)
+   → Vista general del proyecto
+   → Stack completo
+
+================================================================================
+CONVENCIONES APLICADAS
+================================================================================
+
+NAMING:
+  - Archivos: kebab-case.tipo.ts
+  - Carpetas: kebab-case/
+  - Classes: CamelCase (ParkingSessionEntity, RegisterVehicleEntryUseCase)
+  - Interfaces: CamelCase (ParkingSessionModel)
+  - Functions: camelCase (plateValidator)
+  - Files pattern: entidad/repository/usecase/datasource/etc
+
+PATRONES:
+  - Either<L, R> para todas las respuestas (Left = error, Right = éxito)
+  - Domain NUNCA importa Data ni Presentation
+  - UseCase abstracto con execute() retornando Either
+  - Repository abstracto en domain/, implementación en data/
+  - DataSource abstract + 2 implementaciones (remote, local)
+  - Formularios reactivos centralizados en XxxForms service
+  - Componentes dumb (sin lógica de negocio) y smart (orquestan UseCases)
+
+ARQUITECTURA:
+  - 3 capas: Presentation → Domain ← Data
+  - RLS en BD para seguridad por rol
+  - Offline-first con PowerSync
+  - Audit log append-only para cambios sensibles
+
+================================================================================
+TECNOLOGÍAS DEFINIDAS
+================================================================================
+
+FRONTEND:
+  - Angular 18+
+  - TypeScript 5.4+
+  - SCSS
+  - PWA (Angular Service Worker)
+  - PowerSync (sync offline)
+  - Supabase client
+
+BACKEND:
+  - PostgreSQL 15+ (vía Supabase)
+  - Row Level Security (RLS)
+  - Edge Functions (Deno/TypeScript)
+  - Supabase Auth (JWT)
+  - Supabase Storage (XML/PDF)
+  - Supabase Realtime
+
+FACTURACIÓN:
+  - Python 3.12
+  - FastAPI 0.115+
+  - zeep (SOAP client)
+  - signxml (firma digital)
+  - lxml (XML processing)
+  - cryptography (criptografía)
+
+DEPLOYMENT:
+  - Frontend: Vercel/Netlify
+  - Backend: Supabase
+  - FE Service: Fly.io (Docker)
+
+================================================================================
+PRÓXIMOS PASOS (HOY / ESTA SEMANA)
+================================================================================
+
+Opción A: Empezar Frontend (Angular)
+  1. Crear Either pattern en core/either/
+  2. Crear Failures en core/failures.ts
+  3. Crear BaseEntity en core/base/
+  4. Crear ParkingSessionEntity, VehicleEntity
+  5. Crear ParkingRepository abstract
+  6. Crear primeros DataSources (mock)
+  7. Crear RegisterVehicleEntryUseCase
+  8. Tests del UseCase
+  9. Componente VehicleEntryForm
+
+Opción B: Empezar Backend (Supabase)
+  1. Crear migration SQL con schema completo
+  2. Implementar RLS policies
+  3. Seed data (tarifas, usuario admin)
+  4. Edge Function: request-invoice
+  5. Tests de RLS por rol
+
+Opción C: Empezar Microservicio (Python)
+  1. Estructura Django/FastAPI
+  2. Either pattern en Python
+  3. CUFECalculator (prueba con ejemplos DIAN)
+  4. Tests del CUFE
+  5. UBLBuilder (XML)
+  6. XADESSigner
+
+================================================================================
+ESTRUCTURA EN DISK
+================================================================================
+
+/Users/ander/Documents/parqueadero/
+├── parqueadero-web/
+│   ├── specs/ (8 specs completas)
+│   ├── src/app/ (164 carpetas, todas vacías con .gitkeep)
+│   └── CLAUDE.md (completo)
+│
+├── parqueadero-backend/
+│   ├── specs/ (2 specs completas)
+│   ├── supabase/ (migrations, functions, seed.sql vacíos)
+│   └── CLAUDE.md (completo)
+│
+├── dian-fe-service/
+│   ├── specs/ (4 specs completas)
+│   ├── app/ (estructura Python, vacía)
+│   └── CLAUDE.md (completo)
+│
+└── README.md (completo)
+
+Total: 160 KB, 164 carpetas, 15 specs, 4 CLAUDE.md
+
+================================================================================
+REFERENCIAS RÁPIDAS
+================================================================================
+
+COMANDO GIT PARA INICIAR VERSIONAMIENTO:
+  cd /path/to/parqueadero
+  git init
+  git add .
+  git commit -m "Initial commit: project structure and specs"
+
+ANGULAR SETUP:
+  cd parqueadero-web
+  ng serve
+
+SUPABASE SETUP:
+  cd parqueadero-backend
+  supabase start
+
+PYTHON SETUP:
+  cd dian-fe-service
+  python -m uvicorn app.main:app --reload
+
+================================================================================
+FIN DE DOCUMENTO
+================================================================================
+
+Proyecto iniciado exitosamente.
+Estructura lista para desarrollo siguiendo Spec-Driven Development.
+TODAS las decisiones arquitectónicas están documentadas.
+CERO deuda técnica inicial.
+
+Próximo: Implementar entities y repository contracts del primer feature (parking).
+
+Created: 2026-04-28
+Version: 1.0
