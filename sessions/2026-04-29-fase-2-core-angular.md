@@ -2,16 +2,16 @@
 
 **Fecha:** 2026-04-29
 **Subproyecto(s):** parqueadero-web
-**Estado:** en progreso
+**Estado:** completada — commit `88d1afb`
 
 ## Objetivos
-- [ ] Construir `core/` completo (Either, Failures, BaseEntity, UseCase, DI tokens, Supabase service, NetworkInfo, auth guard, error interceptor)
-- [ ] Construir `shared/` (models, utils, validators, pipes)
-- [ ] Design system SCSS (tokens canónicos + reset + global)
-- [ ] Fuentes self-hosted: Inter + JetBrains Mono
-- [ ] Componentes dumb shared (8): loading-spinner, error-display, confirm-dialog, status-badge, plate-input, search-input, data-table, offline-banner
-- [ ] Shell de la app: app.component con sidebar + header + router-outlet, lazy routes a 8 features, app.config con providers globales
-- [ ] Tests 100% en pipes y utils; test instanceof en Failures
+- [x] Construir `core/` completo (Either, Failures, BaseEntity, UseCase, DI tokens, Supabase service, NetworkInfo, auth guard, error interceptor)
+- [x] Construir `shared/` (models, utils, validators, pipes)
+- [x] Design system SCSS (tokens canónicos + reset + global)
+- [x] Fuentes self-hosted: Inter + JetBrains Mono
+- [x] Componentes dumb shared (8): loading-spinner, error-display, confirm-dialog, status-badge, plate-input, search-input, data-table, offline-banner
+- [x] Shell de la app: app.component con sidebar + header + router-outlet, lazy routes a 8 features, app.config con providers globales
+- [x] Tests 100% en pipes y utils; test instanceof en Failures
 
 ## Contexto
 Fases 0 y 1 cerradas. El scaffold de Angular existe (6 archivos en src/app/). No hay código de negocio. Esta fase construye la infra completa que usarán todas las features siguientes.
@@ -23,49 +23,49 @@ Design system: Flat Design, minimalismo funcional, tokens ui-ux-parqueadero can�
 ## Avance
 
 ### Core
-- [ ] `core/either/either.ts`
-- [ ] `core/either/failures.ts`
-- [ ] `core/base/base.entity.ts`
-- [ ] `core/base/usecase.ts`
-- [ ] `core/di/injection-tokens.ts`
-- [ ] `core/services/supabase.service.ts`
-- [ ] `core/services/network-info.service.ts`
-- [ ] `core/guards/auth.guard.ts`
-- [ ] `core/interceptors/error.interceptor.ts`
+- [x] `core/either/either.ts`
+- [x] `core/either/failures.ts`
+- [x] `core/base/base.entity.ts`
+- [x] `core/base/usecase.ts`
+- [x] `core/di/injection-tokens.ts`
+- [x] `core/services/supabase.service.ts`
+- [x] `core/services/network-info.service.ts`
+- [x] `core/guards/auth.guard.ts`
+- [x] `core/interceptors/error.interceptor.ts`
 
 ### Shared
-- [ ] `shared/models/{pagination,sort,filter}.model.ts`
-- [ ] `shared/utils/{date,currency,plate,uuid}.utils.ts`
-- [ ] `shared/forms/validators/{plate,nit,colombian-phone,positive-number}.validator.ts`
-- [ ] `shared/forms/form-error-messages.ts`
-- [ ] `shared/pipes/{currency-cop,time-ago,plate-format}.pipe.ts`
+- [x] `shared/models/{pagination,sort,filter}.model.ts`
+- [x] `shared/utils/{date,currency,plate,uuid}.utils.ts`
+- [x] `shared/forms/validators/{plate,nit,colombian-phone,positive-number}.validator.ts`
+- [x] `shared/forms/form-error-messages.ts`
+- [x] `shared/pipes/{currency-cop,time-ago,plate-format}.pipe.ts`
 
 ### Design System
-- [ ] `shared/styles/tokens.scss`
-- [ ] `shared/styles/reset.scss`
-- [ ] `shared/styles/global.scss`
-- [ ] Fuentes self-hosted en `src/assets/fonts/`
+- [x] `shared/styles/tokens.scss`
+- [x] `shared/styles/reset.scss`
+- [x] `shared/styles/global.scss`
+- [x] Fuentes self-hosted en `src/assets/fonts/`
 
 ### Componentes Shared
-- [ ] `loading-spinner`
-- [ ] `error-display`
-- [ ] `confirm-dialog`
-- [ ] `status-badge`
-- [ ] `plate-input`
-- [ ] `search-input`
-- [ ] `data-table`
-- [ ] `offline-banner`
+- [x] `loading-spinner`
+- [x] `error-display`
+- [x] `confirm-dialog`
+- [x] `status-badge`
+- [x] `plate-input`
+- [x] `search-input`
+- [x] `data-table`
+- [x] `offline-banner`
 
 ### Shell
-- [ ] `app.component.ts` + html + scss
-- [ ] `app.routes.ts` (8 lazy routes + placeholders)
-- [ ] `app.config.ts` (providers globales)
-- [ ] `index.html` (lang=es-CO, preload fuentes, theme-color)
+- [x] `app.component.ts` + html + scss
+- [x] `app.routes.ts` (8 lazy routes + placeholders)
+- [x] `app.config.ts` (providers globales)
+- [x] `index.html` (lang=es-CO, preload fuentes, theme-color)
 
 ### Tests
-- [ ] `core/either/either.spec.ts`
-- [ ] `shared/pipes/*.spec.ts`
-- [ ] `shared/utils/*.spec.ts`
+- [x] `core/either/either.spec.ts`
+- [x] `shared/pipes/*.spec.ts`
+- [x] `shared/utils/*.spec.ts`
 
 ## Decisiones
 - Tokens SCSS canónicos del skill `ui-ux-parqueadero` (no los del ui-ux-pro-max que usa navy oscuro — el proyecto tiene su propio sistema).
