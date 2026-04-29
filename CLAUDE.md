@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚦 Boot checklist (haz esto ANTES de tu primera respuesta)
+
+1. **Lee `PLAN.md`** — busca el marker `**Fase actual:**` y abre la sección de esa fase. Esa sección dice qué specs leer, qué skills invocar y qué tareas hacer.
+2. **Lee la última entrada en `sessions/`** (la de fecha más reciente) — recupera contexto de lo que se cerró antes.
+3. **Identifica el subproyecto** del trabajo y lee su `CLAUDE.md`: `parqueadero-web/CLAUDE.md` o `parqueadero-backend/CLAUDE.md` (DIAN está fuera de scope hasta que se planifique aparte).
+4. **Crea una nueva entrada** `sessions/YYYY-MM-DD-<slug>.md` (plantilla en `sessions/README.md`) y mantenla viva durante la sesión.
+5. **Respeta las 3 reglas absolutas** de `PLAN.md` §"Reglas absolutas": spec primero (créalo + confirma si falta), tests en la misma sesión, confirmación previa para acciones destructivas (`git push`, `supabase db push --linked`, `fly deploy`, `rm -rf`).
+
+Hay hooks en `.claude/settings.json` que inyectan la fase activa y un recordatorio de las reglas en cada turno; aun así, este checklist es el flujo correcto de arranque.
+
+---
+
 ## Repository State
 
 This monorepo is **fully scaffolded but not yet implemented**. The directory tree exists (164 folders preserved by `.gitkeep`), all specs are written, and per-subproject CLAUDE.md files are complete — but there is **no code, no `package.json`, no `requirements.txt`, no migrations, and no git repo** yet. Treat the specs in each `specs/` directory and the three per-subproject `CLAUDE.md` files as the authoritative source of truth.
@@ -123,6 +135,18 @@ fly deploy                                # deploy to Fly.io
 ```
 
 Do not run these against missing dependencies — verify the relevant `package.json` / `requirements.txt` / `supabase/config.toml` exists first. If a user asks to "set up" or "scaffold" a subproject, follow its CLAUDE.md's "Próximos pasos" ordering.
+
+## Working Aids (lee antes de empezar una sesión)
+
+- **`PLAN.md`** — runbook de 10 fases **diseñado para agentes Claude Code**. Cada fase tiene: Goal, Skills a invocar, Specs a leer, Tareas con checkboxes, DoD verificable por comandos, y prompt de handoff a la próxima fase. Lee la sección "Protocolo de sesión" antes de empezar y respeta las "Reglas absolutas" (spec primero, tests acompañan, confirmar acciones destructivas). Marca `[x]` y actualiza "**Fase actual:**" al cerrar cada fase.
+- **`sessions/`** — bitácora cronológica. Una entrada por sesión de trabajo: objetivos, avance, decisiones, next steps. Convención y plantilla en `sessions/README.md`. **Al iniciar trabajo, lee la entrada más reciente; al cerrar, deja una nueva o actualiza la actual con `Estado: completada` + `Next Steps`.**
+- **`.claude/skills/`** — 4 skills locales que cargan automáticamente cuando trabajas en su área:
+  - `angular-architect` — Angular 18+ standalone/signals + clean architecture + Either pattern para `parqueadero-web/`.
+  - `supabase-expert` — migrations, RLS, Edge Functions Deno, triggers, JWT para `parqueadero-backend/`.
+  - `frontend-quality` — A11y WCAG 2.2 AA, Core Web Vitals, PWA, TS strict (gate de calidad UI).
+  - `ui-ux-parqueadero` — design system + UX POS-style para operario (tokens, estados, copy, microinteracciones).
+
+  El skill genérico `frontend-design` (plugin) sigue disponible para necesidades de diseño no específicas del operario.
 
 ## Working In This Repo
 
