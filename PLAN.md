@@ -84,7 +84,7 @@ Otros skills útiles bajo demanda: `simplify` (revisar código nuevo antes de ce
 
 **Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ⏳ Fase 0 (no iniciada).
+**Fase actual:** ✅ Fase 0 cerrada — siguiente: ⏳ Fase 1 (Backend foundation).
 
 ---
 
@@ -104,34 +104,34 @@ Otros skills útiles bajo demanda: `simplify` (revisar código nuevo antes de ce
 📋 **Tareas:**
 
 **Repo raíz**
-- [ ] Confirmar con el usuario antes de `git init` (es destructivo si se equivoca de directorio).
-- [ ] `git init` en `/Users/ander/Documents/parqueadero/`.
-- [ ] Crear `.gitignore` raíz con: `node_modules/`, `.env`, `.env.*`, `dist/`, `.angular/`, `supabase/.branches/`, `supabase/.temp/`, `*.log`, `.DS_Store`, `.powersync/`, `coverage/`.
-- [ ] Crear `.editorconfig` (utf-8, lf, indent_size=2, trim_trailing_whitespace=true, insert_final_newline=true).
-- [ ] Pedir al usuario el remote opcional. Si lo pasa: añadirlo. Si no: dejar local.
+- [x] Confirmar con el usuario antes de `git init` (es destructivo si se equivoca de directorio).
+- [x] `git init` en `/Users/ander/Documents/parqueadero/`. *(hecho en sesión previa)*
+- [x] Crear `.gitignore` raíz.
+- [x] Crear `.editorconfig`.
+- [ ] ~Pedir al usuario el remote opcional~ — pendiente (decidido posponer; trabajamos local).
 
 **parqueadero-web**
-- [ ] Confirmar con el usuario que aplicar `ng new` aquí está OK (preserva `specs/`, `CLAUDE.md`; pisa lo demás).
-- [ ] Ejecutar: `cd parqueadero-web && ng new . --skip-git --standalone --strict --style=scss --routing --ssr=false --package-manager=npm`. Responder afirmativo a sobreescribir si pregunta.
-- [ ] Instalar deps: `npm i @supabase/supabase-js @journeyapps/powersync-sdk @angular/cdk @angular/material lucide-angular date-fns date-fns-tz`.
-- [ ] PWA: `ng add @angular/pwa --skip-confirmation`.
-- [ ] Tooling: `ng add @angular-eslint/schematics --skip-confirmation` y `npm i -D prettier eslint-config-prettier`.
-- [ ] Editar `tsconfig.json`: añadir `"noUncheckedIndexedAccess": true`, `"noImplicitOverride": true`, `"exactOptionalPropertyTypes": true`.
-- [ ] Editar `angular.json` budgets: `initial.maximumWarning = "250kb"`, `maximumError = "350kb"`.
-- [ ] Crear `.env.example` con `SUPABASE_URL=`, `SUPABASE_ANON_KEY=`, `POWERSYNC_URL=` (sin valores).
-- [ ] Añadir scripts en `package.json`: `"format": "prettier --write 'src/**/*.{ts,html,scss,json}'"`, `"analyze": "ng build --stats-json && npx source-map-explorer dist/**/*.js"`.
+- [x] Confirmar con el usuario que aplicar `ng new` aquí está OK.
+- [x] Ejecutar: `ng new parqueadero-web --directory=. --skip-git --style=scss --routing --ssr=false --package-manager=npm --strict --defaults`. *(Nota: `ng new .` falla en Angular 18 porque `.` no pasa schema validation; se usa `--directory=.`.)*
+- [x] Instalar deps: `npm i @supabase/supabase-js @powersync/web @angular/cdk@18 @angular/material@18 lucide-angular date-fns date-fns-tz`. *(Nota: PowerSync se rebrandeó — el paquete `@journeyapps/powersync-sdk` está deprecado; el actual es `@powersync/web`. CDK/Material requieren pin `@18` para Angular 18.)*
+- [x] PWA: `ng add @angular/pwa@18 --skip-confirmation`.
+- [x] Tooling: `ng add @angular-eslint/schematics@18 --skip-confirmation` y `npm i -D prettier eslint-config-prettier`. Incluido `prettierConfig` como último entry en `eslint.config.js`.
+- [x] Editar `tsconfig.json`: añadir `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. (`noImplicitOverride` ya venía por scaffold.)
+- [x] Editar `angular.json` budgets: `initial.maximumWarning = "250kB"`, `maximumError = "350kB"`. `anyComponentStyle` subido a 4kB/8kB para dejar margen razonable.
+- [x] Crear `.env.example` con `SUPABASE_URL=`, `SUPABASE_ANON_KEY=`, `POWERSYNC_URL=`, `DIAN_FE_SERVICE_URL=`.
+- [x] Añadir scripts: `format`, `format:check`, `analyze`.
+- [x] Crear `.prettierrc` (printWidth 100, single quotes, trailing commas all, parser angular para html).
 
 **parqueadero-backend**
-- [ ] Confirmar antes de `supabase init` (preserva `specs/`, `CLAUDE.md`).
-- [ ] `cd parqueadero-backend && supabase init` — aceptar defaults.
-- [ ] Editar `supabase/config.toml`: `[auth] jwt_expiry = 3600`, `[auth.password] min_length = 8`, `[functions] verify_jwt = true`, `[db] major_version = 15` (o 16 si disponible).
-- [ ] Crear `.env.example` con `SUPABASE_DB_URL=` (placeholder).
-- [ ] Si el usuario tiene proyecto Supabase remoto dev: ejecutar `supabase link --project-ref <ref>` (pedir el ref). Si no: dejar solo local.
-- [ ] Probar: `supabase start` levanta. Si falla, NO avances; reporta el error al usuario.
+- [x] Confirmar antes de `supabase init`.
+- [x] `cd parqueadero-backend && supabase init` (aceptar defaults).
+- [x] Editar `config.toml`: `auth.jwt_expiry = 3600` (default), `auth.minimum_password_length = 8`, `db.major_version = 17` (default actual de supabase init; PLAN sugería 15/16 pero 17 funciona y es lo que asume cloud al crear proyecto nuevo). **`[functions] verify_jwt` no existe en CLI 2.34+** — el JWT verification se configura por función al hacer `supabase functions deploy --no-verify-jwt` (default = JWT requerido). Anotado.
+- [x] Crear `.env.example` con `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DIAN_FE_SERVICE_URL`, `WOMPI_*`.
+- [x] Decidido: solo local con Docker en Fase 0. Link a remoto se pospone hasta Fase 10.
+- [x] `supabase start` levanta (API :54321, Studio :54323, DB :54322).
 
 **Commit inicial**
-- [ ] Confirmar con el usuario antes del primer `git commit`.
-- [ ] `git add .` (verificar con `git status -uno` que no metes `.env` ni binarios pesados).
+- [ ] Confirmar con el usuario antes del primer `git commit`. *(pendiente al cierre de sesión)*
 - [ ] Commit: `"chore: bootstrap web (Angular 18 PWA) y backend (Supabase) + tooling base"`.
 
 ✅ **DoD (comandos que debes correr y pasar):**
@@ -692,7 +692,7 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 
 ## Estado actual
 
-- [ ] **Fase 0** — Bootstrap
+- [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28; commit pendiente de confirmar con el usuario)*
 - [ ] **Fase 1** — Backend foundation
 - [ ] **Fase 2** — Core Angular + design system
 - [ ] **Fase 3** — Auth
@@ -704,11 +704,11 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 - [ ] **Fase 9** — Invoicing + DIAN stub
 - [ ] **Fase 10** — QA + deploy
 
-**Fase actual:** ⏳ Fase 0 (no iniciada).
+**Fase actual:** ✅ Fase 0 cerrada — siguiente: ⏳ Fase 1 (Backend foundation).
 
 **Próxima acción del agente:**
-1. Crear `sessions/YYYY-MM-DD-fase-0-bootstrap.md` con la plantilla.
-2. Leer `README.md` raíz §"Cómo Empezar" + ambos sub-CLAUDE.md §"Estructura".
-3. PEDIR confirmación al usuario antes de `git init` y `ng new` (son irreversibles si se equivoca de directorio).
-4. Ejecutar Fase 0 sección por sección, marcando `[x]` aquí mismo.
-5. Al cerrar: correr DoD, escribir prompt de handoff en la sesión, actualizar "Fase actual" arriba.
+1. Confirmar con el usuario el commit de bootstrap pendiente (mensaje sugerido: `chore: bootstrap web (Angular 18 PWA) + backend (Supabase) + tooling base`).
+2. Para iniciar Fase 1: crear `sessions/YYYY-MM-DD-fase-1-schema-rls.md`.
+3. Leer `parqueadero-backend/specs/database-schema.spec.md` y `rls-policies.spec.md` completos.
+4. Invocar skill `supabase-expert`.
+5. Ejecutar Fase 1 sección por sección, marcando `[x]`.

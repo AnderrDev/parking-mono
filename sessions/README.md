@@ -67,4 +67,5 @@ Cosas que ahorran tiempo: gotchas, comandos que sí/no funcionan, links a specs 
 
 Mantén actualizado el índice cronológico abajo (más reciente arriba):
 
+- [2026-04-28 — Fase 0: Bootstrap (web + backend)](./2026-04-28-fase-0-bootstrap.md)
 - [2026-04-28 — Init CLAUDE.md raíz + skills + bitácora](./2026-04-28-init-claude-md-y-skills.md)
