@@ -32,10 +32,9 @@ contexto=$(cat <<EOF
 📍 Fase actual: $fase_actual
 📓 Última sesión: $ultima_sesion
 
-🔒 Reglas absolutas (PLAN.md §"Reglas absolutas"):
+🔒 Reglas absolutas:
 1. Spec primero. Antes de codear, verifica que el spec existe. Si falta, CRÉALO y CONFIRMA con el usuario antes de avanzar a código.
-2. Tests acompañan al código en la misma sesión. No "los hago después".
-3. Acciones destructivas (git push, supabase db push --linked, fly deploy, rm -rf, git reset --hard) requieren CONFIRMACIÓN previa del usuario.
+2. Acciones destructivas (git push, supabase db push --linked, fly deploy, rm -rf, git reset --hard) requieren CONFIRMACIÓN previa del usuario.
 
 📋 Protocolo al iniciar:
 1. Lee la sección de la fase activa en PLAN.md.

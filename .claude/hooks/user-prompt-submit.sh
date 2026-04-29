@@ -17,7 +17,7 @@ fi
 
 # Recordatorio MUY corto (este se inyecta en cada mensaje; 4-5 líneas máximo)
 contexto=$(cat <<EOF
-[Marco parqueadero] Fase: $fase_actual · Reglas: (1) spec primero (créalo+confirma si falta); (2) tests en la misma sesión; (3) destructivos (git push, supabase --linked, fly deploy, rm -rf) requieren confirmación. Bitácora: actualiza sessions/YYYY-MM-DD-*.md al cerrar.
+[Marco parqueadero] Fase: $fase_actual · Reglas: (1) spec primero (créalo+confirma si falta); (2) destructivos (git push, supabase --linked, fly deploy, rm -rf) requieren confirmación. Bitácora: actualiza sessions/YYYY-MM-DD-*.md al cerrar.
 EOF
 )
 
