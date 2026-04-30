@@ -1,0 +1,74 @@
+// Modern normalize + reset opinionated para parqueadero-web
+// Basado en: https://piccalil.li/blog/a-more-modern-css-reset/
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+
+  @media (prefers-reduced-motion: reduce) {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  min-height: 100dvh;
+  line-height: var(--line-height-normal, 1.5);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: var(--line-height-tight, 1.25);
+}
+
+ol, ul {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+// Asegura que el focus visible sea siempre visible
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+// Elimina el outline cuando NO es navegación por teclado
+:focus:not(:focus-visible) {
+  outline: none;
+}

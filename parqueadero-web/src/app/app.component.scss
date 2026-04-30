@@ -1,0 +1,208 @@
+.shell {
+  display: flex;
+  min-height: 100dvh;
+}
+
+// =============================================================================
+// Sidebar
+// =============================================================================
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  flex-shrink: 0;
+  z-index: var(--z-sidebar);
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar__brand-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.sidebar__brand-name {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  min-height: var(--touch-target-secondary);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &--active {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+}
+
+.sidebar__icon {
+  flex-shrink: 0;
+}
+
+.sidebar__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// =============================================================================
+// Main area
+// =============================================================================
+.main-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.header {
+  height: var(--header-height);
+  padding: 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  gap: var(--space-4);
+}
+
+.header__title {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main {
+  flex: 1;
+  padding: var(--space-5);
+  overflow-y: auto;
+  background: var(--color-bg);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// =============================================================================
+// Responsive: tablet portrait
+// =============================================================================
+@media (max-width: 768px) {
+  .sidebar {
+    width: 64px;
+  }
+
+  .sidebar__brand-name,
+  .sidebar__label {
+    display: none;
+  }
+
+  .sidebar__brand {
+    justify-content: center;
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .sidebar__link {
+    justify-content: center;
+    padding: var(--space-3);
+  }
+
+  .main {
+    padding: var(--space-4);
+  }
+}
+
+// Móvil: bottom bar
+@media (max-width: 480px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    border-right: none;
+    border-top: 1px solid var(--color-border);
+    z-index: var(--z-sidebar);
+  }
+
+  .sidebar__brand {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    padding: var(--space-2);
+    justify-content: space-around;
+    overflow-x: auto;
+  }
+
+  .sidebar__link {
+    flex-direction: column;
+    gap: var(--space-1);
+    min-height: unset;
+    padding: var(--space-2);
+    font-size: var(--text-xs);
+    min-width: var(--touch-target-secondary);
+    align-items: center;
+  }
+
+  .sidebar__label {
+    display: block;
+    font-size: var(--text-xs);
+  }
+
+  .main-wrap {
+    padding-bottom: 72px;
+  }
+}

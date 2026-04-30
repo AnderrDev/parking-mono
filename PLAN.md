@@ -31,7 +31,7 @@ Ver `CLAUDE.md` raíz — protocolo lazy, reglas absolutas y skills disponibles 
 
 **Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ✅ Fase 1 cerrada — siguiente: ⏳ Fase 2 (Core Angular + design system).
+**Fase actual:** ✅ Fase 3 cerrada — siguiente: ⏳ Fase 4 (Parking: entrada/salida/cobro).
 
 ---
 
@@ -510,8 +510,8 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 ## Estado actual
 
 - [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28, commit `5fd559b`)*
-- [x] **Fase 1** — Backend foundation *(cerrada 2026-04-28, commit pendiente)*
-- [ ] **Fase 2** — Core Angular + design system
+- [x] **Fase 1** — Backend foundation *(cerrada 2026-04-28, commit `434a354`)*
+- [x] **Fase 2** — Core Angular + design system *(cerrada 2026-04-29, commit `88d1afb`)*
 - [ ] **Fase 3** — Auth
 - [ ] **Fase 4** — Parking
 - [ ] **Fase 5** — Catálogos
@@ -521,11 +521,8 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 - [ ] **Fase 9** — Invoicing + DIAN stub
 - [ ] **Fase 10** — QA + deploy
 
-**Fase actual:** ✅ Fase 1 cerrada — siguiente: ⏳ Fase 2 (Core Angular + design system + shared).
+**Fase actual:** ✅ Fase 2 cerrada — siguiente: ⏳ Fase 3 (Auth: JWT hook backend + login web).
 
 **Próxima acción del agente:**
-1. Crear `sessions/YYYY-MM-DD-fase-2-core-angular.md`.
-2. Trabajar SOLO en `parqueadero-web/`. Backend ya cerrado.
-3. Invocar skills `angular-architect`, `ui-ux-parqueadero`, `frontend-quality`.
-4. Leer `parqueadero-web/CLAUDE.md` §3 (estructura), `parqueadero-web/specs/components/data-table.spec.md`, `parqueadero-web/specs/infrastructure/offline-sync.spec.md`.
-5. Construir `core/` (Either, Failures, BaseEntity, UseCase, DI tokens, Supabase service, NetworkInfo) + `shared/` (utils, validators, pipes, dumb components con design tokens) + shell de la app con lazy routes placeholder.
+1. Crear specs `parqueadero-web/specs/features/auth/{login,logout,restore-session}.spec.md` y CONFIRMAR con el usuario antes de codear.
+2. Skills: `supabase-expert` (JWT hook) + `angular-architect` (feature auth).
