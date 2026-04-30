@@ -13,6 +13,10 @@ export class MonthlyPlanEntity extends BaseEntity {
     public readonly startDate: Date,
     public readonly endDate: Date,
     public readonly planType: string,
+    public readonly amountCents = 0,
+    public readonly autoRenew = false,
+    public readonly paymentTokenId: string | null = null,
+    public readonly isDeleted = false,
   ) {
     super(id, createdAt, updatedAt);
   }

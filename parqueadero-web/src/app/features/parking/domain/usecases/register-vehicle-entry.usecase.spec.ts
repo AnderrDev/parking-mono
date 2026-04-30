@@ -69,24 +69,20 @@ class MockParkingRepository extends ParkingRepository {
   shiftId: string | null = 'shift-id-1';
   activeSession: ParkingSessionEntity | null = null;
   plan: MonthlyPlanEntity | null = null;
-  insertResult = right<ParkingSessionEntity, never>(makeSession());
+  insertResult: ReturnType<ParkingRepository['registerEntry']> = Promise.resolve(right(makeSession()));
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getOpenCashierShiftId(_userId: string) {
     return Promise.resolve(right(this.shiftId));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getActiveSessionByPlate(_plate: string) {
     return Promise.resolve(right(this.activeSession));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getActivePlanByPlate(_plate: string) {
     return Promise.resolve(right(this.plan));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async registerEntry(_params: unknown) {
     return Promise.resolve(this.insertResult);
   }
@@ -97,6 +93,14 @@ class MockParkingRepository extends ParkingRepository {
 
   async searchVehicleByPlate() {
     return Promise.resolve(right({ vehicle: null, activeSessions: [], lastSessions: [], monthlyPlan: null }));
+  }
+
+  async registerExit(_params: unknown) {
+    return Promise.resolve(right({ session: makeSession(), payment: null as never }));
+  }
+
+  async getActiveTariff(_vehicleType: unknown) {
+    return Promise.resolve(right(null as never));
   }
 }
 

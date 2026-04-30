@@ -15,6 +15,9 @@ export class TariffEntity extends BaseEntity {
     public readonly graceMinutes: number,
     public readonly dailyCapCents: number,
     public readonly isActive: boolean,
+    public readonly scheduleJson: Record<string, string> = { todos: '00:00-23:59' },
+    public readonly validFrom: Date | null = null,
+    public readonly validTo: Date | null = null,
   ) {
     super(id, createdAt, updatedAt);
   }

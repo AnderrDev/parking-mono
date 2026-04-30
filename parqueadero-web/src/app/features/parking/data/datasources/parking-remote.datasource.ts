@@ -1,18 +1,24 @@
 import { Injectable } from '@angular/core';
 import { Either, left, right } from '../../../../core/either/either';
-import { Failure, NetworkFailure, ServerFailure } from '../../../../core/either/failures';
+import { Failure, NetworkFailure, NotFoundFailure, ServerFailure } from '../../../../core/either/failures';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
-import { ParkingSessionEntity } from '../../domain/entities/parking-session.entity';
+import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
+import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { FREE_PAYMENT_METHODS } from '../../domain/entities/payment.entity';
 import {
   RegisterEntryParams,
+  RegisterExitParams,
+  RegisterExitResult,
   ActiveSessionsFilter,
   ActiveSessionsSort,
 } from '../../domain/repositories/parking.repository';
 import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-session.model';
 import { VehicleMapper, VehicleModel } from '../models/vehicle.model';
 import { MonthlyPlanMapper, MonthlyPlanModel } from '../models/monthly-plan.model';
+import { TariffMapper, TariffModel } from '../models/tariff.model';
+import { PaymentMapper, PaymentModel } from '../models/payment.model';
 import {
   ParkingDataSource,
   ActiveSessionsPage,
@@ -196,6 +202,75 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
       if (error) return left(new ServerFailure(error.message));
       return right(data ? MonthlyPlanMapper.toEntity(data) : null);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async closeSession(params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>> {
+    try {
+      // 1. Update session to completed
+      const { data: sessionData, error: sessionError } = await this.supabase.client
+        .from('parking_sessions')
+        .update({
+          exit_at: params.exitAt.toISOString(),
+          status: 'completed',
+          amount_due_cents: params.amountCents,
+          exit_user_id: params.userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', params.sessionId)
+        .select()
+        .single<ParkingSessionModel>();
+
+      if (sessionError) return left(new ServerFailure(sessionError.message));
+      if (!sessionData) return left(new ServerFailure('No se recibió datos de la sesión actualizada'));
+
+      // 2. Insert payment record
+      const paymentStatus = FREE_PAYMENT_METHODS.includes(params.paymentMethod) ? 'completed' : 'pending';
+      const { data: paymentData, error: paymentError } = await this.supabase.client
+        .from('payments')
+        .insert({
+          session_id: params.sessionId,
+          cashier_shift_id: params.cashierShiftId,
+          method: params.paymentMethod,
+          amount_cents: params.amountCents,
+          status: paymentStatus,
+          paid_at: new Date().toISOString(),
+          justification: params.justification,
+          invoice_id: null,
+        })
+        .select()
+        .single<PaymentModel>();
+
+      if (paymentError) return left(new ServerFailure(paymentError.message));
+      if (!paymentData) return left(new ServerFailure('No se recibió datos del pago registrado'));
+
+      return right({
+        session: ParkingSessionMapper.toEntity(sessionData),
+        payment: PaymentMapper.toEntity(paymentData),
+      });
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('tariffs')
+        .select()
+        .eq('vehicle_type', vehicleType)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle<TariffModel>();
+
+      if (error) return left(new ServerFailure(error.message));
+      if (!data) {
+        return left(new NotFoundFailure(`No hay tarifa activa para tipo de vehículo: ${vehicleType}`, 'tariff'));
+      }
+
+      return right(TariffMapper.toEntity(data));
     } catch {
       return left(new NetworkFailure());
     }

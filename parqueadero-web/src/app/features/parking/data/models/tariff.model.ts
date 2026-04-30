@@ -9,7 +9,11 @@ export interface TariffModel {
   value_cents: number;
   grace_minutes: number;
   daily_cap_cents: number;
+  schedule_json: Record<string, string>;
+  valid_from: string | null;
+  valid_to: string | null;
   is_active: boolean;
+  _deleted: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +31,9 @@ export class TariffMapper {
       m.grace_minutes,
       m.daily_cap_cents,
       m.is_active,
+      m.schedule_json ?? { todos: '00:00-23:59' },
+      m.valid_from ? new Date(m.valid_from) : null,
+      m.valid_to ? new Date(m.valid_to) : null,
     );
   }
 }

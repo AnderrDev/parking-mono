@@ -7,8 +7,8 @@ export class AuthForms {
 
   createLoginForm(): FormGroup {
     return this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      email: ['admin@parqueadero.local', [Validators.required, Validators.email]],
+      password: ['admin12345', [Validators.required, Validators.minLength(6)]],
     });
   }
 }

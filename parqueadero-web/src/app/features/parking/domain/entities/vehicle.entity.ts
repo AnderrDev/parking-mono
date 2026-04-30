@@ -10,6 +10,8 @@ export class VehicleEntity extends BaseEntity {
     public readonly vehicleType: VehicleType,
     public readonly color: string | null,
     public readonly brand: string | null,
+    public readonly ownerCustomerId: string | null = null,
+    public readonly isDeleted = false,
   ) {
     super(id, createdAt, updatedAt);
   }

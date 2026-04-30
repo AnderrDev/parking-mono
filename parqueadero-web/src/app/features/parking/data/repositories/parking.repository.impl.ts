@@ -6,11 +6,14 @@ import {
 } from '../../../../core/di/injection-tokens';
 import { NetworkInfoService } from '../../../../core/services/network-info.service';
 import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
-import { ParkingSessionEntity } from '../../domain/entities/parking-session.entity';
+import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
+import { TariffEntity } from '../../domain/entities/tariff.entity';
 import {
   ParkingRepository,
   RegisterEntryParams,
+  RegisterExitParams,
+  RegisterExitResult,
   ActiveSessionsFilter,
   ActiveSessionsSort,
   ActiveSessionsResult,
@@ -62,5 +65,13 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
   async getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {
     return this.remoteDs.getActivePlanByPlate(plate);
+  }
+
+  async registerExit(params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>> {
+    return this.remoteDs.closeSession(params);
+  }
+
+  async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
+    return this.remoteDs.getActiveTariff(vehicleType);
   }
 }

@@ -20,19 +20,18 @@ const mockUser = new UserEntity(
 );
 
 class MockAuthRepository extends AuthRepository {
-  loginResult = right<UserEntity, never>(mockUser) as ReturnType<AuthRepository['login']>;
+  loginResult: ReturnType<AuthRepository['login']> = Promise.resolve(right(mockUser));
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async login(_email: string, _password: string) {
     return this.loginResult;
   }
 
   async logout() {
-    return right<void, never>(undefined) as ReturnType<AuthRepository['logout']>;
+    return Promise.resolve(right<void, never>(undefined));
   }
 
   async getCurrentUser() {
-    return right<UserEntity | null, never>(null) as ReturnType<AuthRepository['getCurrentUser']>;
+    return Promise.resolve(right<UserEntity | null, never>(null));
   }
 }
 

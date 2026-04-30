@@ -1,10 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Either, left } from '../../../../core/either/either';
 import { Failure, CacheFailure } from '../../../../core/either/failures';
-import { ParkingSessionEntity } from '../../domain/entities/parking-session.entity';
+import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
+import { TariffEntity } from '../../domain/entities/tariff.entity';
 import {
   RegisterEntryParams,
+  RegisterExitParams,
+  RegisterExitResult,
   ActiveSessionsFilter,
   ActiveSessionsSort,
 } from '../../domain/repositories/parking.repository';
@@ -24,39 +27,39 @@ export class ParkingLocalDataSource extends ParkingDataSource {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   insertSession(_params: RegisterEntryParams): Promise<Either<Failure, ParkingSessionEntity>> {
     return this.notImplemented();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getActiveSessionByPlate(_plate: string): Promise<Either<Failure, ParkingSessionEntity | null>> {
     return this.notImplemented();
   }
 
   getActiveSessions(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _filter: ActiveSessionsFilter,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _pagination: { page: number; pageSize: number },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _sort: ActiveSessionsSort,
   ): Promise<Either<Failure, ActiveSessionsPage>> {
     return this.notImplemented();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   searchVehicle(_plate: string): Promise<Either<Failure, VehicleSearchData>> {
     return this.notImplemented();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getOpenCashierShiftId(_userId: string): Promise<Either<Failure, string | null>> {
     return this.notImplemented();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getActivePlanByPlate(_plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {
+    return this.notImplemented();
+  }
+
+  closeSession(_params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>> {
+    return this.notImplemented();
+  }
+
+  getActiveTariff(_vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
     return this.notImplemented();
   }
 }

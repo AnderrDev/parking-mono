@@ -14,7 +14,6 @@ export class RestoreSessionUseCase extends UseCase<NoParams, UserEntity | null> 
     super();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async execute(_params: NoParams): Promise<Either<Failure, UserEntity | null>> {
     return this.authRepository.getCurrentUser();
   }

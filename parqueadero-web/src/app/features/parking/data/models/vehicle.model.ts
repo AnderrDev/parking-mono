@@ -7,8 +7,10 @@ export interface VehicleModel {
   vehicle_type: string;
   color: string | null;
   brand: string | null;
+  owner_customer_id: string | null;
   created_at: string;
   updated_at: string;
+  _deleted: boolean;
 }
 
 export class VehicleMapper {
@@ -21,6 +23,8 @@ export class VehicleMapper {
       m.vehicle_type as VehicleType,
       m.color,
       m.brand,
+      m.owner_customer_id ?? null,
+      m._deleted ?? false,
     );
   }
 }

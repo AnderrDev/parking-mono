@@ -8,8 +8,12 @@ export interface MonthlyPlanModel {
   start_date: string;
   end_date: string;
   plan_type: string;
+  amount_cents: number;
+  auto_renew: boolean;
+  payment_token_id: string | null;
   created_at: string;
   updated_at: string;
+  _deleted: boolean;
 }
 
 export class MonthlyPlanMapper {
@@ -24,6 +28,10 @@ export class MonthlyPlanMapper {
       new Date(m.start_date),
       new Date(m.end_date),
       m.plan_type,
+      m.amount_cents ?? 0,
+      m.auto_renew ?? false,
+      m.payment_token_id ?? null,
+      m._deleted ?? false,
     );
   }
 }

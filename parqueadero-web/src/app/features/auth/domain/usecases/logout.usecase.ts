@@ -13,7 +13,6 @@ export class LogoutUseCase extends UseCase<NoParams, void> {
     super();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async execute(_params: NoParams): Promise<Either<Failure, void>> {
     return this.authRepository.logout();
   }

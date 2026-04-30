@@ -7,11 +7,8 @@ export class Left<L, R> {
   isLeft(): this is Left<L, R> { return true; }
   isRight(): this is Right<L, R> { return false; }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   map<B>(_f: (r: R) => B): Either<L, B> { return this as unknown as Left<L, B>; }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   flatMap<B>(_f: (r: R) => Either<L, B>): Either<L, B> { return this as unknown as Left<L, B>; }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fold<T>(onLeft: (l: L) => T, _onRight: (r: R) => T): T { return onLeft(this.value); }
   getOrElse(defaultValue: R): R { return defaultValue; }
 }
@@ -26,7 +23,7 @@ export class Right<L, R> {
   map<B>(f: (r: R) => B): Either<L, B> { return new Right<L, B>(f(this.value)); }
   flatMap<B>(f: (r: R) => Either<L, B>): Either<L, B> { return f(this.value); }
   fold<U>(_onLeft: (l: L) => U, onRight: (r: R) => U): U { return onRight(this.value); }
-  getOrElse(_defaultValue: R): R { return this.value; } // eslint-disable-line @typescript-eslint/no-unused-vars
+  getOrElse(_defaultValue: R): R { return this.value; }
 }
 
 export function left<L, R = never>(value: L): Either<L, R> {

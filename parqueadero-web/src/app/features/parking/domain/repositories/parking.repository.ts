@@ -4,6 +4,8 @@ import { PaginationMeta as Pagination } from '../../../../shared/models/paginati
 import { ParkingSessionEntity, VehicleType } from '../entities/parking-session.entity';
 import { VehicleEntity } from '../entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
+import { PaymentEntity, PaymentMethod } from '../entities/payment.entity';
+import { TariffEntity } from '../entities/tariff.entity';
 
 export interface RegisterEntryParams {
   plate: string;
@@ -37,6 +39,22 @@ export interface VehicleSearchResult {
   monthlyPlan: MonthlyPlanEntity | null;
 }
 
+export interface RegisterExitParams {
+  sessionId: string;
+  plate: string;
+  exitAt: Date;
+  amountCents: number;
+  paymentMethod: PaymentMethod;
+  justification: string | null;
+  cashierShiftId: string;
+  userId: string;
+}
+
+export interface RegisterExitResult {
+  session: ParkingSessionEntity;
+  payment: PaymentEntity;
+}
+
 export abstract class ParkingRepository {
   abstract registerEntry(
     params: RegisterEntryParams,
@@ -63,4 +81,12 @@ export abstract class ParkingRepository {
   abstract getActivePlanByPlate(
     plate: string,
   ): Promise<Either<Failure, MonthlyPlanEntity | null>>;
+
+  abstract registerExit(
+    params: RegisterExitParams,
+  ): Promise<Either<Failure, RegisterExitResult>>;
+
+  abstract getActiveTariff(
+    vehicleType: VehicleType,
+  ): Promise<Either<Failure, TariffEntity>>;
 }

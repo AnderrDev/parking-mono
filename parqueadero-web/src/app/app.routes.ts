@@ -56,5 +56,18 @@ export const routes: Routes = [
       import('./features/reports/reports.routes').then((m) => m.reportsRoutes),
   },
 
+  {
+    path: 'tariffs',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./features/tariffs/tariffs.routes').then((m) => m.tariffsRoutes),
+  },
+  {
+    path: 'vehicles',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./features/vehicles/vehicles.routes').then((m) => m.vehiclesRoutes),
+  },
+
   { path: '**', redirectTo: '/parking' },
 ];

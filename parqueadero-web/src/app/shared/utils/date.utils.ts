@@ -24,8 +24,8 @@ export function formatDateBogota(date: Date, pattern = 'dd/MM/yyyy'): string {
   return format(toBogota(date), pattern, { locale: es });
 }
 
-export function isSameDayBogota(a: Date, b: Date): boolean {
-  return isSameDay(toBogota(a), toBogota(b));
+export function isSameDayBogota(a: Date | string, b: Date | string): boolean {
+  return isSameDay(toBogota(new Date(a)), toBogota(new Date(b)));
 }
 
 export function nowBogota(): Date {
@@ -34,4 +34,18 @@ export function nowBogota(): Date {
 
 export function minutesBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / 60_000);
+}
+
+export function durationMinutes(from: Date | string, to: Date | string): number {
+  const diff = new Date(to).getTime() - new Date(from).getTime();
+  return Math.max(0, Math.floor(diff / 60_000));
+}
+
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} m`;
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days > 0) return hours > 0 ? `${days} d ${hours} h` : `${days} d`;
+  return mins > 0 ? `${hours} h ${mins} m` : `${hours} h`;
 }
