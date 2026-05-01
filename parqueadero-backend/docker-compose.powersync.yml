@@ -1,0 +1,26 @@
+# Docker Compose para levantar PowerSync Service en desarrollo local.
+#
+# Pre-requisitos:
+#   1. Supabase CLI corriendo:  supabase start
+#   2. Docker Desktop activo
+#
+# Levantar:
+#   docker compose -f docker-compose.powersync.yml up
+#
+# El servicio queda disponible en http://localhost:8080
+# Configura POWERSYNC_URL=http://localhost:8080 en environment.ts
+
+services:
+  powersync:
+    image: journeyapps/powersync-service:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./powersync.yaml:/app/config/powersync.yaml:ro
+      - ./sync-rules.yaml:/app/config/sync-rules.yaml:ro
+    environment:
+      POWERSYNC_CONFIG_PATH: /app/config/powersync.yaml
+    extra_hosts:
+      # Permite al contenedor acceder a localhost del host (Supabase CLI)
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

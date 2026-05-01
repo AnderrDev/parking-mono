@@ -1,0 +1,58 @@
+# PowerSync sync rules — parqueadero
+# Referencia: https://docs.powersync.com/usage/sync-rules
+#
+# Cada bucket_definition define qué filas bajan al cliente.
+# Las queries corren sobre PostgreSQL (Supabase); los parámetros vienen del JWT.
+# token_parameters.sub = UUID del usuario autenticado (auth.uid() equivalente)
+
+bucket_definitions:
+
+  # ── Catálogos globales ─────────────────────────────────────────────────────
+  # Todos los usuarios autenticados los necesitan para operar offline.
+
+  tariffs_global:
+    data:
+      - SELECT * FROM tariffs
+
+  customers_global:
+    data:
+      - SELECT * FROM customers
+
+  vehicles_global:
+    data:
+      - SELECT * FROM vehicles
+
+  # ── Planes mensuales activos + vencidos recientes ─────────────────────────
+  # Se necesitan para validar entrada gratuita y mostrar alertas de vencimiento.
+  monthly_plans_active:
+    data:
+      - >
+        SELECT * FROM monthly_plans
+        WHERE status IN ('active', 'expiring')
+           OR (status = 'expired' AND updated_at >= now() - interval '30 days')
+           OR (status = 'cancelled' AND updated_at >= now() - interval '7 days')
+
+  # ── Sesiones de parqueo ────────────────────────────────────────────────────
+  # Todas las activas + las completadas de los últimos 7 días.
+  parking_sessions_recent:
+    data:
+      - >
+        SELECT * FROM parking_sessions
+        WHERE status = 'active'
+           OR entry_at >= now() - interval '7 days'
+
+  # ── Turno de caja y pagos por usuario ─────────────────────────────────────
+  # Cada operador solo baja sus propios turnos y los pagos asociados.
+  user_shift_data:
+    parameters:
+      - SELECT token_parameters.sub AS user_id
+    data:
+      - >
+        SELECT * FROM cashier_shifts
+        WHERE user_id = bucket.user_id
+
+      - >
+        SELECT p.* FROM payments p
+        JOIN cashier_shifts cs ON p.cashier_shift_id = cs.id
+        WHERE cs.user_id = bucket.user_id
+           OR p.paid_at >= now() - interval '7 days'

@@ -51,7 +51,7 @@ SELECT
   ps.exit_at,
   EXTRACT(EPOCH FROM (ps.exit_at - ps.entry_at)) / 60                     AS duration_minutes,
   DATE(ps.entry_at AT TIME ZONE 'America/Bogota')                          AS day,
-  ps.cashier_shift_id,
+  p.cashier_shift_id,
   cs.user_id                                                               AS operator_id,
   u.nombre                                                                 AS operator_name,
   COALESCE(p.amount_cents, 0)                                              AS amount_cents,
@@ -61,11 +61,11 @@ SELECT
   )                                                                        AS revenue_cents,
   p.method                                                                 AS payment_method
 FROM parking_sessions ps
-JOIN cashier_shifts cs ON ps.cashier_shift_id = cs.id
-JOIN users u           ON cs.user_id = u.id
-LEFT JOIN payments p   ON p.session_id = ps.id
-                      AND p.status = 'completed'
-                      AND p._deleted = FALSE
+LEFT JOIN payments p        ON p.session_id = ps.id
+                           AND p.status = 'completed'
+                           AND p._deleted = FALSE
+LEFT JOIN cashier_shifts cs ON p.cashier_shift_id = cs.id
+LEFT JOIN users u           ON cs.user_id = u.id
 WHERE ps._deleted = FALSE
   AND ps.status  = 'completed';
 
@@ -91,10 +91,10 @@ SELECT
   )                                                                              AS revenue_cents
 FROM cashier_shifts cs
 JOIN users u ON cs.user_id = u.id
-LEFT JOIN parking_sessions ps ON ps.cashier_shift_id = cs.id AND ps._deleted = FALSE
 LEFT JOIN payments p          ON p.cashier_shift_id  = cs.id
                              AND p.status = 'completed'
                              AND p._deleted = FALSE
+LEFT JOIN parking_sessions ps ON ps.id = p.session_id AND ps._deleted = FALSE
 WHERE cs._deleted = FALSE
 GROUP BY
   cs.id, cs.user_id, u.nombre,

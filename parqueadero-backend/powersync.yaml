@@ -1,0 +1,29 @@
+# Configuración de PowerSync Service para desarrollo local.
+# Referencia: https://docs.powersync.com/self-hosting/configuration
+#
+# Uso:
+#   docker compose -f docker-compose.powersync.yml up
+#
+# PowerSync se conecta a la BD local de Supabase CLI (puerto 54322).
+# La clave JWT es la que usa Supabase CLI por defecto.
+
+# ── Autenticación de clientes ──────────────────────────────────────────────
+# PowerSync valida los JWT que emite Supabase para autenticar clientes.
+client_auth:
+  supabase_jwt_secret: "super-secret-jwt-token-with-at-least-32-characters-long"
+
+# ── Replicación desde PostgreSQL ───────────────────────────────────────────
+replication:
+  connections:
+    - type: postgresql
+      # host.docker.internal resuelve a la máquina host desde dentro del contenedor.
+      # Supabase CLI expone PostgreSQL en el puerto 54322 del host.
+      uri: "postgresql://postgres:postgres@host.docker.internal:54322/postgres"
+
+# ── Reglas de sincronización ───────────────────────────────────────────────
+sync_rules:
+  path: "./sync-rules.yaml"
+
+# ── API ────────────────────────────────────────────────────────────────────
+api:
+  port: 8080
