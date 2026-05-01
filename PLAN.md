@@ -31,7 +31,7 @@ Ver `CLAUDE.md` raíz — protocolo lazy, reglas absolutas y skills disponibles 
 
 **Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ✅ Fase 3 cerrada — siguiente: ⏳ Fase 4 (Parking: entrada/salida/cobro).
+**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync).
 
 ---
 
@@ -509,20 +509,22 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 
 ## Estado actual
 
-- [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28, commit `5fd559b`)*
-- [x] **Fase 1** — Backend foundation *(cerrada 2026-04-28, commit `434a354`)*
-- [x] **Fase 2** — Core Angular + design system *(cerrada 2026-04-29, commit `88d1afb`)*
-- [ ] **Fase 3** — Auth
-- [ ] **Fase 4** — Parking
-- [ ] **Fase 5** — Catálogos
-- [ ] **Fase 6** — Cierre de caja
-- [ ] **Fase 7** — Reportes
-- [ ] **Fase 8** — Offline hardening
-- [ ] **Fase 9** — Invoicing + DIAN stub
+- [x] **Fase 0** — Bootstrap *(cerrada 2026-04-28)*
+- [x] **Fase 1** — Backend foundation *(cerrada 2026-04-28)*
+- [x] **Fase 2** — Core Angular + design system *(cerrada 2026-04-29)*
+- [x] **Fase 3** — Auth *(cerrada 2026-04-29)*
+- [x] **Fase 4** — Parking (entrada/salida/mensualidades) *(cerrada 2026-04-29)*
+- [x] **Fase 5** — Catálogos (tarifas, vehículos, clientes, planes) *(cerrada 2026-04-29)*
+- [x] **Fase 6** — Cierre de caja & payments *(cerrada 2026-04-29)*
+- [x] **Fase 7** — Reportes *(cerrada 2026-04-29)*
+- [ ] **Fase 8** — Offline hardening (PowerSync) — ⏳ siguiente
+- [x] **Fase 9** — Invoicing + DIAN stub *(cerrada 2026-04-29)*
 - [ ] **Fase 10** — QA + deploy
 
-**Fase actual:** ✅ Fase 2 cerrada — siguiente: ⏳ Fase 3 (Auth: JWT hook backend + login web).
+**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync).
 
 **Próxima acción del agente:**
-1. Crear specs `parqueadero-web/specs/features/auth/{login,logout,restore-session}.spec.md` y CONFIRMAR con el usuario antes de codear.
-2. Skills: `supabase-expert` (JWT hook) + `angular-architect` (feature auth).
+1. Leer `parqueadero-web/specs/infrastructure/offline-sync.spec.md` y actualizar con política de conflictos.
+2. Configurar PowerSync schema + sync rules en `parqueadero-backend/`.
+3. Reescribir todos los `*-local.datasource.ts` con queries SQLite reales (reemplazar `CacheFailure` stubs).
+4. Skill clave: `angular-architect`, `frontend-quality`.
