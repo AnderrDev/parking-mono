@@ -1,0 +1,147 @@
+<div class="page">
+  <header class="page__header">
+    <h1 class="page__title">Configuración del sistema</h1>
+    <p class="page__subtitle">Solo administradores. Cambios quedan en auditoría.</p>
+  </header>
+
+  <nav class="tabs">
+    <button [class.active]="tab() === 'parking'" (click)="setTab('parking')">Datos del parqueadero</button>
+    <button [class.active]="tab() === 'invoicing'" (click)="setTab('invoicing')">Facturación DIAN</button>
+    <button [class.active]="tab() === 'operational'" (click)="setTab('operational')">Parámetros operativos</button>
+  </nav>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando configuración…</p>
+  } @else {
+    @switch (tab()) {
+      @case ('parking') {
+        <form class="card" [formGroup]="parkingForm" (ngSubmit)="saveParking()">
+          <h2>Datos generales</h2>
+          <div class="grid">
+            <label class="field">
+              <span>Razón social *</span>
+              <input type="text" formControlName="name" />
+            </label>
+            <label class="field">
+              <span>NIT</span>
+              <input type="text" formControlName="nit" />
+            </label>
+            <label class="field">
+              <span>DV</span>
+              <input type="text" formControlName="dv" maxlength="1" />
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input type="email" formControlName="email" />
+            </label>
+            <label class="field">
+              <span>Teléfono</span>
+              <input type="tel" formControlName="phone" />
+            </label>
+            <label class="field field--full">
+              <span>Dirección</span>
+              <input type="text" formControlName="address" />
+            </label>
+            <label class="field">
+              <span>Municipio</span>
+              <input type="text" formControlName="municipio" />
+            </label>
+            <label class="field">
+              <span>Departamento</span>
+              <input type="text" formControlName="departamento" />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn--primary" [disabled]="parkingForm.invalid || saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </form>
+      }
+
+      @case ('invoicing') {
+        <form class="card" [formGroup]="invoicingForm" (ngSubmit)="saveInvoicing()">
+          <h2>Facturación electrónica DIAN</h2>
+          <p class="warn">
+            Estos datos se usan para emitir facturas electrónicas. Verifica con tu contador antes de cambiar.
+          </p>
+          <div class="grid">
+            <label class="field">
+              <span>Prefijo *</span>
+              <input type="text" formControlName="prefix" />
+            </label>
+            <label class="field">
+              <span>Prefijo contingencia</span>
+              <input type="text" formControlName="contingency_prefix" />
+            </label>
+            <label class="field field--full">
+              <span>Resolución DIAN</span>
+              <input type="text" formControlName="resolution" />
+            </label>
+            <label class="field field--full">
+              <span>Clave técnica (cifrada)</span>
+              <input type="password" formControlName="technical_key" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Software ID</span>
+              <input type="text" formControlName="software_id" />
+            </label>
+            <label class="field">
+              <span>Software PIN (cifrado)</span>
+              <input type="password" formControlName="software_pin" autocomplete="off" />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn--primary" [disabled]="invoicingForm.invalid || saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </form>
+      }
+
+      @case ('operational') {
+        <form class="card" [formGroup]="operationalForm" (ngSubmit)="saveOperational()">
+          <h2>Parámetros operativos</h2>
+          <div class="grid">
+            <label class="field">
+              <span>Tope de efectivo en caja (centavos)</span>
+              <input type="number" formControlName="cash_cap_cents" min="0" step="100" />
+            </label>
+            <label class="field">
+              <span>Días de gracia mensualidad</span>
+              <input type="number" formControlName="monthly_grace_days" min="0" max="30" />
+            </label>
+            <label class="field">
+              <span>Máximo cortesías por turno</span>
+              <input type="number" formControlName="max_courtesies_per_shift" min="0" />
+            </label>
+            <label class="field">
+              <span>Email del admin (alertas)</span>
+              <input type="email" formControlName="admin_email" />
+            </label>
+            <fieldset class="field field--full">
+              <legend>Métodos de pago habilitados</legend>
+              <div class="payment-methods">
+                @for (m of paymentMethods; track m) {
+                  <label class="checkbox">
+                    <input
+                      type="checkbox"
+                      [checked]="isMethodEnabled(m)"
+                      (change)="toggleMethod(m, $any($event.target).checked)"
+                    />
+                    <span>{{ m }}</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn--primary" [disabled]="operationalForm.invalid || saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </form>
+      }
+    }
+  }
+</div>

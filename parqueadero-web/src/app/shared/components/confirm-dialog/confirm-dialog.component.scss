@@ -1,0 +1,112 @@
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: min(440px, 92vw);
+  box-shadow: var(--shadow-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: scale-in 200ms var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+.dialog__icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.dialog--danger .dialog__icon {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.dialog--warning .dialog__icon {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong);
+}
+
+.dialog__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-strong);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.dialog__message {
+  font-size: var(--text-md);
+  color: var(--color-text-muted);
+  line-height: var(--line-height-normal);
+  margin: 0;
+}
+
+.dialog__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.dialog__btn {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-sm);
+  min-height: var(--touch-target-min);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &:active { transform: scale(0.98); }
+}
+
+.dialog__btn--cancel {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+
+  &:hover { background: var(--color-bg-subtle); }
+}
+
+.dialog__btn--primary {
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+
+  &:hover { background: var(--color-primary-hover); }
+}
+
+.dialog__btn--danger {
+  background: var(--color-danger);
+  color: var(--color-danger-fg);
+
+  &:hover { background: var(--color-danger-strong); }
+  &:focus-visible { outline-color: var(--color-danger); }
+}
+
+.dialog__btn--warning {
+  background: var(--color-warning);
+  color: var(--color-warning-fg);
+
+  &:hover { background: var(--color-warning-strong); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}

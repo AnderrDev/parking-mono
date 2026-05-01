@@ -1,0 +1,123 @@
+<form
+  class="entry-form"
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()"
+  novalidate
+>
+  @if (monthlyPlanWarning()) {
+    <div class="plan-badge" role="status">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="m9 16 2 2 4-4"/>
+      </svg>
+      {{ monthlyPlanWarning() }}
+    </div>
+  }
+
+  <!-- Placa: campo prominente -->
+  <div class="field field--plate">
+    <label class="field__label" for="plate">Placa</label>
+    <input
+      id="plate"
+      class="field__input field__input--plate"
+      [class.field__input--error]="showError('plate')"
+      type="text"
+      formControlName="plate"
+      placeholder="ABC123"
+      autocomplete="off"
+      inputmode="text"
+      maxlength="7"
+      autocapitalize="characters"
+      spellcheck="false"
+      [attr.aria-describedby]="showError('plate') ? 'plate-error' : null"
+      [attr.aria-invalid]="showError('plate') ? 'true' : null"
+    />
+    @if (showError('plate')) {
+      <span id="plate-error" class="field__error" role="alert">
+        {{ getFieldError('plate') }}
+      </span>
+    }
+  </div>
+
+  <!-- Tipo de vehículo: chips -->
+  <div class="field">
+    <span class="field__label">Tipo de vehículo</span>
+    <div class="vehicle-types" role="radiogroup" aria-label="Tipo de vehículo">
+      @for (opt of vehicleTypeOptions; track opt.value) {
+        <label
+          class="chip"
+          [class.chip--selected]="form.value.vehicleType === opt.value"
+        >
+          <input
+            type="radio"
+            formControlName="vehicleType"
+            [value]="opt.value"
+            class="sr-only"
+          />
+          <svg class="chip__icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path [attr.d]="opt.icon"/>
+          </svg>
+          <span class="chip__label">{{ opt.label }}</span>
+        </label>
+      }
+    </div>
+  </div>
+
+  <!-- Datos opcionales -->
+  <div class="optional-grid">
+    <div class="field">
+      <label class="field__label" for="color">
+        Color
+        <span class="field__optional">opcional</span>
+      </label>
+      <input
+        id="color"
+        class="field__input"
+        type="text"
+        formControlName="color"
+        placeholder="Ej: blanco"
+        autocomplete="off"
+        maxlength="50"
+      />
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="brand">
+        Marca
+        <span class="field__optional">opcional</span>
+      </label>
+      <input
+        id="brand"
+        class="field__input"
+        type="text"
+        formControlName="brand"
+        placeholder="Ej: Toyota"
+        autocomplete="off"
+        maxlength="50"
+      />
+    </div>
+  </div>
+
+  <button
+    class="submit-btn"
+    type="submit"
+    [disabled]="loading()"
+  >
+    @if (loading()) {
+      <app-loading-spinner label="Registrando entrada..." variant="inverse" />
+      <span>Registrando…</span>
+    } @else {
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+      <span>Registrar entrada</span>
+    }
+  </button>
+</form>

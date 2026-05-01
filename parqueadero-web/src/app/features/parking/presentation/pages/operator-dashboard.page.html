@@ -1,0 +1,244 @@
+<div class="dashboard">
+  <header class="dashboard__top">
+    <div class="dashboard__greeting">
+      <span class="dashboard__eyebrow">{{ todayLabel() }}</span>
+      <h1 class="dashboard__title">
+        Buen turno{{ authState.currentUser() ? ', ' + authState.currentUser()!.nombre : '' }}
+      </h1>
+      <p class="dashboard__subtitle">Registra entradas y salidas de vehículos en tiempo real.</p>
+    </div>
+
+    <div class="metrics" role="group" aria-label="Métricas en vivo">
+      <div class="metric">
+        <span class="metric__icon metric__icon--primary" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 17V7h4a3 3 0 0 1 0 6h-4"/>
+          </svg>
+        </span>
+        <div class="metric__body">
+          <span class="metric__value">{{ activeSessions().length }}</span>
+          <span class="metric__label">En el parqueadero</span>
+        </div>
+      </div>
+
+      <div class="metric">
+        <span class="metric__icon metric__icon--monthly" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </span>
+        <div class="metric__body">
+          <span class="metric__value">{{ monthlyCount() }}</span>
+          <span class="metric__label">Plan mensual</span>
+        </div>
+      </div>
+
+      <div class="metric metric--clock">
+        <span class="metric__icon metric__icon--accent" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <div class="metric__body">
+          <span class="metric__value mono">{{ clockNow() }}</span>
+          <span class="metric__label">Hora local</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HU-014: buscador de vehículo por placa -->
+  <section class="search-bar" aria-labelledby="search-heading">
+    <div class="search-bar__head">
+      <h2 id="search-heading" class="search-bar__title">Buscar vehículo</h2>
+      <p class="search-bar__subtitle">Consulta el estado de un vehículo por su placa.</p>
+    </div>
+    <div class="search-bar__input-wrap">
+      <svg class="search-bar__icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="search"
+        class="search-bar__input"
+        [value]="plateSearchQuery()"
+        (input)="onPlateSearch($event)"
+        placeholder="Mínimo 3 caracteres (ej: ABC123)"
+        autocomplete="off"
+        autocapitalize="characters"
+        aria-label="Buscar vehículo por placa"
+      />
+      @if (plateSearchQuery().length > 0) {
+        <button type="button" class="search-bar__clear" (click)="clearPlateSearch()" aria-label="Limpiar búsqueda">×</button>
+      }
+    </div>
+
+    @if (plateSearchLoading()) {
+      <p class="search-bar__hint">Buscando…</p>
+    } @else if (plateSearchResult()) {
+      @let r = plateSearchResult()!;
+      @let matchedPlate = r.vehicle?.plate ?? r.activeSessions[0]?.vehiclePlate ?? r.lastSessions[0]?.vehiclePlate ?? null;
+      @if (matchedPlate) {
+        <div class="search-result">
+          <div class="search-result__plate-row">
+            <span class="search-result__plate mono">{{ matchedPlate }}</span>
+            @if (r.activeSessions.length > 0) {
+              <span class="search-result__status search-result__status--in">Dentro</span>
+            } @else {
+              <span class="search-result__status search-result__status--out">Fuera</span>
+            }
+            @if (r.monthlyPlan) {
+              <span class="search-result__badge">Mensual</span>
+            }
+          </div>
+
+          @if (r.activeSessions.length > 0) {
+            @let active = r.activeSessions[0]!;
+            <div class="search-result__row">
+              <span class="search-result__label">Entró:</span>
+              <span class="search-result__value">{{ formatTimeShort(active.entryAt) }} · {{ formatDuration(active.durationMinutes) }}</span>
+            </div>
+            <button type="button" class="exit-btn" (click)="openExitDialog(active)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+              </svg>
+              Registrar salida
+            </button>
+          } @else if (r.lastSessions.length > 0) {
+            @let last = r.lastSessions[0]!;
+            <div class="search-result__row">
+              <span class="search-result__label">Última visita:</span>
+              <span class="search-result__value">{{ formatDateShort(last.entryAt) }}</span>
+            </div>
+          } @else {
+            <p class="search-result__empty">Sin historial registrado para esta placa.</p>
+          }
+
+          @if (r.monthlyPlan) {
+            <div class="search-result__row">
+              <span class="search-result__label">Plan vence:</span>
+              <span class="search-result__value">{{ formatDateShort(r.monthlyPlan.endDate) }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="search-bar__hint">Sin coincidencias para "{{ plateSearchQuery().toUpperCase() }}".</p>
+      }
+    } @else if (plateSearchQuery().length >= 3 && plateSearchError()) {
+      <p class="search-bar__hint search-bar__hint--error">{{ plateSearchError() }}</p>
+    }
+  </section>
+
+  <div class="dashboard__layout">
+    <section class="panel panel--action" aria-labelledby="entry-heading">
+      <div class="panel__head">
+        <h2 id="entry-heading" class="panel__title">
+          <span class="panel__title-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </span>
+          Registrar entrada
+        </h2>
+        <p class="panel__subtitle">Captura placa, tipo de vehículo y datos opcionales.</p>
+      </div>
+      <app-vehicle-entry-form
+        #entryForm
+        [loading]="entryLoading()"
+        [monthlyPlanWarning]="monthlyPlanWarning()"
+        (submitted)="onEntrySubmit($event)"
+      />
+    </section>
+
+    <section class="panel" aria-labelledby="sessions-heading">
+      <div class="panel__head panel__head--row">
+        <div>
+          <h2 id="sessions-heading" class="panel__title">
+            <span class="panel__title-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 17h2v-3a4 4 0 0 0-2-3.45L17.5 7A4 4 0 0 0 14 5h-4a4 4 0 0 0-3.5 2L5 10.55A4 4 0 0 0 3 14v3h2"/>
+                <path d="M9 17h6"/>
+              </svg>
+            </span>
+            Vehículos en parqueadero
+          </h2>
+          <p class="panel__subtitle">Selecciona uno para registrar su salida.</p>
+        </div>
+        @if (activeSessions().length > 0) {
+          <span class="panel__count" aria-label="Total activos">
+            {{ activeSessions().length }}
+          </span>
+        }
+      </div>
+
+      @if (sessionsLoading()) {
+        <div class="state-block">
+          <app-loading-spinner label="Cargando sesiones activas..." [showLabel]="true" />
+        </div>
+      } @else if (activeSessions().length === 0) {
+        <div class="state-block state-block--empty">
+          <span class="empty-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M9 17V7h4a3 3 0 0 1 0 6h-4"/>
+            </svg>
+          </span>
+          <p class="state-block__title">Parqueadero vacío</p>
+          <p class="state-block__desc">No hay vehículos registrados. Las entradas que registres aparecerán aquí.</p>
+        </div>
+      } @else {
+        <ul class="sessions" role="list">
+          @for (session of activeSessions(); track session.id) {
+            <li class="session-card">
+              <div class="session-card__main">
+                <div class="session-card__head">
+                  <span class="session-card__plate mono">{{ session.vehiclePlate }}</span>
+                  @if (session.isMonthly) {
+                    <span class="session-card__badge">Mensual</span>
+                  }
+                </div>
+                <div class="session-card__meta">
+                  <span class="session-card__type">{{ vehicleLabel(session.vehicleType) }}</span>
+                  <span class="session-card__sep" aria-hidden="true">•</span>
+                  <span class="session-card__time">
+                    Entró {{ formatTimeShort(session.entryAt) }}
+                  </span>
+                  <span class="session-card__sep" aria-hidden="true">•</span>
+                  <span class="session-card__duration mono">
+                    {{ formatDuration(session.durationMinutes) }}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="exit-btn"
+                (click)="openExitDialog(session)"
+                [attr.aria-label]="'Registrar salida de ' + session.vehiclePlate"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+                </svg>
+                Salida
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>

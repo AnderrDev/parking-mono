@@ -1,0 +1,106 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Auditoría</h1>
+      <p class="page__subtitle">Bitácora inmutable de cambios sensibles del sistema.</p>
+    </div>
+  </header>
+
+  <form class="filters" [formGroup]="filterForm" (ngSubmit)="onApplyFilters()">
+    <label class="filter">
+      <span class="filter__label">Desde</span>
+      <input type="date" class="filter__input" formControlName="dateFrom" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Hasta</span>
+      <input type="date" class="filter__input" formControlName="dateTo" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Acción</span>
+      <select class="filter__input" formControlName="action">
+        @for (a of actions; track a) {
+          <option [value]="a">{{ a === '' ? 'Todas' : actionLabel($any(a)) }}</option>
+        }
+      </select>
+    </label>
+    <label class="filter">
+      <span class="filter__label">Entidad</span>
+      <select class="filter__input" formControlName="entityType">
+        @for (et of entityTypes; track et) {
+          <option [value]="et">{{ et === '' ? 'Todas' : et }}</option>
+        }
+      </select>
+    </label>
+    <button type="submit" class="btn btn--primary" [disabled]="loading()">Filtrar</button>
+  </form>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando…</p>
+  } @else if (entries().length === 0) {
+    <p class="state-msg state-msg--empty">Sin registros para los filtros aplicados.</p>
+  } @else {
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Acción</th>
+            <th>Entidad</th>
+            <th>ID entidad</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of entries(); track entry.id) {
+            <tr [class.row--update]="entry.action === 'UPDATE'"
+                [class.row--insert]="entry.action === 'INSERT'"
+                [class.row--delete]="entry.action === 'DELETE'">
+              <td>{{ entry.createdAt | date:'dd/MM/yy HH:mm:ss' }}</td>
+              <td>{{ entry.userName ?? entry.userId ?? 'sistema' }}</td>
+              <td>
+                <span class="action-badge"
+                  [class.action-badge--insert]="entry.action === 'INSERT'"
+                  [class.action-badge--update]="entry.action === 'UPDATE'"
+                  [class.action-badge--delete]="entry.action === 'DELETE'">
+                  {{ actionLabel(entry.action) }}
+                </span>
+              </td>
+              <td>{{ entry.entityType }}</td>
+              <td class="mono">{{ entry.entityId.slice(0, 8) }}…</td>
+              <td>
+                <button type="button" class="btn-link" (click)="toggleExpand(entry.id)">
+                  {{ expandedId() === entry.id ? 'Ocultar' : 'Ver' }}
+                </button>
+              </td>
+            </tr>
+            @if (expandedId() === entry.id) {
+              <tr class="row-detail">
+                <td colspan="6">
+                  <div class="diff">
+                    <div class="diff__col">
+                      <h3>Antes</h3>
+                      <pre>{{ jsonPreview(entry.beforeJson) }}</pre>
+                    </div>
+                    <div class="diff__col">
+                      <h3>Después</h3>
+                      <pre>{{ jsonPreview(entry.afterJson) }}</pre>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+
+      @if (pagination(); as p) {
+        <div class="pagination">
+          <button class="btn-link" (click)="onPage(-1)" [disabled]="p.page <= 1">Anterior</button>
+          <span>Página {{ p.page }} de {{ p.totalPages }} · {{ p.total }} registros</span>
+          <button class="btn-link" (click)="onPage(1)" [disabled]="p.page >= p.totalPages">Siguiente</button>
+        </div>
+      }
+    </section>
+  }
+</div>

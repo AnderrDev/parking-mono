@@ -16,6 +16,7 @@ export interface ReconcileResult {
   cashExpectedCents: number;
   cashCountedCents: number | null;
   differenceCents: number | null;
+  withdrawalsTotalCents: number;
 }
 
 const FREE_METHODS = ['cortesia', 'error', 'mensual'] as const;
@@ -70,7 +71,15 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       .filter((p) => p.method === 'efectivo')
       .reduce((acc, p) => acc + p.amountCents, 0);
 
-    const cashExpected = shift.openingBalanceCents + cashSum;
+    // HU-039: restar retiros parciales del efectivo esperado.
+    const withdrawalsResult = await this.cashierRepo.listWithdrawalsByShift(params.shiftId);
+    const withdrawals = withdrawalsResult.fold(
+      () => [],
+      (list) => list,
+    );
+    const withdrawalsTotal = withdrawals.reduce((acc, w) => acc + w.amountCents, 0);
+
+    const cashExpected = shift.openingBalanceCents + cashSum - withdrawalsTotal;
 
     const result: ReconcileResult = {
       shift,
@@ -80,6 +89,7 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       cashExpectedCents: cashExpected,
       cashCountedCents: shift.closingBalanceCents,
       differenceCents: shift.isOpen ? null : (shift.closingBalanceCents ?? 0) - cashExpected,
+      withdrawalsTotalCents: withdrawalsTotal,
     };
 
     return right(result);

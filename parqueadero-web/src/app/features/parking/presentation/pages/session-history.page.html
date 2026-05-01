@@ -1,0 +1,103 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Historial de sesiones</h1>
+      <p class="page__subtitle">Registro de entradas y salidas de vehículos. Anula sesiones erróneas.</p>
+    </div>
+  </header>
+
+  <form class="filters" [formGroup]="filterForm" (ngSubmit)="onApplyFilters()">
+    <label class="filter">
+      <span class="filter__label">Desde</span>
+      <input type="date" class="filter__input" formControlName="dateFrom" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Hasta</span>
+      <input type="date" class="filter__input" formControlName="dateTo" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Placa</span>
+      <input type="search" class="filter__input" formControlName="plate" placeholder="ABC123" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Tipo</span>
+      <select class="filter__input" formControlName="vehicleType">
+        <option value="">Todos</option>
+        <option value="carro">Carro</option>
+        <option value="moto">Moto</option>
+        <option value="bicicleta">Bicicleta</option>
+        <option value="otro">Otro</option>
+      </select>
+    </label>
+    <label class="filter">
+      <span class="filter__label">Estado</span>
+      <select class="filter__input" formControlName="status">
+        <option value="all">Todos</option>
+        <option value="active">Activa</option>
+        <option value="completed">Completada</option>
+        <option value="cancelled">Anulada</option>
+      </select>
+    </label>
+    <button type="submit" class="btn btn--primary" [disabled]="loading()">Filtrar</button>
+  </form>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando…</p>
+  } @else if (sessions().length === 0) {
+    <p class="state-msg state-msg--empty">Sin sesiones para los filtros aplicados.</p>
+  } @else {
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Placa</th>
+            <th>Tipo</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+            <th>Duración</th>
+            <th class="num">Cobro</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of sessions(); track s.id) {
+            <tr [class.row--cancelled]="s.status === 'cancelled'">
+              <td class="mono">{{ s.vehiclePlate }}</td>
+              <td>{{ vehicleLabel(s.vehicleType) }}</td>
+              <td>{{ s.entryAt | date:'dd/MM/yy HH:mm' }}</td>
+              <td>{{ s.exitAt ? (s.exitAt | date:'dd/MM/yy HH:mm') : '—' }}</td>
+              <td>{{ formatDuration(s) }}</td>
+              <td class="num">{{ s.amountDueCents !== null ? (s.amountDueCents | currencyCop) : '—' }}</td>
+              <td>
+                <span class="status-badge"
+                  [class.status-badge--active]="s.status === 'active'"
+                  [class.status-badge--completed]="s.status === 'completed'"
+                  [class.status-badge--cancelled]="s.status === 'cancelled'">
+                  {{ statusLabel(s.status) }}
+                </span>
+              </td>
+              <td>
+                @if (canCancel(s)) {
+                  <button type="button" class="btn-link btn-link--danger" (click)="confirmCancel(s)">
+                    Anular
+                  </button>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (pagination(); as p) {
+        <div class="pagination">
+          <button class="btn-link" (click)="onPage(-1)" [disabled]="p.page <= 1">Anterior</button>
+          <span>Página {{ p.page }} de {{ p.totalPages }} · {{ p.total }} sesiones</span>
+          <button class="btn-link" (click)="onPage(1)" [disabled]="p.page >= p.totalPages">Siguiente</button>
+        </div>
+      }
+    </section>
+  }
+</div>

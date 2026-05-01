@@ -33,6 +33,10 @@ class MockAuthRepository extends AuthRepository {
   async getCurrentUser() {
     return Promise.resolve(right<UserEntity | null, never>(null));
   }
+
+  async changePassword(_currentPassword: string, _newPassword: string) {
+    return Promise.resolve(right<void, never>(undefined));
+  }
 }
 
 describe('LoginUseCase', () => {

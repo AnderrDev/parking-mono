@@ -13,14 +13,35 @@ export class VehicleRepositoryImpl extends VehicleRepository {
     @Inject(VEHICLE_REMOTE_DATASOURCE_TOKEN) private readonly remoteDs: VehicleDataSource,
   ) { super(); }
 
-  list(params: ListVehiclesParams): Promise<Either<Failure, { data: VehicleEntity[]; pagination: PaginationMeta }>> {
+  async list(params: ListVehiclesParams): Promise<Either<Failure, { data: VehicleEntity[]; pagination: PaginationMeta }>> {
     return this.remoteDs.list(params);
   }
-  findById(id: string): Promise<Either<Failure, VehicleEntity>> { return this.remoteDs.findById(id); }
-  create(params: CreateVehicleParams): Promise<Either<Failure, VehicleEntity>> { return this.remoteDs.create(params); }
-  update(params: UpdateVehicleParams): Promise<Either<Failure, VehicleEntity>> { return this.remoteDs.update(params); }
-  deactivate(id: string): Promise<Either<Failure, void>> { return this.remoteDs.deactivate(id); }
-  existsByPlate(plate: string): Promise<Either<Failure, boolean>> { return this.remoteDs.existsByPlate(plate); }
-  hasActiveSession(plate: string): Promise<Either<Failure, boolean>> { return this.remoteDs.hasActiveSession(plate); }
-  hasActivePlan(plate: string): Promise<Either<Failure, boolean>> { return this.remoteDs.hasActivePlan(plate); }
+
+  async findById(id: string): Promise<Either<Failure, VehicleEntity>> {
+    return this.remoteDs.findById(id);
+  }
+
+  async create(params: CreateVehicleParams): Promise<Either<Failure, VehicleEntity>> {
+    return this.remoteDs.create(params);
+  }
+
+  async update(params: UpdateVehicleParams): Promise<Either<Failure, VehicleEntity>> {
+    return this.remoteDs.update(params);
+  }
+
+  async deactivate(id: string): Promise<Either<Failure, void>> {
+    return this.remoteDs.deactivate(id);
+  }
+
+  async existsByPlate(plate: string): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.existsByPlate(plate);
+  }
+
+  async hasActiveSession(plate: string): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.hasActiveSession(plate);
+  }
+
+  async hasActivePlan(plate: string): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.hasActivePlan(plate);
+  }
 }

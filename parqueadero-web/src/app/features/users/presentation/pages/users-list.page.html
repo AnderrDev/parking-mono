@@ -1,0 +1,74 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Usuarios del sistema</h1>
+      <p class="page__subtitle">Gestiona accesos. Solo admin.</p>
+    </div>
+    <button type="button" class="btn btn--primary" (click)="openCreateDialog()">+ Nuevo usuario</button>
+  </header>
+
+  <div class="filters">
+    <label class="filter">
+      <input type="checkbox" [checked]="includeInactive()" (change)="onIncludeInactiveChange($event)" />
+      <span>Mostrar inactivos</span>
+    </label>
+  </div>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando…</p>
+  } @else if (users().length === 0) {
+    <p class="state-msg state-msg--empty">Sin usuarios.</p>
+  } @else {
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of users(); track u.id) {
+            <tr [class.row--inactive]="!u.isActive">
+              <td>{{ u.nombre }}</td>
+              <td>{{ u.email }}</td>
+              <td>
+                @if (isSelf(u)) {
+                  {{ roleLabel(u.role) }}
+                  <span class="muted">(tú)</span>
+                } @else {
+                  <select class="role-select" [value]="u.role" (change)="onRoleChange(u, $event)">
+                    @for (r of roles; track r) {
+                      <option [value]="r">{{ roleLabel(r) }}</option>
+                    }
+                  </select>
+                }
+              </td>
+              <td>
+                <span class="status-badge"
+                  [class.status-badge--active]="u.isActive"
+                  [class.status-badge--inactive]="!u.isActive">
+                  {{ u.isActive ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td>
+                @if (!isSelf(u)) {
+                  <button type="button" class="btn-link"
+                    [class.btn-link--danger]="u.isActive"
+                    (click)="toggleActive(u)">
+                    {{ u.isActive ? 'Desactivar' : 'Activar' }}
+                  </button>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</div>

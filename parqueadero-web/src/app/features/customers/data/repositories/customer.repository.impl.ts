@@ -13,20 +13,35 @@ export class CustomerRepositoryImpl extends CustomerRepository {
     @Inject(CUSTOMER_REMOTE_DATASOURCE_TOKEN) private readonly remoteDs: CustomerDataSource,
   ) { super(); }
 
-  list(params: ListCustomersParams): Promise<Either<Failure, { data: CustomerEntity[]; pagination: PaginationMeta }>> {
+  async list(params: ListCustomersParams): Promise<Either<Failure, { data: CustomerEntity[]; pagination: PaginationMeta }>> {
     return this.remoteDs.list(params);
   }
-  findById(id: string): Promise<Either<Failure, CustomerEntity>> { return this.remoteDs.findById(id); }
-  create(params: CreateCustomerParams): Promise<Either<Failure, CustomerEntity>> { return this.remoteDs.create(params); }
-  update(params: UpdateCustomerParams): Promise<Either<Failure, CustomerEntity>> { return this.remoteDs.update(params); }
-  deactivate(id: string): Promise<Either<Failure, void>> { return this.remoteDs.deactivate(id); }
-  existsByDoc(docType: DocType, docNumber: string, excludeId?: string): Promise<Either<Failure, boolean>> {
+
+  async findById(id: string): Promise<Either<Failure, CustomerEntity>> {
+    return this.remoteDs.findById(id);
+  }
+
+  async create(params: CreateCustomerParams): Promise<Either<Failure, CustomerEntity>> {
+    return this.remoteDs.create(params);
+  }
+
+  async update(params: UpdateCustomerParams): Promise<Either<Failure, CustomerEntity>> {
+    return this.remoteDs.update(params);
+  }
+
+  async deactivate(id: string): Promise<Either<Failure, void>> {
+    return this.remoteDs.deactivate(id);
+  }
+
+  async existsByDoc(docType: DocType, docNumber: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     return this.remoteDs.existsByDoc(docType, docNumber, excludeId);
   }
-  existsByEmail(email: string, excludeId?: string): Promise<Either<Failure, boolean>> {
+
+  async existsByEmail(email: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     return this.remoteDs.existsByEmail(email, excludeId);
   }
-  countActiveMonthlyPlans(customerId: string): Promise<Either<Failure, number>> {
+
+  async countActiveMonthlyPlans(customerId: string): Promise<Either<Failure, number>> {
     return this.remoteDs.countActiveMonthlyPlans(customerId);
   }
 }

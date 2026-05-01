@@ -1,0 +1,8 @@
+<span
+  class="badge"
+  [class]="'badge--' + status()"
+  [style.--badge-color]="'var(--color-status-' + status() + ')'"
+>
+  <span class="badge__dot" aria-hidden="true"></span>
+  {{ label() || STATUS_LABELS[status()] || status() }}
+</span>

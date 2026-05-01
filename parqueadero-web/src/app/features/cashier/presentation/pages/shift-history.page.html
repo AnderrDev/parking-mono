@@ -1,0 +1,89 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Historial de turnos</h1>
+      <p class="page__subtitle">Auditoría de cierres de caja con diferencias resaltadas.</p>
+    </div>
+  </header>
+
+  <form class="filters" [formGroup]="filterForm" (ngSubmit)="onApplyFilters()">
+    <label class="filter">
+      <span class="filter__label">Desde</span>
+      <input type="date" class="filter__input" formControlName="dateFrom" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Hasta</span>
+      <input type="date" class="filter__input" formControlName="dateTo" />
+    </label>
+    <label class="filter filter--checkbox">
+      <input type="checkbox" formControlName="onlyWithDiff" />
+      <span>Solo con diferencia</span>
+    </label>
+    <button type="submit" class="btn btn--primary" [disabled]="loading()">Filtrar</button>
+  </form>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando…</p>
+  } @else if (shifts().length === 0) {
+    <p class="state-msg state-msg--empty">Sin turnos cerrados en el rango seleccionado.</p>
+  } @else {
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Operario</th>
+            <th>Apertura</th>
+            <th>Cierre</th>
+            <th class="num">Base</th>
+            <th class="num">Esperado</th>
+            <th class="num">Real</th>
+            <th class="num">Diferencia</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of shifts(); track item.shift.id) {
+            <tr [class.row--large-diff]="isLargeDiff(item.shift.differenceCents)">
+              <td>{{ item.operatorName }}</td>
+              <td>{{ item.shift.openedAt | date:'dd/MM/yy HH:mm' }}</td>
+              <td>{{ item.shift.closedAt ? (item.shift.closedAt | date:'dd/MM/yy HH:mm') : '—' }}</td>
+              <td class="num">{{ item.shift.openingBalanceCents | currencyCop }}</td>
+              <td class="num">{{ item.shift.expectedBalanceCents !== null ? (item.shift.expectedBalanceCents | currencyCop) : '—' }}</td>
+              <td class="num">{{ item.shift.closingBalanceCents !== null ? (item.shift.closingBalanceCents | currencyCop) : '—' }}</td>
+              <td class="num diff" [class.diff--positive]="(item.shift.differenceCents ?? 0) > 0" [class.diff--negative]="(item.shift.differenceCents ?? 0) < 0">
+                {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
+              </td>
+              <td>
+                <button type="button" class="btn-link" (click)="toggleExpand(item.shift.id)">
+                  {{ expandedId() === item.shift.id ? 'Ocultar' : 'Ver' }}
+                </button>
+              </td>
+            </tr>
+            @if (expandedId() === item.shift.id) {
+              <tr class="row-detail">
+                <td colspan="8">
+                  <div class="detail">
+                    @if (item.shift.justification) {
+                      <p><strong>Justificación:</strong> {{ item.shift.justification }}</p>
+                    } @else {
+                      <p class="muted">Sin observaciones registradas.</p>
+                    }
+                    <p class="muted">ID: {{ item.shift.id }}</p>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+
+      @if (pagination(); as p) {
+        <div class="pagination">
+          <button class="btn-link" (click)="onPage(-1)" [disabled]="p.page <= 1">Anterior</button>
+          <span>Página {{ p.page }} de {{ p.totalPages }} · {{ p.total }} turnos</span>
+          <button class="btn-link" (click)="onPage(1)" [disabled]="p.page >= p.totalPages">Siguiente</button>
+        </div>
+      }
+    </section>
+  }
+</div>

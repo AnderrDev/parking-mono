@@ -3,12 +3,14 @@ import { Either, left } from '../../../../core/either/either';
 import { Failure, ValidationFailure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
 import { PARKING_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
-import { normalizePlate, isValidPlate } from '../../../../shared/utils/plate.utils';
+import { normalizePlate } from '../../../../shared/utils/plate.utils';
 import { ParkingRepository, VehicleSearchResult } from '../repositories/parking.repository';
 
 export interface SearchVehicleByPlateParams {
   plate: string;
 }
+
+const MIN_QUERY_LENGTH = 2;
 
 @Injectable()
 export class SearchVehicleByPlateUseCase extends UseCase<
@@ -24,12 +26,15 @@ export class SearchVehicleByPlateUseCase extends UseCase<
   async execute(
     params: SearchVehicleByPlateParams,
   ): Promise<Either<Failure, VehicleSearchResult>> {
+    // Búsqueda incremental: aceptamos fragmentos parciales (ej. "TPP") y dejamos que
+    // el datasource haga match por inclusión. No exigimos formato completo ABC123/ABC12D
+    // porque eso impedía buscar mientras se escribe.
     const normalized = normalizePlate(params.plate);
 
-    if (!normalized || !isValidPlate(normalized)) {
+    if (normalized.length < MIN_QUERY_LENGTH) {
       return left(
         new ValidationFailure(
-          `Placa ${params.plate} no cumple el formato colombiano esperado (ABC123 o ABC12D).`,
+          `Escribe al menos ${MIN_QUERY_LENGTH} caracteres para buscar.`,
           'plate',
         ),
       );

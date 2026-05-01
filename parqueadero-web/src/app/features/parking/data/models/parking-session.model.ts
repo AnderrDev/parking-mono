@@ -12,8 +12,6 @@ export interface ParkingSessionModel {
   entry_at: string;
   entry_user_id: string;
   status: string;
-  color: string | null;
-  brand: string | null;
   monthly_plan_id: string | null;
   exit_at: string | null;
   exit_user_id: string | null;
@@ -34,8 +32,6 @@ export class ParkingSessionMapper {
       new Date(m.entry_at),
       m.entry_user_id,
       m.status as SessionStatus,
-      m.color,
-      m.brand,
       m.monthly_plan_id,
       m.exit_at ? new Date(m.exit_at) : null,
       m.exit_user_id,
@@ -52,8 +48,6 @@ export class ParkingSessionMapper {
       entry_at: e.entryAt.toISOString(),
       entry_user_id: e.entryUserId,
       status: e.status,
-      color: e.color,
-      brand: e.brand,
       monthly_plan_id: e.monthlyPlanId,
       exit_at: e.exitAt?.toISOString() ?? null,
       exit_user_id: e.exitUserId,

@@ -1,0 +1,33 @@
+<div class="plate-input">
+  <label class="plate-input__label" [attr.for]="inputId()">
+    {{ label() }}
+    @if (required()) { <span aria-hidden="true">*</span> }
+  </label>
+
+  <input
+    class="plate-input__field"
+    [class.plate-input__field--valid]="isValid()"
+    [class.plate-input__field--invalid]="isTouched() && !isValid() && value().length > 0"
+    type="text"
+    [id]="inputId()"
+    [placeholder]="placeholder()"
+    [disabled]="disabled()"
+    [attr.aria-invalid]="isTouched() && !isValid() && value().length > 0 ? 'true' : null"
+    [attr.aria-describedby]="'hint-' + inputId()"
+    [value]="displayValue()"
+    autocomplete="off"
+    autocapitalize="characters"
+    spellcheck="false"
+    maxlength="8"
+    (input)="onInput($event)"
+    (blur)="onBlur()"
+  />
+
+  <p class="plate-input__hint" [id]="'hint-' + inputId()">
+    @if (isTouched() && value().length > 0 && !isValid()) {
+      La placa no es válida. Ejemplo: ABC123
+    } @else {
+      Formato: ABC123 (carro) o ABC12D (moto)
+    }
+  </p>
+</div>

@@ -4,6 +4,7 @@ import type { AuthDataSource } from '../../features/auth/data/datasources/auth.d
 import type { LoginUseCase } from '../../features/auth/domain/usecases/login.usecase';
 import type { LogoutUseCase } from '../../features/auth/domain/usecases/logout.usecase';
 import type { RestoreSessionUseCase } from '../../features/auth/domain/usecases/restore-session.usecase';
+import type { ChangePasswordUseCase } from '../../features/auth/domain/usecases/change-password.usecase';
 import type { ParkingRepository } from '../../features/parking/domain/repositories/parking.repository';
 import type { ParkingDataSource } from '../../features/parking/data/datasources/parking.datasource';
 import type { RegisterVehicleEntryUseCase } from '../../features/parking/domain/usecases/register-vehicle-entry.usecase';
@@ -11,6 +12,8 @@ import type { RegisterVehicleExitUseCase } from '../../features/parking/domain/u
 import type { GetActiveSessionsUseCase } from '../../features/parking/domain/usecases/get-active-sessions.usecase';
 import type { SearchVehicleByPlateUseCase } from '../../features/parking/domain/usecases/search-vehicle-by-plate.usecase';
 import type { CheckMonthlyPlanUseCase } from '../../features/parking/domain/usecases/check-monthly-plan.usecase';
+import type { ListSessionsUseCase } from '../../features/parking/domain/usecases/list-sessions.usecase';
+import type { CancelParkingSessionUseCase } from '../../features/parking/domain/usecases/cancel-session.usecase';
 import type { TariffRepository } from '../../features/tariffs/domain/repositories/tariff.repository';
 import type { TariffDataSource } from '../../features/tariffs/data/datasources/tariff.datasource';
 import type { ListTariffsUseCase } from '../../features/tariffs/domain/usecases/list-tariffs.usecase';
@@ -40,10 +43,32 @@ import type { CashierDataSource } from '../../features/cashier/data/datasources/
 import type { OpenShiftUseCase } from '../../features/cashier/domain/usecases/open-shift.usecase';
 import type { CloseShiftUseCase } from '../../features/cashier/domain/usecases/close-shift.usecase';
 import type { ReconcileShiftUseCase } from '../../features/cashier/domain/usecases/reconcile-shift.usecase';
+import type { ListShiftsUseCase } from '../../features/cashier/domain/usecases/list-shifts.usecase';
+import type { RegisterCashWithdrawalUseCase } from '../../features/cashier/domain/usecases/register-withdrawal.usecase';
 import type { PaymentRepository } from '../../features/payments/domain/repositories/payment.repository';
 import type { PaymentDataSource } from '../../features/payments/data/datasources/payment.datasource';
 import type { RegisterPaymentUseCase } from '../../features/payments/domain/usecases/register-payment.usecase';
 import type { ListPaymentsUseCase } from '../../features/payments/domain/usecases/list-payments.usecase';
+import type { ReportRepository } from '../../features/reports/domain/repositories/report.repository';
+import type { ReportDataSource } from '../../features/reports/data/datasources/report.datasource';
+import type { GetRevenueByPeriodUseCase } from '../../features/reports/domain/usecases/get-revenue-by-period.usecase';
+import type { GetSessionsByTypeUseCase } from '../../features/reports/domain/usecases/get-sessions-by-type.usecase';
+import type { GetOperatorPerformanceUseCase } from '../../features/reports/domain/usecases/get-operator-performance.usecase';
+import type { ExportCsvUseCase } from '../../features/reports/domain/usecases/export-csv.usecase';
+import type { InvoicingRepository } from '../../features/invoicing/domain/repositories/invoicing.repository';
+import type { RequestInvoiceUseCase } from '../../features/invoicing/domain/usecases/request-invoice.usecase';
+import type { ReissueInvoiceUseCase } from '../../features/invoicing/domain/usecases/reissue-invoice.usecase';
+import type { ListInvoicesUseCase } from '../../features/invoicing/domain/usecases/list-invoices.usecase';
+import type { AuditRepository } from '../../features/audit/domain/repositories/audit.repository';
+import type { ListAuditUseCase } from '../../features/audit/domain/usecases/list-audit.usecase';
+import type { SettingsRepository } from '../../features/settings/domain/repositories/settings.repository';
+import type { GetSettingUseCase } from '../../features/settings/domain/usecases/get-setting.usecase';
+import type { UpdateSettingUseCase } from '../../features/settings/domain/usecases/update-setting.usecase';
+import type { UserAdminRepository } from '../../features/users/domain/repositories/user-admin.repository';
+import type { ListUsersUseCase } from '../../features/users/domain/usecases/list-users.usecase';
+import type { CreateUserUseCase } from '../../features/users/domain/usecases/create-user.usecase';
+import type { UpdateUserRoleUseCase } from '../../features/users/domain/usecases/update-user-role.usecase';
+import type { ToggleUserActiveUseCase } from '../../features/users/domain/usecases/toggle-user-active.usecase';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 export const AUTH_REPOSITORY_TOKEN = new InjectionToken<AuthRepository>('AuthRepository');
@@ -51,6 +76,7 @@ export const AUTH_DATASOURCE_TOKEN = new InjectionToken<AuthDataSource>('AuthDat
 export const LOGIN_USECASE_TOKEN = new InjectionToken<LoginUseCase>('LoginUseCase');
 export const LOGOUT_USECASE_TOKEN = new InjectionToken<LogoutUseCase>('LogoutUseCase');
 export const RESTORE_SESSION_USECASE_TOKEN = new InjectionToken<RestoreSessionUseCase>('RestoreSessionUseCase');
+export const CHANGE_PASSWORD_USECASE_TOKEN = new InjectionToken<ChangePasswordUseCase>('ChangePasswordUseCase');
 
 // ── Parking ─────────────────────────────────────────────────────────────────
 export const PARKING_REPOSITORY_TOKEN = new InjectionToken<ParkingRepository>('ParkingRepository');
@@ -61,6 +87,8 @@ export const REGISTER_VEHICLE_EXIT_TOKEN = new InjectionToken<RegisterVehicleExi
 export const GET_ACTIVE_SESSIONS_TOKEN = new InjectionToken<GetActiveSessionsUseCase>('GetActiveSessionsUseCase');
 export const SEARCH_VEHICLE_BY_PLATE_TOKEN = new InjectionToken<SearchVehicleByPlateUseCase>('SearchVehicleByPlateUseCase');
 export const CHECK_MONTHLY_PLAN_TOKEN = new InjectionToken<CheckMonthlyPlanUseCase>('CheckMonthlyPlanUseCase');
+export const LIST_SESSIONS_TOKEN = new InjectionToken<ListSessionsUseCase>('ListSessionsUseCase');
+export const CANCEL_SESSION_TOKEN = new InjectionToken<CancelParkingSessionUseCase>('CancelParkingSessionUseCase');
 
 // ── Tariffs ──────────────────────────────────────────────────────────────────
 export const TARIFF_REPOSITORY_TOKEN = new InjectionToken<TariffRepository>('TariffRepository');
@@ -105,6 +133,8 @@ export const CASHIER_LOCAL_DATASOURCE_TOKEN = new InjectionToken<CashierDataSour
 export const OPEN_SHIFT_TOKEN = new InjectionToken<OpenShiftUseCase>('OpenShiftUseCase');
 export const CLOSE_SHIFT_TOKEN = new InjectionToken<CloseShiftUseCase>('CloseShiftUseCase');
 export const RECONCILE_SHIFT_TOKEN = new InjectionToken<ReconcileShiftUseCase>('ReconcileShiftUseCase');
+export const LIST_SHIFTS_TOKEN = new InjectionToken<ListShiftsUseCase>('ListShiftsUseCase');
+export const REGISTER_WITHDRAWAL_TOKEN = new InjectionToken<RegisterCashWithdrawalUseCase>('RegisterCashWithdrawalUseCase');
 
 // ── Payments ──────────────────────────────────────────────────────────────────
 export const PAYMENT_REPOSITORY_TOKEN = new InjectionToken<PaymentRepository>('PaymentRepository');
@@ -112,3 +142,38 @@ export const PAYMENT_REMOTE_DATASOURCE_TOKEN = new InjectionToken<PaymentDataSou
 export const PAYMENT_LOCAL_DATASOURCE_TOKEN = new InjectionToken<PaymentDataSource>('PaymentLocalDataSource');
 export const REGISTER_PAYMENT_TOKEN = new InjectionToken<RegisterPaymentUseCase>('RegisterPaymentUseCase');
 export const LIST_PAYMENTS_TOKEN = new InjectionToken<ListPaymentsUseCase>('ListPaymentsUseCase');
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+export const REPORT_REPOSITORY_TOKEN = new InjectionToken<ReportRepository>('ReportRepository');
+export const REPORT_REMOTE_DATASOURCE_TOKEN = new InjectionToken<ReportDataSource>('ReportRemoteDataSource');
+export const REPORT_LOCAL_DATASOURCE_TOKEN = new InjectionToken<ReportDataSource>('ReportLocalDataSource');
+export const GET_REVENUE_BY_PERIOD_TOKEN = new InjectionToken<GetRevenueByPeriodUseCase>('GetRevenueByPeriodUseCase');
+export const GET_SESSIONS_BY_TYPE_TOKEN = new InjectionToken<GetSessionsByTypeUseCase>('GetSessionsByTypeUseCase');
+export const GET_OPERATOR_PERFORMANCE_TOKEN = new InjectionToken<GetOperatorPerformanceUseCase>('GetOperatorPerformanceUseCase');
+export const EXPORT_CSV_TOKEN = new InjectionToken<ExportCsvUseCase>('ExportCsvUseCase');
+
+// ── Invoicing ─────────────────────────────────────────────────────────────────
+export const INVOICING_REPOSITORY_TOKEN = new InjectionToken<InvoicingRepository>('InvoicingRepository');
+export const INVOICING_REMOTE_DATASOURCE_TOKEN = new InjectionToken<InvoicingRepository>('InvoicingRemoteDataSource');
+export const REQUEST_INVOICE_TOKEN = new InjectionToken<RequestInvoiceUseCase>('RequestInvoiceUseCase');
+export const REISSUE_INVOICE_TOKEN = new InjectionToken<ReissueInvoiceUseCase>('ReissueInvoiceUseCase');
+export const LIST_INVOICES_TOKEN = new InjectionToken<ListInvoicesUseCase>('ListInvoicesUseCase');
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
+export const AUDIT_REPOSITORY_TOKEN = new InjectionToken<AuditRepository>('AuditRepository');
+export const AUDIT_DATASOURCE_TOKEN = new InjectionToken<AuditRepository>('AuditDataSource');
+export const LIST_AUDIT_TOKEN = new InjectionToken<ListAuditUseCase>('ListAuditUseCase');
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+export const SETTINGS_REPOSITORY_TOKEN = new InjectionToken<SettingsRepository>('SettingsRepository');
+export const SETTINGS_DATASOURCE_TOKEN = new InjectionToken<SettingsRepository>('SettingsDataSource');
+export const GET_SETTING_TOKEN = new InjectionToken<GetSettingUseCase>('GetSettingUseCase');
+export const UPDATE_SETTING_TOKEN = new InjectionToken<UpdateSettingUseCase>('UpdateSettingUseCase');
+
+// ── User management (admin) ───────────────────────────────────────────────────
+export const USER_ADMIN_REPOSITORY_TOKEN = new InjectionToken<UserAdminRepository>('UserAdminRepository');
+export const USER_ADMIN_DATASOURCE_TOKEN = new InjectionToken<UserAdminRepository>('UserAdminDataSource');
+export const LIST_USERS_TOKEN = new InjectionToken<ListUsersUseCase>('ListUsersUseCase');
+export const CREATE_USER_TOKEN = new InjectionToken<CreateUserUseCase>('CreateUserUseCase');
+export const UPDATE_USER_ROLE_TOKEN = new InjectionToken<UpdateUserRoleUseCase>('UpdateUserRoleUseCase');
+export const TOGGLE_USER_ACTIVE_TOKEN = new InjectionToken<ToggleUserActiveUseCase>('ToggleUserActiveUseCase');

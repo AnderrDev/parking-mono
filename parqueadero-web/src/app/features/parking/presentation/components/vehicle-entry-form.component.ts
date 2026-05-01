@@ -18,247 +18,19 @@ export interface VehicleEntryFormValue {
   brand: string | null;
 }
 
+interface VehicleTypeOption {
+  value: VehicleType;
+  label: string;
+  icon: string; // SVG path data
+}
+
 @Component({
   selector: 'app-vehicle-entry-form',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, LoadingSpinnerComponent],
-  template: `
-    <form
-      class="entry-form"
-      [formGroup]="form"
-      (ngSubmit)="onSubmit()"
-      novalidate
-    >
-      @if (monthlyPlanWarning()) {
-        <div class="entry-form__plan-badge" role="status">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          {{ monthlyPlanWarning() }}
-        </div>
-      }
-
-      <div class="entry-form__fields">
-        <div class="field">
-          <label class="field__label" for="plate">Placa</label>
-          <input
-            id="plate"
-            class="field__input field__input--mono"
-            [class.field__input--error]="showError('plate')"
-            type="text"
-            formControlName="plate"
-            placeholder="ABC123"
-            autocomplete="off"
-            inputmode="text"
-            maxlength="7"
-            [attr.aria-describedby]="showError('plate') ? 'plate-error' : null"
-            [attr.aria-invalid]="showError('plate') ? 'true' : null"
-          />
-          @if (showError('plate')) {
-            <span id="plate-error" class="field__error" role="alert">
-              {{ getFieldError('plate') }}
-            </span>
-          }
-        </div>
-
-        <div class="field">
-          <label class="field__label" for="vehicleType">Tipo de vehículo</label>
-          <select
-            id="vehicleType"
-            class="field__select"
-            [class.field__input--error]="showError('vehicleType')"
-            formControlName="vehicleType"
-            [attr.aria-describedby]="showError('vehicleType') ? 'vehicleType-error' : null"
-          >
-            <option value="carro">Carro</option>
-            <option value="moto">Moto</option>
-            <option value="bicicleta">Bicicleta</option>
-            <option value="otro">Otro</option>
-          </select>
-          @if (showError('vehicleType')) {
-            <span id="vehicleType-error" class="field__error" role="alert">
-              {{ getFieldError('vehicleType') }}
-            </span>
-          }
-        </div>
-
-        <div class="field">
-          <label class="field__label" for="color">Color <span class="field__optional">(opcional)</span></label>
-          <input
-            id="color"
-            class="field__input"
-            type="text"
-            formControlName="color"
-            placeholder="Ej: blanco"
-            autocomplete="off"
-            maxlength="50"
-          />
-        </div>
-
-        <div class="field">
-          <label class="field__label" for="brand">Marca <span class="field__optional">(opcional)</span></label>
-          <input
-            id="brand"
-            class="field__input"
-            type="text"
-            formControlName="brand"
-            placeholder="Ej: Toyota"
-            autocomplete="off"
-            maxlength="50"
-          />
-        </div>
-      </div>
-
-      <button
-        class="entry-form__submit"
-        type="submit"
-        [disabled]="loading()"
-      >
-        @if (loading()) {
-          <app-loading-spinner label="Registrando entrada..." />
-        } @else {
-          Registrar entrada
-        }
-      </button>
-    </form>
-  `,
-  styles: [`
-    .entry-form {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-5);
-    }
-
-    .entry-form__plan-badge {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      padding: var(--space-3) var(--space-4);
-      background: color-mix(in srgb, var(--color-monthly) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--color-monthly) 40%, transparent);
-      border-radius: var(--radius-md);
-      color: var(--color-monthly);
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-
-      svg { flex-shrink: 0; }
-    }
-
-    .entry-form__fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-4);
-
-      @media (max-width: 480px) {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-1);
-    }
-
-    .field__label {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-      color: var(--color-text-primary);
-    }
-
-    .field__optional {
-      font-weight: var(--font-weight-normal);
-      color: var(--color-text-secondary);
-    }
-
-    .field__input {
-      padding: var(--space-2) var(--space-3);
-      font-size: var(--text-base);
-      font-family: var(--font-sans);
-      color: var(--color-text-primary);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      min-height: var(--touch-target-min);
-      box-sizing: border-box;
-      width: 100%;
-      transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
-
-      &::placeholder { color: var(--color-text-placeholder); }
-      &:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
-      }
-      &:disabled { opacity: 0.5; cursor: not-allowed; }
-    }
-
-    .field__input--mono {
-      font-family: var(--font-mono);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .field__input--error {
-      border-color: var(--color-danger);
-      &:focus {
-        border-color: var(--color-danger);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 20%, transparent);
-      }
-    }
-
-    .field__select {
-      padding: var(--space-2) var(--space-3);
-      font-size: var(--text-base);
-      font-family: var(--font-sans);
-      color: var(--color-text-primary);
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      min-height: var(--touch-target-min);
-      width: 100%;
-      cursor: pointer;
-      appearance: auto;
-
-      &:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
-      }
-    }
-
-    .field__error {
-      font-size: var(--text-xs);
-      color: var(--color-danger);
-    }
-
-    .entry-form__submit {
-      width: 100%;
-      min-height: var(--touch-target-min);
-      padding: var(--space-3);
-      background: var(--color-primary);
-      color: #fff;
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-semibold);
-      font-family: var(--font-sans);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-2);
-      transition: background var(--motion-duration-fast) var(--motion-easing-standard);
-
-      &:hover:not(:disabled) { background: var(--color-primary-hover); }
-      &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-      &:disabled { opacity: 0.7; cursor: not-allowed; }
-    }
-  `],
+  templateUrl: './vehicle-entry-form.component.html',
+  styleUrl: './vehicle-entry-form.component.scss',
 })
 export class VehicleEntryFormComponent implements OnInit {
   loading = input(false);
@@ -266,6 +38,29 @@ export class VehicleEntryFormComponent implements OnInit {
   submitted = output<VehicleEntryFormValue>();
 
   form!: FormGroup;
+
+  protected readonly vehicleTypeOptions: VehicleTypeOption[] = [
+    {
+      value: 'carro',
+      label: 'Carro',
+      icon: 'M19 17h2v-3a4 4 0 0 0-2-3.45L17.5 7A4 4 0 0 0 14 5h-4a4 4 0 0 0-3.5 2L5 10.55A4 4 0 0 0 3 14v3h2 M9 17h6 M7 17a2 2 0 1 0 0 .1Z M17 17a2 2 0 1 0 0 .1Z',
+    },
+    {
+      value: 'moto',
+      label: 'Moto',
+      icon: 'M5 17a3 3 0 1 0 0 .1Z M19 17a3 3 0 1 0 0 .1Z M14 6h4l2 6 M9 17h6 M5 17l4-7 3 7 M9 10h7',
+    },
+    {
+      value: 'bicicleta',
+      label: 'Bici',
+      icon: 'M5 17.5a3.5 3.5 0 1 0 0 .1Z M19 17.5a3.5 3.5 0 1 0 0 .1Z M12 17.5h2l-2-7H8 M14 6h3l1 4',
+    },
+    {
+      value: 'otro',
+      label: 'Otro',
+      icon: 'M12 8v4 M12 16h.01 M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z',
+    },
+  ];
 
   constructor(private readonly parkingForms: ParkingForms) {}
 

@@ -1,0 +1,39 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-warning-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  color: var(--color-warning-strong);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  animation: slide-down 240ms var(--ease-out);
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+.banner__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
+}
+
+.banner__text {
+  flex: 1;
+  line-height: var(--line-height-snug);
+}
+
+@keyframes slide-down {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}

@@ -11,6 +11,9 @@ import {
   RegisterExitResult,
   ActiveSessionsFilter,
   ActiveSessionsSort,
+  ListSessionsParams,
+  ListSessionsResult,
+  CancelSessionParams,
 } from '../../domain/repositories/parking.repository';
 
 export interface ActiveSessionsPage {
@@ -49,4 +52,8 @@ export abstract class ParkingDataSource {
   abstract closeSession(params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>>;
 
   abstract getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>>;
+
+  abstract listSessions(params: ListSessionsParams): Promise<Either<Failure, ListSessionsResult>>;
+
+  abstract cancelSession(params: CancelSessionParams): Promise<Either<Failure, ParkingSessionEntity>>;
 }

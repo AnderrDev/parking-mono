@@ -49,6 +49,10 @@ class MockParkingRepository extends ParkingRepository {
   async getOpenCashierShiftId() { return Promise.resolve(right(null as string | null)); }
   async registerExit() { return Promise.resolve(right(null as never)); }
   async getActiveTariff() { return Promise.resolve(right(null as never)); }
+  async listSessions() {
+    return Promise.resolve(right({ data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }));
+  }
+  async cancelSession() { return Promise.resolve(right(null as never)); }
 }
 
 // ── Suite ─────────────────────────────────────────────────────────────────────

@@ -13,14 +13,27 @@ export class MonthlyPlanRepositoryImpl extends MonthlyPlanRepository {
     @Inject(MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN) private readonly remoteDs: MonthlyPlanDataSource,
   ) { super(); }
 
-  list(params: ListMonthlyPlansParams): Promise<Either<Failure, { data: MonthlyPlanEntity[]; pagination: PaginationMeta }>> {
+  async list(params: ListMonthlyPlansParams): Promise<Either<Failure, { data: MonthlyPlanEntity[]; pagination: PaginationMeta }>> {
     return this.remoteDs.list(params);
   }
-  findById(id: string): Promise<Either<Failure, MonthlyPlanEntity>> { return this.remoteDs.findById(id); }
-  create(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> { return this.remoteDs.create(params); }
-  update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> { return this.remoteDs.update(params); }
-  cancel(id: string): Promise<Either<Failure, void>> { return this.remoteDs.cancel(id); }
-  hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>> {
+
+  async findById(id: string): Promise<Either<Failure, MonthlyPlanEntity>> {
+    return this.remoteDs.findById(id);
+  }
+
+  async create(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
+    return this.remoteDs.create(params);
+  }
+
+  async update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
+    return this.remoteDs.update(params);
+  }
+
+  async cancel(id: string): Promise<Either<Failure, void>> {
+    return this.remoteDs.cancel(id);
+  }
+
+  async hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     return this.remoteDs.hasActivePlanForPlate(plate, excludeId);
   }
 }

@@ -1,7 +1,6 @@
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
-import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
 
 // ── Revenue by period ─────────────────────────────────────────────────────────
 

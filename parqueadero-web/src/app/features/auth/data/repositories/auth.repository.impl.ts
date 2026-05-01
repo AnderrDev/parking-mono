@@ -46,4 +46,11 @@ export class AuthRepositoryImpl extends AuthRepository {
     );
     return result;
   }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<Either<Failure, void>> {
+    return this.dataSource.changePassword(currentPassword, newPassword);
+  }
 }

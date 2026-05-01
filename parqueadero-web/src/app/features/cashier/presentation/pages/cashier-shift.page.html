@@ -1,0 +1,347 @@
+<div class="cashier">
+      @if (view() === 'loading') {
+        <div class="cashier__loading">
+          <app-loading-spinner label="Cargando estado de turno…" [showLabel]="true" size="lg" />
+        </div>
+      }
+
+      @if (view() === 'no-shift') {
+        <div class="open-shift">
+          <div class="open-shift__hero">
+            <span class="open-shift__icon" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+              </svg>
+            </span>
+            <h1 class="open-shift__title">Inicia tu turno</h1>
+            <p class="open-shift__subtitle">Registra el saldo de apertura para empezar a recibir pagos.</p>
+          </div>
+
+          <form class="open-shift__form" [formGroup]="openForm" (ngSubmit)="openShift()">
+            <div class="field">
+              <label class="field__label" for="opening-balance">Saldo inicial</label>
+              <div class="field__money">
+                <span class="field__money-prefix">$</span>
+                <input
+                  id="opening-balance"
+                  type="number"
+                  class="field__input"
+                  formControlName="openingBalanceCents"
+                  min="0"
+                  step="100"
+                  inputmode="numeric"
+                  placeholder="0"
+                />
+                <span class="field__money-suffix">COP</span>
+              </div>
+              <p class="field__hint">Cantidad de efectivo en caja al iniciar el turno.</p>
+            </div>
+
+            @if (errorMsg()) {
+              <app-error-display [message]="errorMsg()!" variant="card" />
+            }
+
+            <button
+              type="submit"
+              class="btn btn--primary"
+              [disabled]="openForm.invalid || loading()"
+            >
+              @if (loading()) {
+                <app-loading-spinner variant="inverse" />
+                <span>Abriendo…</span>
+              } @else {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Abrir turno</span>
+              }
+            </button>
+          </form>
+        </div>
+      }
+
+      @if (view() === 'open-shift') {
+        <header class="cashier__header">
+          <div class="cashier__title-block">
+            <span class="cashier__eyebrow">Turno abierto</span>
+            <h1 class="cashier__title">Caja del turno</h1>
+            @if (shift()) {
+              <p class="cashier__meta">
+                Inició a las {{ shift()!.openedAt | date:'HH:mm' }}
+                · saldo apertura
+                <strong>{{ shift()!.openingBalanceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+              </p>
+            }
+          </div>
+
+          @if (reconcile()) {
+            <div class="cashier__total" role="status">
+              <span class="cashier__total-label">Recaudado</span>
+              <span class="cashier__total-amount mono">
+                {{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+              </span>
+            </div>
+          }
+        </header>
+
+        <div class="cashier__layout">
+          <!-- Reconciliación -->
+          <section class="card card--reconcile">
+            <div class="card__head">
+              <h2 class="card__title">
+                <span class="card__title-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="6" y1="3" x2="6" y2="15"/>
+                    <circle cx="18" cy="6" r="3"/>
+                    <circle cx="6" cy="18" r="3"/>
+                    <path d="M18 9a9 9 0 0 1-9 9"/>
+                  </svg>
+                </span>
+                Cuadre por método
+              </h2>
+              <p class="card__subtitle">Totales en tiempo real.</p>
+            </div>
+
+            @if (reconcile() && reconcile()!.byMethod.length > 0) {
+              <ul class="reconcile-list" role="list">
+                @for (row of reconcile()!.byMethod; track row.method) {
+                  <li class="reconcile-row">
+                    <div class="reconcile-row__left">
+                      <span class="reconcile-row__method">{{ methodLabel(row.method) }}</span>
+                      <span class="reconcile-row__count">{{ row.count }} tx</span>
+                    </div>
+                    <span class="reconcile-row__amount mono">
+                      {{ row.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                    </span>
+                  </li>
+                }
+              </ul>
+
+              <div class="reconcile-summary">
+                <div class="reconcile-summary__row">
+                  <span>Total recaudado</span>
+                  <strong class="mono">{{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </div>
+                @if (reconcile()!.withdrawalsTotalCents > 0) {
+                  <div class="reconcile-summary__row reconcile-summary__row--warning">
+                    <span>Retiros parciales</span>
+                    <strong class="mono">−{{ reconcile()!.withdrawalsTotalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                  </div>
+                }
+                <div class="reconcile-summary__row reconcile-summary__row--accent">
+                  <span>Efectivo esperado</span>
+                  <strong class="mono">{{ reconcile()!.cashExpectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </div>
+              </div>
+            } @else {
+              <p class="card__empty">Aún no hay pagos en este turno.</p>
+            }
+          </section>
+
+          <!-- HU-039: retiros parciales de efectivo -->
+          <section class="card card--withdrawals">
+            <div class="card__head card__head--row">
+              <div>
+                <h2 class="card__title">Retiros parciales</h2>
+                <p class="card__subtitle">Efectivo retirado durante el turno.</p>
+              </div>
+              <button type="button" class="btn btn--secondary" (click)="openWithdrawalDialog()">
+                + Registrar retiro
+              </button>
+            </div>
+
+            @if (withdrawals().length === 0) {
+              <p class="card__empty">Sin retiros registrados.</p>
+            } @else {
+              <ul class="reconcile-list" role="list">
+                @for (w of withdrawals(); track w.id) {
+                  <li class="reconcile-row">
+                    <div class="reconcile-row__left">
+                      <span class="reconcile-row__method">{{ w.recipient }}</span>
+                      <span class="reconcile-row__count">
+                        {{ w.withdrawnAt | date:'HH:mm' }} · {{ w.justification }}
+                      </span>
+                    </div>
+                    <span class="reconcile-row__amount mono">
+                      −{{ w.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+
+          <!-- Pagos del turno -->
+          <section class="card card--payments">
+            <div class="card__head card__head--row">
+              <div>
+                <h2 class="card__title">
+                  <span class="card__title-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+                      <path d="M16 8H8 M16 12H8 M13 16H8"/>
+                    </svg>
+                  </span>
+                  Pagos del turno
+                </h2>
+                <p class="card__subtitle">Movimientos individuales.</p>
+              </div>
+              @if (payments().length > 0) {
+                <span class="card__count">{{ payments().length }}</span>
+              }
+            </div>
+
+            @if (payments().length === 0) {
+              <p class="card__empty">Sin pagos aún. Las salidas con cobro aparecerán aquí.</p>
+            } @else {
+              <div class="payments-table-wrap">
+                <table class="payments-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Hora</th>
+                      <th scope="col">Sesión</th>
+                      <th scope="col">Método</th>
+                      <th scope="col" class="num">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (p of payments(); track p.id) {
+                      <tr>
+                        <td class="mono">{{ p.paidAt | date:'HH:mm' }}</td>
+                        <td class="payments-table__plate mono">{{ shortId(p.sessionId) }}</td>
+                        <td>{{ methodLabel(p.method) }}</td>
+                        <td class="num mono">{{ p.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </section>
+
+          <!-- Cerrar turno -->
+          <section class="card card--close">
+            <div class="card__head">
+              <h2 class="card__title">
+                <span class="card__title-icon card__title-icon--danger" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+                  </svg>
+                </span>
+                Cerrar turno
+              </h2>
+              <p class="card__subtitle">Compara efectivo contado contra esperado.</p>
+            </div>
+
+            <form [formGroup]="closeForm" (ngSubmit)="closeShift()">
+              <!-- HU-036: conteo asistido por denominación -->
+              <div class="denom-toggle">
+                <button type="button" class="btn-link" (click)="toggleDenominationGrid()">
+                  {{ showDenominationGrid() ? 'Ocultar' : 'Mostrar' }} conteo por denominación
+                </button>
+              </div>
+
+              @if (showDenominationGrid()) {
+                <div class="denominations">
+                  @for (d of denominationDefs; track d.key) {
+                    <label class="denom">
+                      <span class="denom__label">{{ d.label }}</span>
+                      <input
+                        type="number"
+                        class="denom__input"
+                        min="0"
+                        step="1"
+                        inputmode="numeric"
+                        placeholder="0"
+                        [value]="denominationCounts()[d.key] ?? 0"
+                        (input)="onDenominationChange(d.key, $event)"
+                      />
+                    </label>
+                  }
+                  <div class="denom-total">
+                    <span>Total contado</span>
+                    <strong class="mono">
+                      {{ denominationTotalCents() / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                    </strong>
+                  </div>
+                </div>
+              }
+
+              <div class="field">
+                <label class="field__label" for="closing-balance">Efectivo contado</label>
+                <div class="field__money">
+                  <span class="field__money-prefix">$</span>
+                  <input
+                    id="closing-balance"
+                    type="number"
+                    class="field__input"
+                    formControlName="closingBalanceCents"
+                    min="0"
+                    step="100"
+                    inputmode="numeric"
+                    placeholder="0"
+                  />
+                  <span class="field__money-suffix">COP</span>
+                </div>
+                @if (showDenominationGrid()) {
+                  <p class="field__hint">El total se calcula del conteo por denominación.</p>
+                }
+              </div>
+
+              @if (differenceDisplay() !== null) {
+                <div
+                  class="diff"
+                  [class.diff--alert]="isDiffLarge()"
+                  [class.diff--ok]="!isDiffLarge() && differenceDisplay() === 0"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span class="diff__label">Diferencia</span>
+                  <span class="diff__value mono">
+                    {{ differenceDisplay()! >= 0 ? '+' : '' }}{{ differenceDisplay()! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                  </span>
+                </div>
+              }
+
+              @if (showJustification()) {
+                <div class="field">
+                  <label class="field__label" for="justification">
+                    Justificación
+                    <span class="field__required">requerida</span>
+                  </label>
+                  <textarea
+                    id="justification"
+                    class="field__input field__input--textarea"
+                    formControlName="justification"
+                    rows="3"
+                    placeholder="La diferencia supera $5.000. Explica el motivo."
+                  ></textarea>
+                </div>
+              }
+
+              @if (errorMsg()) {
+                <app-error-display [message]="errorMsg()!" variant="card" />
+              }
+
+              <button
+                type="submit"
+                class="btn btn--danger"
+                [disabled]="closeForm.invalid || loading()"
+              >
+                @if (loading()) {
+                  <app-loading-spinner variant="inverse" />
+                  <span>Cerrando…</span>
+                } @else {
+                  <span>Cerrar turno</span>
+                }
+              </button>
+            </form>
+          </section>
+        </div>
+      }
+    </div>

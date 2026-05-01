@@ -74,6 +74,11 @@ export abstract class ParkingRepository {
     plate: string,
   ): Promise<Either<Failure, VehicleSearchResult>>;
 
+  abstract searchPlateSuggestions(
+    query: string,
+    limit?: number,
+  ): Promise<Either<Failure, VehicleEntity[]>>;
+
   abstract getOpenCashierShiftId(
     userId: string,
   ): Promise<Either<Failure, string | null>>;
@@ -89,4 +94,33 @@ export abstract class ParkingRepository {
   abstract getActiveTariff(
     vehicleType: VehicleType,
   ): Promise<Either<Failure, TariffEntity>>;
+
+  abstract listSessions(
+    params: ListSessionsParams,
+  ): Promise<Either<Failure, ListSessionsResult>>;
+
+  abstract cancelSession(
+    params: CancelSessionParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>>;
+}
+
+export interface ListSessionsParams {
+  dateFrom?: Date | null;
+  dateTo?: Date | null;
+  vehicleType?: VehicleType | null;
+  plate?: string | null;
+  status?: 'all' | 'active' | 'completed' | 'cancelled';
+  page: number;
+  pageSize: number;
+}
+
+export interface ListSessionsResult {
+  data: ParkingSessionEntity[];
+  pagination: Pagination;
+}
+
+export interface CancelSessionParams {
+  sessionId: string;
+  reason: string;
+  userId: string;
 }

@@ -3,7 +3,15 @@ import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { CASHIER_REMOTE_DATASOURCE_TOKEN } from '../../../../core/di/injection-tokens';
 import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
-import { CashierRepository, CloseShiftParams, OpenShiftParams } from '../../domain/repositories/cashier.repository';
+import {
+  CashierRepository,
+  CloseShiftParams,
+  ListShiftsParams,
+  ListShiftsResult,
+  OpenShiftParams,
+  RegisterWithdrawalParams,
+} from '../../domain/repositories/cashier.repository';
+import { CashWithdrawalEntity } from '../../domain/entities/cash-withdrawal.entity';
 import { CashierDataSource } from '../datasources/cashier.datasource';
 
 @Injectable()
@@ -28,5 +36,21 @@ export class CashierRepositoryImpl extends CashierRepository {
 
   async close(params: CloseShiftParams): Promise<Either<Failure, CashierShiftEntity>> {
     return this.remoteDs.close(params);
+  }
+
+  async listShifts(params: ListShiftsParams): Promise<Either<Failure, ListShiftsResult>> {
+    return this.remoteDs.listShifts(params);
+  }
+
+  async registerWithdrawal(
+    params: RegisterWithdrawalParams,
+  ): Promise<Either<Failure, CashWithdrawalEntity>> {
+    return this.remoteDs.registerWithdrawal(params);
+  }
+
+  async listWithdrawalsByShift(
+    shiftId: string,
+  ): Promise<Either<Failure, CashWithdrawalEntity[]>> {
+    return this.remoteDs.listWithdrawalsByShift(shiftId);
   }
 }

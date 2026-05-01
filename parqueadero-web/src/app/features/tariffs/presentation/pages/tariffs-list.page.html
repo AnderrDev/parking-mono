@@ -1,0 +1,68 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Tarifas</h1>
+      <p class="page__subtitle">Gestión de tarifas de cobro por tipo de vehículo.</p>
+    </div>
+    <button class="btn btn--primary" (click)="openCreate()">+ Nueva tarifa</button>
+  </header>
+
+  <div class="page__filters">
+    <label class="filter-group">
+      <span class="filter-group__label">Tipo vehículo</span>
+      <select class="filter-group__select" (change)="onTypeFilter($event)">
+        <option value="">Todos</option>
+        <option value="carro">Carro</option>
+        <option value="moto">Moto</option>
+        <option value="bicicleta">Bicicleta</option>
+        <option value="otro">Otro</option>
+      </select>
+    </label>
+    <label class="filter-group filter-group--checkbox">
+      <input type="checkbox" (change)="onShowInactive($event)" />
+      <span>Mostrar inactivas</span>
+    </label>
+  </div>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="tariffs()"
+    [state]="tableState()"
+    caption="Lista de tarifas"
+    emptyTitle="Sin tarifas"
+    emptyDescription="Crea la primera tarifa con el botón 'Nueva tarifa'."
+    [pagination]="pagination()"
+    [currentSort]="sort()"
+    [cellTemplate]="cellTpl"
+    (sortChange)="onSort($event)"
+    (pageChange)="onPage($event)"
+    (retry)="load()"
+  />
+</div>
+
+<ng-template #cellTpl let-row let-col="column">
+  @switch (col.key) {
+    @case ('vehicleType') { {{ vehicleLabel(row.vehicleType) }} }
+    @case ('unit') { {{ unitLabel(row.unit) }} }
+    @case ('valueCents') { {{ row.valueCents | currencyCop }} }
+    @case ('dailyCapCents') { {{ row.dailyCapCents | currencyCop }} }
+    @case ('isActive') {
+      <span class="badge" [class.badge--green]="row.isActive" [class.badge--gray]="!row.isActive">
+        {{ row.isActive ? 'Activa' : 'Inactiva' }}
+      </span>
+    }
+    @case ('_actions') {
+      <div class="row-actions">
+        <button class="btn-icon" title="Editar" (click)="openEdit(row); $event.stopPropagation()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        @if (row.isActive) {
+          <button class="btn-icon btn-icon--danger" title="Desactivar" (click)="confirmDeactivate(row); $event.stopPropagation()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </button>
+        }
+      </div>
+    }
+    @default { {{ $any(row)[col.key] ?? '—' }} }
+  }
+</ng-template>

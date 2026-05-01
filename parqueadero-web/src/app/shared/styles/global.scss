@@ -14,6 +14,7 @@ body {
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
   background-color: var(--color-bg);
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
 }
 
 // Monospace para elementos que muestran placas y montos
@@ -22,9 +23,45 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+// Tabular numerics — montos y duraciones
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
 // -----------------------------------------------------------------------------
-// Utilidades globales mínimas (no un framework — solo lo que usamos en el shell)
+// Headings — escala consistente cross-feature
 // -----------------------------------------------------------------------------
+h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text-strong);
+}
+
+h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+  color: var(--color-text-strong);
+}
+
+h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-strong);
+}
+
+// -----------------------------------------------------------------------------
+// Utilidades globales
+// -----------------------------------------------------------------------------
+
+// Texto de ayuda bajo inputs — evita duplicar el patrón en cada feature
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--line-height-normal);
+  margin-top: var(--space-1);
+}
 
 .sr-only {
   position: absolute;
@@ -44,10 +81,11 @@ body {
   left: var(--space-4);
   z-index: var(--z-tooltip);
   padding: var(--space-2) var(--space-4);
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
   border-radius: var(--radius-md);
   font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-2);
   transition: top var(--motion-fast) var(--ease-out);
 
   &:focus {
@@ -56,10 +94,20 @@ body {
 }
 
 // -----------------------------------------------------------------------------
+// Selection — color de marca
+// -----------------------------------------------------------------------------
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+}
+
+// -----------------------------------------------------------------------------
 // CDK Dialog overlay
 // -----------------------------------------------------------------------------
 .cdk-overlay-backdrop {
-  background: rgba(0, 0, 0, 0.48);
+  background: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .cdk-overlay-container {
@@ -67,11 +115,11 @@ body {
 }
 
 // -----------------------------------------------------------------------------
-// Scrollbar styling (webkit)
+// Scrollbar styling — sutil, no decorativo
 // -----------------------------------------------------------------------------
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -81,4 +129,38 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-strong);
   border-radius: var(--radius-pill);
+  border: 2px solid var(--color-bg);
+
+  &:hover {
+    background: var(--color-text-disabled);
+  }
+}
+
+// Firefox
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+// -----------------------------------------------------------------------------
+// Animaciones globales reusables
+// -----------------------------------------------------------------------------
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }

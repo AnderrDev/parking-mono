@@ -14,8 +14,6 @@ export class ParkingSessionEntity extends BaseEntity {
     public readonly entryAt: Date,
     public readonly entryUserId: string,
     public readonly status: SessionStatus,
-    public readonly color: string | null,
-    public readonly brand: string | null,
     public readonly monthlyPlanId: string | null,
     public readonly exitAt: Date | null,
     public readonly exitUserId: string | null,

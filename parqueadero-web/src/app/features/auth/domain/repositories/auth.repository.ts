@@ -6,4 +6,8 @@ export abstract class AuthRepository {
   abstract login(email: string, password: string): Promise<Either<Failure, UserEntity>>;
   abstract logout(): Promise<Either<Failure, void>>;
   abstract getCurrentUser(): Promise<Either<Failure, UserEntity | null>>;
+  abstract changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<Either<Failure, void>>;
 }

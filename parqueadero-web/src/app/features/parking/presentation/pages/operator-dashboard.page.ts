@@ -2,9 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   Inject,
+  OnDestroy,
   OnInit,
+  computed,
+  inject,
   signal,
+  viewChild,
 } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
 import {
   BusinessRuleFailure,
   NetworkFailure,
@@ -17,12 +22,12 @@ import {
   REGISTER_VEHICLE_EXIT_TOKEN,
   GET_ACTIVE_SESSIONS_TOKEN,
   SEARCH_VEHICLE_BY_PLATE_TOKEN,
+  REQUEST_INVOICE_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
-import { ErrorDisplayComponent } from '../../../../shared/components/error-display/error-display.component';
+import { ToastService } from '../../../../core/services/toast.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
-import { ParkingSessionEntity } from '../../domain/entities/parking-session.entity';
-import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { NoParams } from '../../../../core/base/usecase';
 import {
   RegisterVehicleEntryUseCase,
@@ -36,339 +41,64 @@ import {
 import {
   SearchVehicleByPlateUseCase,
 } from '../../domain/usecases/search-vehicle-by-plate.usecase';
+import { VehicleSearchResult } from '../../domain/repositories/parking.repository';
 import {
   CalculateParkingFeeUseCase,
-  CalculateParkingFeeResult,
 } from '../../domain/usecases/calculate-parking-fee.usecase';
+import { RequestInvoiceUseCase } from '../../../invoicing/domain/usecases/request-invoice.usecase';
 import {
   VehicleEntryFormComponent,
   VehicleEntryFormValue,
 } from '../components/vehicle-entry-form.component';
 import {
   VehicleExitDialogComponent,
+  VehicleExitDialogData,
   ExitFormValue,
 } from '../components/vehicle-exit-dialog.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 
-type ToastVariant = 'success' | 'warning' | 'error';
-interface Toast { message: string; variant: ToastVariant; }
+const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
+  carro: 'Carro',
+  moto: 'Moto',
+  bicicleta: 'Bicicleta',
+  otro: 'Otro',
+};
 
 @Component({
   selector: 'app-operator-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    VehicleEntryFormComponent,
-    VehicleExitDialogComponent,
-    ErrorDisplayComponent,
-    LoadingSpinnerComponent,
-  ],
-  template: `
-    <div class="dashboard">
-      <header class="dashboard__header">
-        <h1 class="dashboard__title">Dashboard Operario</h1>
-        @if (authState.currentUser()) {
-          <p class="dashboard__user">{{ authState.currentUser()!.nombre }}</p>
-        }
-      </header>
-
-      <!-- Toast notification -->
-      @if (toast()) {
-        <div
-          class="dashboard__toast"
-          [class.dashboard__toast--success]="toast()!.variant === 'success'"
-          [class.dashboard__toast--warning]="toast()!.variant === 'warning'"
-          [class.dashboard__toast--error]="toast()!.variant === 'error'"
-          role="status"
-          aria-live="polite"
-        >
-          {{ toast()!.message }}
-          <button class="dashboard__toast-close" type="button" (click)="dismissToast()" aria-label="Cerrar">×</button>
-        </div>
-      }
-
-      <div class="dashboard__layout">
-        <!-- Entry form panel -->
-        <section class="dashboard__panel" aria-labelledby="entry-heading">
-          <h2 id="entry-heading" class="dashboard__panel-title">Registrar Entrada</h2>
-          <app-vehicle-entry-form
-            [loading]="entryLoading()"
-            [monthlyPlanWarning]="monthlyPlanWarning()"
-            (submitted)="onEntrySubmit($event)"
-          />
-        </section>
-
-        <!-- Active sessions panel -->
-        <section class="dashboard__panel" aria-labelledby="sessions-heading">
-          <h2 id="sessions-heading" class="dashboard__panel-title">
-            Sesiones Activas
-            @if (activeSessions().length > 0) {
-              <span class="dashboard__badge">{{ activeSessions().length }}</span>
-            }
-          </h2>
-
-          @if (sessionsLoading()) {
-            <div class="dashboard__loading-state">
-              <app-loading-spinner label="Cargando sesiones activas..." />
-            </div>
-          } @else if (activeSessions().length === 0) {
-            <p class="dashboard__empty">No hay vehículos en el parqueadero.</p>
-          } @else {
-            <ul class="sessions-list" role="list">
-              @for (session of activeSessions(); track session.id) {
-                <li class="sessions-list__item">
-                  <div class="sessions-list__info">
-                    <span class="sessions-list__plate">{{ session.vehiclePlate }}</span>
-                    <span class="sessions-list__type">{{ session.vehicleType }}</span>
-                    <span class="sessions-list__duration">{{ formatDuration(session.durationMinutes) }}</span>
-                    @if (session.isMonthly) {
-                      <span class="sessions-list__monthly-badge">MENSUAL</span>
-                    }
-                  </div>
-                  <button
-                    type="button"
-                    class="sessions-list__exit-btn"
-                    (click)="openExitDialog(session)"
-                    [attr.aria-label]="'Registrar salida de ' + session.vehiclePlate"
-                  >
-                    Salida
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </section>
-      </div>
-    </div>
-
-    <!-- Exit dialog (rendered at top level for correct stacking) -->
-    @if (exitSession()) {
-      <app-vehicle-exit-dialog
-        [session]="exitSession()!"
-        [tariff]="exitTariff()"
-        [feeResult]="exitFeeResult()"
-        [loading]="exitLoading()"
-        (submitted)="onExitSubmit($event)"
-        (cancelled)="closeExitDialog()"
-      />
-    }
-  `,
-  styles: [`
-    .dashboard {
-      padding: var(--space-6);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-6);
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .dashboard__header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: var(--space-4);
-    }
-
-    .dashboard__title {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-bold);
-      color: var(--color-text-primary);
-      margin: 0;
-    }
-
-    .dashboard__user {
-      font-size: var(--text-sm);
-      color: var(--color-text-secondary);
-      margin: 0;
-    }
-
-    .dashboard__toast {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--space-3);
-      padding: var(--space-3) var(--space-4);
-      border-radius: var(--radius-md);
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-      animation: slideDown var(--motion-duration-normal) var(--motion-easing-standard);
-
-      &--success {
-        background: color-mix(in srgb, var(--color-success) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--color-success) 40%, transparent);
-        color: var(--color-success);
-      }
-      &--warning {
-        background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
-        color: var(--color-warning-dark, #b45309);
-      }
-      &--error {
-        background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
-        color: var(--color-danger);
-      }
-    }
-
-    .dashboard__toast-close {
-      font-size: var(--text-lg);
-      line-height: 1;
-      padding: 0 var(--space-1);
-      cursor: pointer;
-      color: inherit;
-      opacity: 0.7;
-      &:hover { opacity: 1; }
-    }
-
-    .dashboard__layout {
-      display: grid;
-      grid-template-columns: 400px 1fr;
-      gap: var(--space-6);
-      align-items: start;
-
-      @media (max-width: 768px) {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .dashboard__panel {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      padding: var(--space-6);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-    }
-
-    .dashboard__panel-title {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-semibold);
-      color: var(--color-text-primary);
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-    }
-
-    .dashboard__badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--color-primary);
-      color: #fff;
-      font-size: var(--text-xs);
-      font-weight: var(--font-weight-bold);
-      border-radius: 9999px;
-      min-width: 20px;
-      height: 20px;
-      padding: 0 var(--space-1);
-    }
-
-    .dashboard__loading-state {
-      display: flex;
-      justify-content: center;
-      padding: var(--space-8);
-    }
-
-    .dashboard__empty {
-      color: var(--color-text-secondary);
-      font-size: var(--text-sm);
-      text-align: center;
-      padding: var(--space-8) 0;
-      margin: 0;
-    }
-
-    .sessions-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-    }
-
-    .sessions-list__item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--space-3);
-      padding: var(--space-3) var(--space-4);
-      background: var(--color-bg-subtle);
-      border-radius: var(--radius-md);
-      font-size: var(--text-sm);
-    }
-
-    .sessions-list__info {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
-      flex: 1;
-      min-width: 0;
-    }
-
-    .sessions-list__plate {
-      font-family: var(--font-mono);
-      font-weight: var(--font-weight-semibold);
-      letter-spacing: 0.05em;
-      color: var(--color-text-primary);
-    }
-
-    .sessions-list__type {
-      color: var(--color-text-secondary);
-      text-transform: capitalize;
-    }
-
-    .sessions-list__duration {
-      color: var(--color-text-secondary);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .sessions-list__monthly-badge {
-      background: color-mix(in srgb, var(--color-monthly, #7c3aed) 15%, transparent);
-      color: var(--color-monthly, #7c3aed);
-      font-size: var(--text-xs);
-      font-weight: var(--font-weight-bold);
-      padding: 2px var(--space-2);
-      border-radius: var(--radius-sm);
-    }
-
-    .sessions-list__exit-btn {
-      padding: var(--space-1) var(--space-3);
-      background: var(--color-primary);
-      color: #fff;
-      border-radius: var(--radius-md);
-      font-size: var(--text-xs);
-      font-weight: var(--font-weight-semibold);
-      cursor: pointer;
-      white-space: nowrap;
-      min-height: 32px;
-      transition: background var(--motion-duration-fast);
-      &:hover { background: var(--color-primary-dark, color-mix(in srgb, var(--color-primary) 85%, #000)); }
-    }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  `],
+  imports: [VehicleEntryFormComponent, LoadingSpinnerComponent],
+  templateUrl: './operator-dashboard.page.html',
+  styleUrl: './operator-dashboard.page.scss',
 })
-export class OperatorDashboardPageComponent implements OnInit {
+export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly entryLoading = signal(false);
   readonly sessionsLoading = signal(false);
-  readonly exitLoading = signal(false);
   readonly activeSessions = signal<ParkingSessionEntity[]>([]);
   readonly monthlyPlanWarning = signal<string | null>(null);
-  readonly toast = signal<Toast | null>(null);
 
-  readonly exitSession = signal<ParkingSessionEntity | null>(null);
-  readonly exitTariff = signal<TariffEntity | null>(null);
-  readonly exitFeeResult = signal<CalculateParkingFeeResult | null>(null);
+  readonly clockNow = signal(this.formatNow());
+
+  readonly monthlyCount = computed(
+    () => this.activeSessions().filter(s => s.isMonthly).length,
+  );
+
+  // HU-014: buscador por placa
+  readonly plateSearchQuery = signal('');
+  readonly plateSearchLoading = signal(false);
+  readonly plateSearchResult = signal<VehicleSearchResult | null>(null);
+  readonly plateSearchError = signal<string | null>(null);
+  private plateSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly formatDuration = formatDuration;
 
-  private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly entryFormCmp = viewChild<VehicleEntryFormComponent>('entryForm');
+
+  private clockTimer: ReturnType<typeof setInterval> | null = null;
+
+  private readonly dialog = inject(Dialog);
+  private readonly toast = inject(ToastService);
 
   constructor(
     @Inject(REGISTER_VEHICLE_ENTRY_TOKEN)
@@ -379,46 +109,105 @@ export class OperatorDashboardPageComponent implements OnInit {
     private readonly getActiveSessions: GetActiveSessionsUseCase,
     @Inject(SEARCH_VEHICLE_BY_PLATE_TOKEN)
     private readonly searchByPlate: SearchVehicleByPlateUseCase,
-    private readonly calculateFee: CalculateParkingFeeUseCase,
+    @Inject(REQUEST_INVOICE_TOKEN)
+    private readonly requestInvoice: RequestInvoiceUseCase,
+    private readonly _calculateFee: CalculateParkingFeeUseCase,
     readonly authState: AuthStateService,
   ) {}
 
   async ngOnInit(): Promise<void> {
     await this.loadSessions();
+    this.clockTimer = setInterval(() => this.clockNow.set(this.formatNow()), 1000);
   }
 
-  async openExitDialog(session: ParkingSessionEntity): Promise<void> {
-    this.exitSession.set(session);
-    this.exitTariff.set(null);
-    this.exitFeeResult.set(null);
-
-    // Load tariff and pre-calculate fee using the parking repository
-    // We route through the exit use case's repository, so we call the search
-    // to get the tariff. Instead, we call getActiveTariff via the repo indirectly
-    // by using the repo injected in RegisterVehicleExitUseCase. Since that's not
-    // directly accessible here, we use the underlying approach via search.
-    //
-    // For the pre-calculation preview, we fetch the tariff by reusing the
-    // registered exit use case's repo reference. Since we can't inject the repo
-    // directly here (it's behind PARKING_REPOSITORY_TOKEN which isn't imported
-    // in the page), we skip the preview if tariff is unavailable and let the
-    // dialog proceed without it.
-    //
-    // The actual fee is calculated inside RegisterVehicleExitUseCase on submit.
+  ngOnDestroy(): void {
+    if (this.clockTimer) clearInterval(this.clockTimer);
+    if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
   }
 
-  closeExitDialog(): void {
-    this.exitSession.set(null);
-    this.exitTariff.set(null);
-    this.exitFeeResult.set(null);
+  // HU-014: búsqueda con debounce 300ms
+  protected onPlateSearch(event: Event): void {
+    const value = (event.target as HTMLInputElement).value.trim();
+    this.plateSearchQuery.set(value);
+
+    if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
+    if (value.length < 3) {
+      this.plateSearchResult.set(null);
+      this.plateSearchError.set(null);
+      return;
+    }
+
+    this.plateSearchTimer = setTimeout(async () => {
+      this.plateSearchLoading.set(true);
+      this.plateSearchError.set(null);
+      const result = await this.searchByPlate.execute({ plate: value });
+      this.plateSearchLoading.set(false);
+      result.fold(
+        (failure) => {
+          this.plateSearchResult.set(null);
+          this.plateSearchError.set(failure.message);
+        },
+        (data) => {
+          this.plateSearchResult.set(data);
+          this.plateSearchError.set(null);
+        },
+      );
+    }, 300);
   }
 
-  async onExitSubmit(value: ExitFormValue): Promise<void> {
+  protected clearPlateSearch(): void {
+    if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
+    this.plateSearchQuery.set('');
+    this.plateSearchResult.set(null);
+    this.plateSearchError.set(null);
+  }
+
+  protected formatDateShort(d: Date): string {
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  protected todayLabel(): string {
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
+    return formatter.format(new Date());
+  }
+
+  protected vehicleLabel(t: VehicleType): string {
+    return VEHICLE_TYPE_LABEL[t] ?? t;
+  }
+
+  protected formatTimeShort(d: Date): string {
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  private formatNow(): string {
+    return new Date().toLocaleTimeString('es-CO', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+
+  openExitDialog(session: ParkingSessionEntity): void {
+    const ref = this.dialog.open<ExitFormValue | undefined, VehicleExitDialogData>(
+      VehicleExitDialogComponent,
+      {
+        data: { session, tariff: null, feeResult: null },
+        ariaLabelledBy: 'exit-dialog-title',
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        hasBackdrop: true,
+      },
+    );
+    ref.closed.subscribe((result) => {
+      if (result) {
+        void this.onExitSubmit(session, result);
+      }
+    });
+  }
+
+  private async onExitSubmit(session: ParkingSessionEntity, value: ExitFormValue): Promise<void> {
     const user = this.authState.currentUser();
-    const session = this.exitSession();
-    if (!user || !session) return;
-
-    this.exitLoading.set(true);
+    if (!user) return;
 
     const result = await this.registerExit.execute({
       plate: session.vehiclePlate,
@@ -427,34 +216,50 @@ export class OperatorDashboardPageComponent implements OnInit {
       userId: user.id,
     });
 
-    this.exitLoading.set(false);
-
     result.fold(
       (failure) => {
         if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
-          this.showToast(failure.message, 'error');
+          this.toast.error(failure.message);
         } else if (failure instanceof NotFoundFailure) {
-          this.showToast(failure.message, 'error');
-          this.closeExitDialog();
-          this.loadSessions();
+          this.toast.error(failure.message);
+          void this.loadSessions();
         } else if (failure instanceof NetworkFailure) {
-          this.showToast('Sin conexión. La salida se guardará cuando haya red.', 'warning');
+          this.toast.warning('Sin conexión. La salida se guardará cuando haya red.');
         } else if (failure instanceof ServerFailure) {
-          this.showToast(`Error al registrar salida: ${failure.message}`, 'error');
+          this.toast.error(`Error al registrar salida: ${failure.message}`);
         } else {
-          this.showToast('Error inesperado. Intenta de nuevo.', 'error');
+          this.toast.error('Error inesperado. Intenta de nuevo.');
         }
       },
       ({ session: closedSession }) => {
         this.activeSessions.update((prev) => prev.filter((s) => s.id !== closedSession.id));
-        this.closeExitDialog();
         const amount = closedSession.amountDueCents ?? 0;
         const amountStr = amount > 0 ? ` — $${amount.toLocaleString('es-CO')} COP` : ' — Sin cobro';
-        this.showToast(
-          `Vehículo ${closedSession.vehiclePlate} salió${amountStr}`,
-          'success',
-        );
+
+        // HU-029: si pagó en efectivo, mostrar el cambio en el toast de éxito.
+        let changeStr = '';
+        if (value.paymentMethod === 'efectivo' && value.cashReceivedCents !== null && amount > 0) {
+          const change = value.cashReceivedCents - amount;
+          if (change > 0) {
+            changeStr = ` · Cambio $${change.toLocaleString('es-CO')}`;
+          }
+        }
+        this.toast.success(`Vehículo ${closedSession.vehiclePlate} salió${amountStr}${changeStr}`);
+
+        // HU-040: emitir factura electrónica si el operador la pidió.
+        if (value.emitInvoice && value.customerId) {
+          void this.emitInvoiceFor(closedSession.id, value.customerId);
+        }
       },
+    );
+  }
+
+  private async emitInvoiceFor(sessionId: string, customerId: string): Promise<void> {
+    this.toast.info('Emitiendo factura electrónica...');
+    const result = await this.requestInvoice.execute({ sessionId, customerId });
+    result.fold(
+      (failure) => this.toast.error(`No se pudo emitir factura: ${failure.message}`),
+      (invoice) => this.toast.success(`Factura ${invoice.number} (${invoice.dianStatus})`),
     );
   }
 
@@ -478,31 +283,26 @@ export class OperatorDashboardPageComponent implements OnInit {
     result.fold(
       (failure) => {
         if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
-          this.showToast(failure.message, 'error');
+          this.toast.error(failure.message);
         } else if (failure instanceof NetworkFailure) {
-          this.showToast('Sin conexión. La entrada se guardará cuando haya red.', 'warning');
+          this.toast.warning('Sin conexión. La entrada se guardará cuando haya red.');
         } else if (failure instanceof ServerFailure) {
-          this.showToast(`Error al registrar entrada: ${failure.message}`, 'error');
+          this.toast.error(`Error al registrar entrada: ${failure.message}`);
         } else {
-          this.showToast('Error inesperado. Intenta de nuevo.', 'error');
+          this.toast.error('Error inesperado. Intenta de nuevo.');
         }
       },
       ({ session, monthlyPlanWarning }) => {
         this.activeSessions.update((prev) => [session, ...prev]);
-        this.showToast(
+        this.toast.success(
           `Vehículo ${session.vehiclePlate} registrado a las ${session.entryAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`,
-          'success',
         );
         if (monthlyPlanWarning) {
           this.monthlyPlanWarning.set(monthlyPlanWarning);
         }
+        this.entryFormCmp()?.resetForm();
       },
     );
-  }
-
-  dismissToast(): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toast.set(null);
   }
 
   private async loadSessions(): Promise<void> {
@@ -511,14 +311,8 @@ export class OperatorDashboardPageComponent implements OnInit {
     this.sessionsLoading.set(false);
 
     result.fold(
-      () => { /* silently fail on session load — dashboard is still usable */ },
+      () => this.toast.error('No se pudieron cargar las sesiones activas'),
       ({ data }) => this.activeSessions.set(data),
     );
-  }
-
-  private showToast(message: string, variant: ToastVariant): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toast.set({ message, variant });
-    this.toastTimer = setTimeout(() => this.toast.set(null), 5000);
   }
 }

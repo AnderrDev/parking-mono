@@ -39,8 +39,8 @@ export class AuthRemoteDataSource extends AuthDataSource {
       }
 
       const jwtPayload = this.decodeJwtPayload(data.session.access_token);
-      if (!jwtPayload?.['role']) {
-        return left(new ServerFailure('JWT sin claim role'));
+      if (!jwtPayload?.['user_role']) {
+        return left(new ServerFailure('JWT sin claim user_role'));
       }
 
       const userRow = await this.fetchUserRow(data.user.id);
@@ -73,6 +73,42 @@ export class AuthRemoteDataSource extends AuthDataSource {
     }
   }
 
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<Either<Failure, void>> {
+    try {
+      const { data: sessionData, error: sessionErr } = await this.supabase.client.auth.getSession();
+      if (sessionErr) return left(new ServerFailure(sessionErr.message));
+      if (!sessionData.session) return left(new UnauthorizedFailure('Sesión no activa'));
+
+      const email = sessionData.session.user.email;
+      if (!email) return left(new ServerFailure('Sesión sin email'));
+
+      // 1. Re-verificar contraseña actual con sign-in adicional.
+      const { error: signInErr } = await this.supabase.client.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (signInErr) {
+        if (signInErr.status === 400 || signInErr.status === 401) {
+          return left(new UnauthorizedFailure('Contraseña actual incorrecta'));
+        }
+        return left(new ServerFailure(signInErr.message));
+      }
+
+      // 2. Actualizar contraseña.
+      const { error: updateErr } = await this.supabase.client.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateErr) return left(new ServerFailure(updateErr.message));
+
+      return right(undefined);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
   async getSession(): Promise<Either<Failure, UserEntity | null>> {
     try {
       const { data, error } = await this.supabase.client.auth.getSession();
@@ -86,8 +122,8 @@ export class AuthRemoteDataSource extends AuthDataSource {
       }
 
       const jwtPayload = this.decodeJwtPayload(data.session.access_token);
-      if (!jwtPayload?.['role']) {
-        return left(new ServerFailure('JWT restaurado sin claim role'));
+      if (!jwtPayload?.['user_role']) {
+        return left(new ServerFailure('JWT restaurado sin claim user_role'));
       }
 
       const userRow = await this.fetchUserRow(data.session.user.id);

@@ -11,7 +11,16 @@ export class SupabaseService implements OnDestroy {
   readonly session$: Observable<Session | null> = this._session$.asObservable();
 
   constructor() {
-    this.client = createClient(environment.supabaseUrl, environment.supabaseAnonKey);
+    this.client = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        // Lock pasivo: evita NavigatorLockAcquireTimeoutError en dev/HMR y
+        // multi-pestaña. Para nuestro flujo (un operario por dispositivo) la
+        // coordinación entre pestañas no aporta valor.
+        lock: async (_name, _acquireTimeout, fn) => fn(),
+      },
+    });
 
     this.client.auth.getSession().then(({ data }) => {
       this._session$.next(data.session);

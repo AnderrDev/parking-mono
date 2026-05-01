@@ -1,0 +1,68 @@
+<div class="page">
+      <header class="page__header">
+        <div>
+          <h1 class="page__title">Mensualidades</h1>
+          <p class="page__subtitle">Gestión de planes mensuales de parqueo.</p>
+        </div>
+        <button class="btn btn--primary" (click)="openCreate()">+ Nuevo plan</button>
+      </header>
+
+      <div class="page__filters">
+        <label class="filter-group">
+          <span class="filter-group__label">Placa</span>
+          <input class="filter-group__input" type="search" placeholder="Buscar placa…"
+            (input)="onSearch($event)" />
+        </label>
+        <label class="filter-group">
+          <span class="filter-group__label">Estado</span>
+          <select class="filter-group__select" (change)="onStatusFilter($event)">
+            @for (opt of statusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <app-data-table
+        [columns]="columns"
+        [rows]="plans()"
+        [state]="tableState()"
+        caption="Lista de planes mensuales"
+        emptyTitle="Sin planes"
+        emptyDescription="Crea el primer plan mensual con el botón 'Nuevo plan'."
+        [pagination]="pagination()"
+        [currentSort]="sort()"
+        [cellTemplate]="cellTpl"
+        (sortChange)="onSort($event)"
+        (pageChange)="onPage($event)"
+        (retry)="load()"
+      />
+    </div>
+
+    <ng-template #cellTpl let-row let-col="column">
+      @switch (col.key) {
+        @case ('planType') { {{ planLabel(row.planType) }} }
+        @case ('startDate') { {{ row.startDate | date:'dd/MM/yyyy' }} }
+        @case ('endDate') { {{ row.endDate | date:'dd/MM/yyyy' }} }
+        @case ('amountCents') { {{ row.amountCents | currencyCop }} }
+        @case ('autoRenew') { {{ row.autoRenew ? 'Sí' : 'No' }} }
+        @case ('status') {
+          <span class="badge" [class]="statusBadge(row.status)">
+            {{ statusLabel(row.status) }}
+          </span>
+        }
+        @case ('_actions') {
+          <div class="row-actions">
+            @if (row.status === 'active' || row.status === 'expiring') {
+              <button class="btn-icon" title="Editar" (click)="openEdit(row); $event.stopPropagation()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn-icon btn-icon--danger" title="Cancelar plan" (click)="confirmCancel(row); $event.stopPropagation()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </button>
+            }
+          </div>
+        }
+        @default { {{ $any(row)[col.key] ?? '—' }} }
+      }
+    </ng-template>

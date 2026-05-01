@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { requireRole } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/parking', pathMatch: 'full' },
@@ -27,7 +28,7 @@ export const routes: Routes = [
   },
   {
     path: 'invoicing',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requireRole('admin', 'contador')],
     loadChildren: () =>
       import('./features/invoicing/invoicing.routes').then((m) => m.invoicingRoutes),
   },
@@ -51,7 +52,7 @@ export const routes: Routes = [
   },
   {
     path: 'reports',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requireRole('admin', 'contador')],
     loadChildren: () =>
       import('./features/reports/reports.routes').then((m) => m.reportsRoutes),
   },
@@ -67,6 +68,35 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadChildren: () =>
       import('./features/vehicles/vehicles.routes').then((m) => m.vehiclesRoutes),
+  },
+  {
+    path: 'account/password',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/auth/presentation/pages/change-password.page').then(
+        (m) => m.ChangePasswordPageComponent,
+      ),
+    data: { title: 'Cambiar contraseña' },
+  },
+  {
+    path: 'audit',
+    loadChildren: () =>
+      import('./features/audit/audit.routes').then((m) => m.auditRoutes),
+  },
+  {
+    path: 'settings',
+    loadChildren: () =>
+      import('./features/settings/settings.routes').then((m) => m.settingsRoutes),
+  },
+  {
+    path: 'users',
+    loadChildren: () =>
+      import('./features/users/users.routes').then((m) => m.usersRoutes),
+  },
+  {
+    path: 'dashboard',
+    loadChildren: () =>
+      import('./features/dashboard/dashboard.routes').then((m) => m.dashboardRoutes),
   },
 
   { path: '**', redirectTo: '/parking' },

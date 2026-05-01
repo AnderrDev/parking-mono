@@ -14,30 +14,8 @@ const STATUS_LABELS: Record<string, string> = {
   selector: 'app-status-badge',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <span
-      class="badge"
-      [style.--badge-color]="'var(--color-status-' + status() + ')'"
-    >
-      {{ label() || STATUS_LABELS[status()] || status() }}
-    </span>
-  `,
-  styles: [`
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      padding: var(--space-1) var(--space-3);
-      border-radius: var(--radius-pill);
-      font-size: var(--text-xs);
-      font-weight: var(--font-weight-semibold);
-      line-height: 1;
-      color: var(--badge-color, var(--color-text-muted));
-      background-color: color-mix(in srgb, var(--badge-color, var(--color-text-muted)) 15%, transparent);
-      border: 1px solid color-mix(in srgb, var(--badge-color, var(--color-text-muted)) 30%, transparent);
-      white-space: nowrap;
-    }
-  `],
+  templateUrl: './status-badge.component.html',
+  styleUrl: './status-badge.component.scss',
 })
 export class StatusBadgeComponent {
   status = input.required<StatusKey>();

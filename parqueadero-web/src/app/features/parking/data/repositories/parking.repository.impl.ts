@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@angular/core';
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
-import {
-  PARKING_REMOTE_DATASOURCE_TOKEN,
-} from '../../../../core/di/injection-tokens';
-import { NetworkInfoService } from '../../../../core/services/network-info.service';
+import { PARKING_REMOTE_DATASOURCE_TOKEN } from '../../../../core/di/injection-tokens';
 import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
@@ -18,6 +15,9 @@ import {
   ActiveSessionsSort,
   ActiveSessionsResult,
   VehicleSearchResult,
+  ListSessionsParams,
+  ListSessionsResult,
+  CancelSessionParams,
 } from '../../domain/repositories/parking.repository';
 import { ParkingDataSource } from '../datasources/parking.datasource';
 
@@ -25,7 +25,6 @@ import { ParkingDataSource } from '../datasources/parking.datasource';
 export class ParkingRepositoryImpl extends ParkingRepository {
   constructor(
     @Inject(PARKING_REMOTE_DATASOURCE_TOKEN) private readonly remoteDs: ParkingDataSource,
-    private readonly networkInfo: NetworkInfoService,
   ) {
     super();
   }
@@ -33,7 +32,6 @@ export class ParkingRepositoryImpl extends ParkingRepository {
   async registerEntry(
     params: RegisterEntryParams,
   ): Promise<Either<Failure, ParkingSessionEntity>> {
-    // Fase 8: route to local datasource when offline
     return this.remoteDs.insertSession(params);
   }
 
@@ -73,5 +71,13 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
   async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
     return this.remoteDs.getActiveTariff(vehicleType);
+  }
+
+  async listSessions(params: ListSessionsParams): Promise<Either<Failure, ListSessionsResult>> {
+    return this.remoteDs.listSessions(params);
+  }
+
+  async cancelSession(params: CancelSessionParams): Promise<Either<Failure, ParkingSessionEntity>> {
+    return this.remoteDs.cancelSession(params);
   }
 }

@@ -6,4 +6,8 @@ export abstract class AuthDataSource {
   abstract signIn(email: string, password: string): Promise<Either<Failure, UserEntity>>;
   abstract signOut(): Promise<Either<Failure, void>>;
   abstract getSession(): Promise<Either<Failure, UserEntity | null>>;
+  abstract changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<Either<Failure, void>>;
 }

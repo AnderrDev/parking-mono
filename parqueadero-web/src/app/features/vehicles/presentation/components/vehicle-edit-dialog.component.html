@@ -1,0 +1,63 @@
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-dialog-title">
+  <header class="dialog__header">
+    <h2 class="dialog__title" id="vehicle-dialog-title">
+      {{ isEdit ? 'Editar vehículo' : 'Nuevo vehículo' }}
+    </h2>
+  </header>
+
+  <form class="dialog__body" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for="v-plate">Placa</label>
+        <input id="v-plate" class="field__input" [class.field__input--error]="err('plate')"
+          type="text" formControlName="plate" placeholder="ABC123"
+          style="text-transform: uppercase"
+          [attr.aria-describedby]="err('plate') ? 'v-plate-err' : null" />
+        @if (err('plate')) {
+          <span id="v-plate-err" class="field__error" role="alert">{{ errMsg('plate') }}</span>
+        }
+        @if (isEdit) {
+          <span class="field__hint">La placa no se puede cambiar</span>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="v-type">Tipo de vehículo</label>
+        <select id="v-type" class="field__select" formControlName="vehicleType">
+          @for (vt of vehicleTypes; track vt.value) {
+            <option [value]="vt.value">{{ vt.label }}</option>
+          }
+        </select>
+        @if (isEdit) {
+          <span class="field__hint">El tipo no se puede cambiar</span>
+        }
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for="v-color">Color</label>
+        <input id="v-color" class="field__input"
+          type="text" formControlName="color" placeholder="Rojo" />
+      </div>
+      <div class="field">
+        <label class="field__label" for="v-brand">Marca</label>
+        <input id="v-brand" class="field__input"
+          type="text" formControlName="brand" placeholder="Toyota" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="v-owner">ID de cliente propietario (UUID, opcional)</label>
+      <input id="v-owner" class="field__input"
+        type="text" formControlName="ownerCustomerId" placeholder="Dejar vacío si no tiene propietario" />
+    </div>
+
+    <div class="dialog__actions">
+      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
+      <button type="submit" class="btn btn--primary">
+        {{ isEdit ? 'Guardar cambios' : 'Registrar vehículo' }}
+      </button>
+    </div>
+  </form>
+</div>

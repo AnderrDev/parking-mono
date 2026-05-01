@@ -1,169 +1,201 @@
 // =============================================================================
 // Design Tokens — Parqueadero Admin
-// Fuente de verdad: skill ui-ux-parqueadero
+// Sistema "Trust & Authority" — slate navy + cyan accent (B2B service tool)
 // Importar SOLO desde global.scss o component stylesheets via @use
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// Fuentes self-hosted (producción)
-// Fallback a Google Fonts en desarrollo — ver src/assets/fonts/README.md
+// Fuentes — Google Fonts via CDN (fallback). En producción, se pueden
+// self-hostear bajando los archivos a /assets/fonts/ y reemplazando este
+// @import por declaraciones @font-face con `font-display: swap`.
 // -----------------------------------------------------------------------------
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/assets/fonts/Inter-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/assets/fonts/Inter-Medium.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/assets/fonts/Inter-SemiBold.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/assets/fonts/Inter-Bold.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/assets/fonts/JetBrainsMono-Medium.woff2') format('woff2');
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 // -----------------------------------------------------------------------------
 // Custom Properties (CSS Variables)
 // -----------------------------------------------------------------------------
 :root {
-  // --- Color: Brand ---
-  --color-primary:       #0B5CFF;
-  --color-primary-fg:    #FFFFFF;
-  --color-primary-soft:  #E8F0FF;
-  --color-primary-hover: #0049d6;
+  // ===========================================================================
+  // COLOR — Brand "Trust & Authority"
+  // ===========================================================================
+  --color-primary:        #0F172A;     // slate-900 — autoridad
+  --color-primary-fg:     #FFFFFF;
+  --color-primary-soft:   #E2E8F0;     // slate-200 (fondo activo)
+  --color-primary-hover:  #1E293B;     // slate-800
+  --color-primary-dark:   #020617;     // slate-950
+
+  // Accent / CTA — cyan profesional
+  --color-accent:         #0369A1;     // sky-700
+  --color-accent-fg:      #FFFFFF;
+  --color-accent-soft:    #E0F2FE;     // sky-100
+  --color-accent-hover:   #075985;     // sky-800
+
+  // Tokens semánticos de acción (operador dashboard: azul=entrada, rojo=salida)
+  --color-cta-entry:        var(--color-accent);
+  --color-cta-entry-hover:  var(--color-accent-hover);
+  --color-cta-exit:         var(--color-danger);
+  --color-cta-exit-hover:   var(--color-danger-strong);
 
   // --- Color: Semánticos ---
-  --color-success:       #0E8A3E;
-  --color-success-fg:    #FFFFFF;
-  --color-success-soft:  #E6F5EC;
+  --color-success:        #047857;     // emerald-700
+  --color-success-fg:     #FFFFFF;
+  --color-success-soft:   #ECFDF5;     // emerald-50
+  --color-success-strong: #065F46;
 
-  --color-warning:       #B45309;
-  --color-warning-fg:    #FFFFFF;
-  --color-warning-soft:  #FEF3C7;
+  --color-warning:        #B45309;     // amber-700
+  --color-warning-fg:     #FFFFFF;
+  --color-warning-soft:   #FEF3C7;     // amber-100
+  --color-warning-strong: #92400E;
 
-  --color-danger:        #B42318;
-  --color-danger-fg:     #FFFFFF;
-  --color-danger-soft:   #FEE4E2;
+  --color-danger:         #B91C1C;     // red-700
+  --color-danger-fg:      #FFFFFF;
+  --color-danger-soft:    #FEE2E2;     // red-100
+  --color-danger-strong:  #7F1D1D;
 
-  --color-info:          #0050B3;
-  --color-info-fg:       #FFFFFF;
-  --color-info-soft:     #E6F0FA;
+  --color-info:           #1D4ED8;     // blue-700
+  --color-info-fg:        #FFFFFF;
+  --color-info-soft:      #DBEAFE;     // blue-100
+
+  // Plan mensual — púrpura (categoría especial)
+  --color-monthly:        #6D28D9;     // violet-700
+  --color-monthly-fg:     #FFFFFF;
+  --color-monthly-soft:   #EDE9FE;     // violet-100
 
   // --- Color: Neutros ---
-  --color-bg:            #FAFAFA;
-  --color-surface:       #FFFFFF;
-  --color-surface-2:     #F4F4F5;
-  --color-border:        #E4E4E7;
-  --color-border-strong: #D1D1D6;
+  --color-bg:             #F9FAFB;     // gray-50 — fondo app (ligeramente más cálido que slate-50)
+  --color-bg-subtle:      #F3F4F6;     // gray-100 — fondo decorativo
+  --color-bg-muted:       #E5E7EB;     // gray-200 — hover sobre bg-subtle
+  --color-surface:        #FFFFFF;
+  --color-surface-elevated: #FFFFFF;   // tarjetas sobre fondos con color
+  --color-surface-2:      #F3F4F6;     // gray-100
+  --color-surface-3:      #E5E7EB;     // gray-200
+  --color-border:         #E2E8F0;     // slate-200
+  --color-border-strong:  #CBD5E1;     // slate-300
+  --color-border-subtle:  #F1F5F9;     // slate-100
 
-  --color-text:          #0A0A0A;
-  --color-text-muted:    #52525B;
-  --color-text-disabled: #A1A1AA;
+  // Texto
+  --color-text:           #0F172A;     // slate-900
+  --color-text-strong:    #020617;     // slate-950
+  --color-text-muted:     #475569;     // slate-600 (4.5:1 contrast on bg)
+  --color-text-disabled:  #94A3B8;     // slate-400
+  --color-text-placeholder: #94A3B8;   // slate-400 (alias)
+
+  // Aliases (componentes existentes usan estos nombres)
+  --color-text-primary:   var(--color-text);
+  --color-text-secondary: var(--color-text-muted);
 
   // --- Color: Estado de sesión (badges) ---
   --color-status-active:    var(--color-success);
-  --color-status-monthly:   #6D28D9;
+  --color-status-monthly:   var(--color-monthly);
   --color-status-completed: var(--color-text-muted);
   --color-status-cancelled: var(--color-danger);
   --color-status-pending:   var(--color-warning);
 
-  // --- Tipografía: Familias ---
+  // ===========================================================================
+  // TIPOGRAFÍA — Fira Sans (body) + Fira Code (mono) — ajustado a Inter+JetBrains
+  // (mantenemos Inter+JetBrains por self-hosting; transmiten la misma autoridad)
+  // ===========================================================================
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 
-  // --- Tipografía: Escala fluida ---
-  --text-xs:  clamp(0.75rem,  0.72rem + 0.15vw, 0.8125rem);
-  --text-sm:  clamp(0.875rem, 0.84rem + 0.2vw,  0.9375rem);
-  --text-md:  clamp(1rem,     0.95rem + 0.25vw, 1.0625rem);
-  --text-lg:  clamp(1.125rem, 1.05rem + 0.4vw,  1.25rem);
-  --text-xl:  clamp(1.375rem, 1.25rem + 0.6vw,  1.625rem);
-  --text-2xl: clamp(1.75rem,  1.5rem + 1vw,     2.25rem);
-  --text-3xl: clamp(2.25rem,  2rem + 1.5vw,     3rem);
+  // Escala fluida (clamp) — base 16px
+  --text-xs:   clamp(0.75rem,  0.72rem + 0.15vw, 0.8125rem); // 12-13px
+  --text-sm:   clamp(0.875rem, 0.84rem + 0.2vw,  0.9375rem); // 14-15px
+  --text-md:   clamp(1rem,     0.95rem + 0.25vw, 1.0625rem); // 16-17px
+  --text-base: var(--text-md);                                // alias
+  --text-lg:   clamp(1.125rem, 1.05rem + 0.4vw,  1.25rem);   // 18-20px
+  --text-xl:   clamp(1.375rem, 1.25rem + 0.6vw,  1.625rem);  // 22-26px
+  --text-2xl:  clamp(1.75rem,  1.5rem + 1vw,     2.25rem);   // 28-36px
+  --text-3xl:  clamp(2.25rem,  2rem + 1.5vw,     3rem);      // 36-48px
+  --text-4xl:  clamp(2.75rem,  2.5rem + 2vw,     3.75rem);   // 44-60px
 
-  // --- Tipografía: Pesos ---
+  // Pesos
   --font-weight-regular:   400;
+  --font-weight-normal:    400;  // alias
   --font-weight-medium:    500;
   --font-weight-semibold:  600;
   --font-weight-bold:      700;
 
-  // --- Tipografía: Line heights ---
-  --line-height-tight:  1.25;
-  --line-height-snug:   1.375;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.625;
+  // Line heights
+  --line-height-tight:    1.2;
+  --line-height-snug:     1.375;
+  --line-height-normal:   1.5;
+  --line-height-relaxed:  1.625;
 
-  // --- Espaciado: 4-pt grid ---
+  // ===========================================================================
+  // ESPACIADO — 4-pt grid
+  // ===========================================================================
   --space-0: 0;
   --space-1: 0.25rem;    // 4px
   --space-2: 0.5rem;     // 8px
   --space-3: 0.75rem;    // 12px
   --space-4: 1rem;       // 16px
+  --space-4-5: 1.25rem;  // 20px — intermedio para ritmo fino
   --space-5: 1.5rem;     // 24px
   --space-6: 2rem;       // 32px
   --space-7: 3rem;       // 48px
   --space-8: 4rem;       // 64px
   --space-9: 6rem;       // 96px
 
-  // --- Border Radius ---
+  // ===========================================================================
+  // FORMA
+  // ===========================================================================
+  --radius-xs:   4px;
   --radius-sm:   6px;
   --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-xl:   24px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
   --radius-pill: 999px;
 
-  // --- Sombras ---
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-2: 0 4px 8px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
-  --shadow-3: 0 16px 24px rgba(0, 0, 0, 0.10), 0 4px 8px rgba(0, 0, 0, 0.08);
+  // ===========================================================================
+  // SOMBRAS — ligeras, profesionales, no decorativas
+  // ===========================================================================
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+  --shadow-2: 0 2px 4px rgb(15 23 42 / 0.05), 0 4px 12px rgb(15 23 42 / 0.06);
+  --shadow-3: 0 8px 16px rgb(15 23 42 / 0.08), 0 16px 32px rgb(15 23 42 / 0.10);
+  --shadow-4: 0 16px 32px rgb(15 23 42 / 0.12), 0 32px 64px rgb(15 23 42 / 0.14);
+  // Aliases
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
 
-  // --- Motion ---
-  --motion-fast:      120ms;
-  --motion-base:      200ms;
-  --motion-slow:      320ms;
+  // Focus ring color (3:1 sobre fondo)
+  --shadow-focus: 0 0 0 3px rgb(3 105 161 / 0.25);
+  --shadow-focus-danger: 0 0 0 3px rgb(185 28 28 / 0.25);
+
+  // ===========================================================================
+  // MOTION — 150-300ms, easing standard
+  // ===========================================================================
+  --motion-fast:           120ms;
+  --motion-base:           200ms;
+  --motion-slow:           320ms;
+  --motion-duration-fast:  var(--motion-fast);    // alias
+  --motion-duration-normal:var(--motion-base);    // alias
+  --motion-duration-slow:  var(--motion-slow);    // alias
+
   --ease-standard:    cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized:  cubic-bezier(0.3, 0, 0, 1);
   --ease-out:         cubic-bezier(0, 0, 0.2, 1);
+  --ease-in:          cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+  // Alias
+  --motion-easing-standard:   var(--ease-standard);
+  --motion-easing-out:        var(--ease-out);
+  --motion-easing-emphasized: var(--ease-emphasized);
 
-  // --- Layout ---
-  --sidebar-width:      240px;
-  --header-height:      56px;
-  --content-max-width:  1200px;
+  // ===========================================================================
+  // LAYOUT
+  // ===========================================================================
+  --sidebar-width:        248px;
+  --sidebar-width-rail:   72px;
+  --header-height:        64px;
+  --content-max-width:    1280px;
+  --bottomnav-height:     64px;
 
-  // --- Z-index scale ---
+  // ===========================================================================
+  // Z-INDEX SCALE
+  // ===========================================================================
   --z-base:     0;
   --z-dropdown: 100;
   --z-sticky:   200;
@@ -173,8 +205,10 @@
   --z-toast:    600;
   --z-tooltip:  700;
 
-  // --- Touch targets (operario) ---
-  --touch-target-primary:   64px;
+  // ===========================================================================
+  // TOUCH TARGETS — operario usa pantalla en pie, requiere targets cómodos
+  // ===========================================================================
+  --touch-target-primary:   56px;
   --touch-target-secondary: 48px;
   --touch-target-min:       44px;
 }
@@ -185,16 +219,25 @@
     --motion-fast: 0ms;
     --motion-base: 0ms;
     --motion-slow: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-slow: 0ms;
   }
 }
 
-// --- Dark mode (preparado, no activado en Fase 2) ---
+// --- Dark mode (preparado, no activado por ahora) ---
 // @media (prefers-color-scheme: dark) {
 //   :root {
-//     --color-bg:      #0A0A0A;
-//     --color-surface: #141414;
-//     --color-text:    #F4F4F5;
-//     ...
+//     --color-bg:             #020617;
+//     --color-bg-subtle:      #0F172A;
+//     --color-surface:        #0F172A;
+//     --color-surface-2:      #1E293B;
+//     --color-border:         #334155;
+//     --color-text:           #F8FAFC;
+//     --color-text-muted:     #94A3B8;
+//     --color-primary:        #F1F5F9;
+//     --color-primary-fg:     #0F172A;
+//     --color-accent:         #38BDF8;
 //   }
 // }
 
@@ -202,8 +245,8 @@
 // Mixins de utilidad
 // -----------------------------------------------------------------------------
 
-/// Focus ring accesible
-@mixin focus-ring($color: var(--color-primary)) {
+/// Focus ring accesible (4.5:1)
+@mixin focus-ring($color: var(--color-accent)) {
   outline: 2px solid $color;
   outline-offset: 2px;
 }

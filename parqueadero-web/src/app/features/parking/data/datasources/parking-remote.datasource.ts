@@ -13,6 +13,9 @@ import {
   RegisterExitResult,
   ActiveSessionsFilter,
   ActiveSessionsSort,
+  ListSessionsParams,
+  ListSessionsResult,
+  CancelSessionParams,
 } from '../../domain/repositories/parking.repository';
 import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-session.model';
 import { VehicleMapper, VehicleModel } from '../models/vehicle.model';
@@ -33,15 +36,31 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
   async insertSession(params: RegisterEntryParams): Promise<Either<Failure, ParkingSessionEntity>> {
     try {
+      // Persistimos color/brand en `vehicles` (no en parking_sessions). Insertamos el
+      // vehículo si no existe; si ya existe, no sobrescribimos sus datos previos.
+      const { error: vehicleError } = await this.supabase.client
+        .from('vehicles')
+        .upsert(
+          {
+            plate: params.plate,
+            type: params.vehicleType,
+            color: params.color,
+            brand: params.brand,
+          },
+          { onConflict: 'plate', ignoreDuplicates: true },
+        );
+
+      if (vehicleError) return left(new ServerFailure(vehicleError.message));
+
+      // Nota: parking_sessions NO tiene cashier_shift_id. El turno se registra en
+      // `payments` al momento del cobro (una sesión puede abrirse en un turno y
+      // cerrarse en otro). El cashierShiftId del usecase se usa sólo en exit.
       const { data, error } = await this.supabase.client
         .from('parking_sessions')
         .insert({
           vehicle_plate: params.plate,
           vehicle_type: params.vehicleType,
-          color: params.color,
-          brand: params.brand,
           entry_user_id: params.userId,
-          cashier_shift_id: params.cashierShiftId,
           monthly_plan_id: params.monthlyPlanId,
           entry_at: new Date().toISOString(),
           status: 'active',
@@ -121,47 +140,70 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
     }
   }
 
-  async searchVehicle(plate: string): Promise<Either<Failure, VehicleSearchData>> {
+  async searchVehicle(query: string): Promise<Either<Failure, VehicleSearchData>> {
     try {
-      const [vehicleRes, activeRes, historyRes, planRes] = await Promise.all([
-        this.supabase.client
-          .from('vehicles')
-          .select()
-          .eq('plate', plate)
-          .eq('_deleted', false)
-          .maybeSingle<VehicleModel>(),
-        this.supabase.client
-          .from('parking_sessions')
-          .select()
-          .eq('vehicle_plate', plate)
-          .eq('status', 'active')
-          .eq('_deleted', false)
-          .returns<ParkingSessionModel[]>(),
-        this.supabase.client
-          .from('parking_sessions')
-          .select()
-          .eq('vehicle_plate', plate)
-          .eq('status', 'completed')
-          .eq('_deleted', false)
-          .order('exit_at', { ascending: false })
-          .limit(5)
-          .returns<ParkingSessionModel[]>(),
-        this.supabase.client
-          .from('monthly_plans')
-          .select()
-          .eq('vehicle_plate', plate)
-          .in('status', ['active', 'expiring'])
-          .eq('_deleted', false)
-          .maybeSingle<MonthlyPlanModel>(),
-      ]);
+      // Búsqueda parcial: aceptamos fragmentos (ej. "TPP" → "TPP06G"). Tomamos el
+      // match más recientemente actualizado como vehículo principal y luego cargamos
+      // sus sesiones/plan por placa exacta.
+      const pattern = `%${query}%`;
+      const vehicleRes = await this.supabase.client
+        .from('vehicles')
+        .select()
+        .ilike('plate', pattern)
+        .eq('_deleted', false)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle<VehicleModel>();
 
       if (vehicleRes.error) return left(new ServerFailure(vehicleRes.error.message));
+
+      const vehicle = vehicleRes.data ? VehicleMapper.toEntity(vehicleRes.data) : null;
+
+      // Para sesiones y plan: si encontramos vehículo, usamos su placa exacta. Si no,
+      // intentamos match parcial en `vehicle_plate` (puede haber sesiones registradas
+      // sin row en `vehicles`).
+      let activeQ = this.supabase.client
+        .from('parking_sessions')
+        .select()
+        .eq('status', 'active')
+        .eq('_deleted', false);
+      let historyQ = this.supabase.client
+        .from('parking_sessions')
+        .select()
+        .eq('status', 'completed')
+        .eq('_deleted', false)
+        .order('exit_at', { ascending: false })
+        .limit(5);
+      let planQ = this.supabase.client
+        .from('monthly_plans')
+        .select()
+        .in('status', ['active', 'expiring'])
+        .eq('_deleted', false)
+        .order('end_date', { ascending: false })
+        .limit(1);
+
+      if (vehicle) {
+        activeQ = activeQ.eq('vehicle_plate', vehicle.plate);
+        historyQ = historyQ.eq('vehicle_plate', vehicle.plate);
+        planQ = planQ.eq('vehicle_plate', vehicle.plate);
+      } else {
+        activeQ = activeQ.ilike('vehicle_plate', pattern);
+        historyQ = historyQ.ilike('vehicle_plate', pattern);
+        planQ = planQ.ilike('vehicle_plate', pattern);
+      }
+
+      const [activeRes, historyRes, planRes] = await Promise.all([
+        activeQ.returns<ParkingSessionModel[]>(),
+        historyQ.returns<ParkingSessionModel[]>(),
+        planQ.maybeSingle<MonthlyPlanModel>(),
+      ]);
+
       if (activeRes.error) return left(new ServerFailure(activeRes.error.message));
       if (historyRes.error) return left(new ServerFailure(historyRes.error.message));
       if (planRes.error) return left(new ServerFailure(planRes.error.message));
 
       return right({
-        vehicle: vehicleRes.data ? VehicleMapper.toEntity(vehicleRes.data) : null,
+        vehicle,
         activeSessions: (activeRes.data ?? []).map(ParkingSessionMapper.toEntity),
         lastSessions: (historyRes.data ?? []).map(ParkingSessionMapper.toEntity),
         monthlyPlan: planRes.data ? MonthlyPlanMapper.toEntity(planRes.data) : null,
@@ -271,6 +313,83 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
       }
 
       return right(TariffMapper.toEntity(data));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async listSessions(params: ListSessionsParams): Promise<Either<Failure, ListSessionsResult>> {
+    try {
+      const offset = (params.page - 1) * params.pageSize;
+      let query = this.supabase.client
+        .from('parking_sessions')
+        .select('*', { count: 'exact' })
+        .eq('_deleted', false);
+
+      if (params.dateFrom) query = query.gte('entry_at', params.dateFrom.toISOString());
+      if (params.dateTo) query = query.lte('entry_at', params.dateTo.toISOString());
+      if (params.vehicleType) query = query.eq('vehicle_type', params.vehicleType);
+      if (params.plate) query = query.ilike('vehicle_plate', `%${params.plate}%`);
+      if (params.status && params.status !== 'all') {
+        query = query.eq('status', params.status);
+      }
+
+      const { data, count, error } = await query
+        .order('entry_at', { ascending: false })
+        .range(offset, offset + params.pageSize - 1)
+        .returns<ParkingSessionModel[]>();
+
+      if (error) return left(new ServerFailure(error.message));
+
+      const total = count ?? 0;
+      return right({
+        data: (data ?? []).map((m) => ParkingSessionMapper.toEntity(m)),
+        pagination: {
+          page: params.page,
+          pageSize: params.pageSize,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / params.pageSize)),
+        } satisfies Pagination,
+      });
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async cancelSession(params: CancelSessionParams): Promise<Either<Failure, ParkingSessionEntity>> {
+    try {
+      // Marcamos la sesión como cancelled. Si tiene pago asociado, también lo
+      // marcamos como refunded para que no afecte el cuadre del turno.
+      const { data: sessionRow, error: sessErr } = await this.supabase.client
+        .from('parking_sessions')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', params.sessionId)
+        .select()
+        .single<ParkingSessionModel>();
+
+      if (sessErr) return left(new ServerFailure(sessErr.message));
+      if (!sessionRow) return left(new NotFoundFailure('Sesión no encontrada', 'parking_session'));
+
+      // Refund del pago si existe (idempotente: si ya está refunded, ignora).
+      await this.supabase.client
+        .from('payments')
+        .update({ status: 'refunded', updated_at: new Date().toISOString() })
+        .eq('session_id', params.sessionId)
+        .eq('status', 'completed');
+
+      // Insertar entrada de auditoría con el motivo (apoyo a triggers automáticos).
+      await this.supabase.client.from('audit_log').insert({
+        user_id: params.userId,
+        action: 'UPDATE',
+        entity_type: 'parking_sessions',
+        entity_id: params.sessionId,
+        after_json: { status: 'cancelled', reason: params.reason },
+      });
+
+      return right(ParkingSessionMapper.toEntity(sessionRow));
     } catch {
       return left(new NetworkFailure());
     }

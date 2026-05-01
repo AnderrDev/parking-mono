@@ -15,27 +15,27 @@ export class TariffRepositoryImpl extends TariffRepository {
     super();
   }
 
-  list(params: ListTariffsParams): Promise<Either<Failure, PaginatedResult<TariffEntity>>> {
+  async list(params: ListTariffsParams): Promise<Either<Failure, PaginatedResult<TariffEntity>>> {
     return this.remoteDs.list(params);
   }
 
-  findById(id: string): Promise<Either<Failure, TariffEntity | null>> {
+  async findById(id: string): Promise<Either<Failure, TariffEntity | null>> {
     return this.remoteDs.findById(id);
   }
 
-  create(params: CreateTariffParams): Promise<Either<Failure, TariffEntity>> {
+  async create(params: CreateTariffParams): Promise<Either<Failure, TariffEntity>> {
     return this.remoteDs.create(params);
   }
 
-  update(id: string, params: UpdateTariffParams): Promise<Either<Failure, TariffEntity>> {
+  async update(id: string, params: UpdateTariffParams): Promise<Either<Failure, TariffEntity>> {
     return this.remoteDs.update(id, params);
   }
 
-  deactivate(id: string): Promise<Either<Failure, void>> {
+  async deactivate(id: string): Promise<Either<Failure, void>> {
     return this.remoteDs.deactivate(id);
   }
 
-  existsActive(name: string, vehicleType: string, excludeId?: string): Promise<Either<Failure, boolean>> {
+  async existsActive(name: string, vehicleType: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     return this.remoteDs.existsActive(name, vehicleType, excludeId);
   }
 }

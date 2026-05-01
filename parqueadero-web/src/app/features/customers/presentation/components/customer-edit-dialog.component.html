@@ -1,0 +1,105 @@
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="customer-dialog-title">
+      <header class="dialog__header">
+        <h2 class="dialog__title" id="customer-dialog-title">
+          {{ isEdit ? 'Editar cliente' : 'Nuevo cliente' }}
+        </h2>
+      </header>
+
+      <form class="dialog__body" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="c-doctype">Tipo de documento</label>
+            <select id="c-doctype" class="field__select" formControlName="docType">
+              @for (dt of docTypes; track dt.value) {
+                <option [value]="dt.value">{{ dt.label }}</option>
+              }
+            </select>
+            @if (isEdit) {
+              <span class="field__hint">El documento no se puede cambiar</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="c-docnum">Número de documento</label>
+            <input id="c-docnum" class="field__input" [class.field__input--error]="err('docNumber')"
+              type="text" formControlName="docNumber" placeholder="1234567890"
+              [attr.aria-describedby]="err('docNumber') ? 'c-docnum-err' : null" />
+            @if (err('docNumber')) {
+              <span id="c-docnum-err" class="field__error" role="alert">{{ errMsg('docNumber') }}</span>
+            }
+          </div>
+        </div>
+
+        @if (isNit()) {
+          <div class="field" style="max-width: 120px">
+            <label class="field__label" for="c-dv">Dígito verificación</label>
+            <input id="c-dv" class="field__input" [class.field__input--error]="err('dv')"
+              type="number" formControlName="dv" min="0" max="9" placeholder="0"
+              [attr.aria-describedby]="err('dv') ? 'c-dv-err' : null" />
+            @if (err('dv')) {
+              <span id="c-dv-err" class="field__error" role="alert">{{ errMsg('dv') }}</span>
+            }
+          </div>
+        }
+
+        <div class="field">
+          <label class="field__label" for="c-name">Nombre completo / Razón social</label>
+          <input id="c-name" class="field__input" [class.field__input--error]="err('name')"
+            type="text" formControlName="name" placeholder="Juan García"
+            [attr.aria-describedby]="err('name') ? 'c-name-err' : null" />
+          @if (err('name')) {
+            <span id="c-name-err" class="field__error" role="alert">{{ errMsg('name') }}</span>
+          }
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="c-email">Email</label>
+            <input id="c-email" class="field__input" [class.field__input--error]="err('email')"
+              type="email" formControlName="email" placeholder="correo@ejemplo.com"
+              [attr.aria-describedby]="err('email') ? 'c-email-err' : null" />
+            @if (err('email')) {
+              <span id="c-email-err" class="field__error" role="alert">{{ errMsg('email') }}</span>
+            }
+          </div>
+          <div class="field">
+            <label class="field__label" for="c-phone">Teléfono</label>
+            <input id="c-phone" class="field__input"
+              type="tel" formControlName="phone" placeholder="3001234567" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="c-address">Dirección</label>
+          <input id="c-address" class="field__input"
+            type="text" formControlName="address" placeholder="Cra 1 # 2-3" />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="c-muni">Municipio</label>
+            <input id="c-muni" class="field__input"
+              type="text" formControlName="municipio" placeholder="Bogotá" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="c-depto">Departamento</label>
+            <input id="c-depto" class="field__input"
+              type="text" formControlName="departamento" placeholder="Cundinamarca" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="c-rf">Responsabilidades fiscales (DIAN)</label>
+          <input id="c-rf" class="field__input"
+            type="text" formControlName="responsabilidadesFiscales" placeholder="R-99-PN" />
+          <span class="field__hint">Códigos separados por comas. Default: R-99-PN</span>
+        </div>
+
+        <div class="dialog__actions">
+          <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
+          <button type="submit" class="btn btn--primary">
+            {{ isEdit ? 'Guardar cambios' : 'Crear cliente' }}
+          </button>
+        </div>
+      </form>
+    </div>

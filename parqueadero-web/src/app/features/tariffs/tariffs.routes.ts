@@ -2,14 +2,12 @@ import { Routes } from '@angular/router';
 import {
   TARIFF_REPOSITORY_TOKEN,
   TARIFF_REMOTE_DATASOURCE_TOKEN,
-  TARIFF_LOCAL_DATASOURCE_TOKEN,
   LIST_TARIFFS_TOKEN,
   CREATE_TARIFF_TOKEN,
   UPDATE_TARIFF_TOKEN,
   DEACTIVATE_TARIFF_TOKEN,
 } from '../../core/di/injection-tokens';
 import { TariffRemoteDataSource } from './data/datasources/tariff-remote.datasource';
-import { TariffLocalDataSource } from './data/datasources/tariff-local.datasource';
 import { TariffRepositoryImpl } from './data/repositories/tariff.repository.impl';
 import { ListTariffsUseCase } from './domain/usecases/list-tariffs.usecase';
 import { CreateTariffUseCase } from './domain/usecases/create-tariff.usecase';
@@ -18,7 +16,6 @@ import { DeactivateTariffUseCase } from './domain/usecases/deactivate-tariff.use
 
 const tariffProviders = [
   { provide: TARIFF_REMOTE_DATASOURCE_TOKEN, useClass: TariffRemoteDataSource },
-  { provide: TARIFF_LOCAL_DATASOURCE_TOKEN, useClass: TariffLocalDataSource },
   { provide: TARIFF_REPOSITORY_TOKEN, useClass: TariffRepositoryImpl },
   { provide: LIST_TARIFFS_TOKEN, useClass: ListTariffsUseCase },
   { provide: CREATE_TARIFF_TOKEN, useClass: CreateTariffUseCase },

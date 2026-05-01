@@ -1,0 +1,58 @@
+<div
+  class="dialog"
+  [class.dialog--danger]="data.variant === 'danger'"
+  [class.dialog--warning]="data.variant === 'warning'"
+  role="alertdialog"
+  aria-modal="true"
+  aria-labelledby="dialog-title"
+  aria-describedby="dialog-desc"
+>
+  <div class="dialog__icon" aria-hidden="true">
+    @if (data.variant === 'danger') {
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6 17.7 20a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 6"/>
+        <path d="M10 11v6 M14 11v6 M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+      </svg>
+    } @else if (data.variant === 'warning') {
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    } @else {
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+    }
+  </div>
+
+  <h2 class="dialog__title" id="dialog-title">{{ data.title }}</h2>
+  <p class="dialog__message" id="dialog-desc">{{ data.message }}</p>
+
+  <div class="dialog__actions">
+    <button
+      class="dialog__btn dialog__btn--cancel"
+      type="button"
+      (click)="cancel()"
+    >
+      {{ data.cancelLabel ?? 'Cancelar' }}
+    </button>
+    <button
+      class="dialog__btn"
+      [class.dialog__btn--danger]="data.variant === 'danger'"
+      [class.dialog__btn--warning]="data.variant === 'warning'"
+      [class.dialog__btn--primary]="!data.variant || data.variant === 'default'"
+      type="button"
+      (click)="confirm()"
+      cdkFocusInitial
+    >
+      {{ data.confirmLabel ?? 'Confirmar' }}
+    </button>
+  </div>
+</div>

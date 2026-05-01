@@ -1,0 +1,68 @@
+<div class="invoices-page">
+      <header class="invoices-page__header">
+        <h1>Facturas</h1>
+      </header>
+
+      @if (loading()) {
+        <p class="invoices-page__loading">Cargando facturas…</p>
+      }
+
+      @if (errorMsg()) {
+        <p class="invoices-page__error">{{ errorMsg() }}</p>
+      }
+
+      @if (!loading() && invoices().length === 0 && !errorMsg()) {
+        <p class="invoices-page__empty">No hay facturas registradas.</p>
+      }
+
+      @if (invoices().length > 0) {
+        <section class="invoices-card">
+          <table class="invoices-table">
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Estado DIAN</th>
+                <th>CUFE</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (inv of invoices(); track inv.id) {
+                <tr>
+                  <td class="inv-number">{{ inv.number }}</td>
+                  <td>{{ inv.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>{{ inv.totalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                  <td>
+                    <span class="status-badge" [attr.data-status]="inv.dianStatus">
+                      {{ statusLabel(inv.dianStatus) }}
+                    </span>
+                  </td>
+                  <td class="inv-cufe">{{ inv.dianCufe ? (inv.dianCufe | slice:0:16) + '…' : '—' }}</td>
+                  <td class="inv-actions">
+                    @if (inv.dianXmlUrl) {
+                      <a [href]="inv.dianXmlUrl" target="_blank" class="btn-action">XML</a>
+                    }
+                    @if (inv.dianPdfUrl) {
+                      <a [href]="inv.dianPdfUrl" target="_blank" class="btn-action">PDF</a>
+                    }
+                    @if (inv.canReissue) {
+                      <button class="btn-reissue" (click)="reissue(inv)" [disabled]="reissuing()">
+                        Reintentar
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <div class="invoices-pagination">
+            <button (click)="prevPage()" [disabled]="page() <= 1">Anterior</button>
+            <span>Página {{ page() }} de {{ totalPages() }}</span>
+            <button (click)="nextPage()" [disabled]="page() >= totalPages()">Siguiente</button>
+          </div>
+        </section>
+      }
+    </div>

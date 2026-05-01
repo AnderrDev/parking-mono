@@ -1,0 +1,99 @@
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="tariff-dialog-title">
+  <header class="dialog__header">
+    <h2 class="dialog__title" id="tariff-dialog-title">
+      {{ isEdit ? 'Editar tarifa' : 'Nueva tarifa' }}
+    </h2>
+  </header>
+
+  <form class="dialog__body" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="field">
+      <label class="field__label" for="t-name">Nombre</label>
+      <input id="t-name" class="field__input" [class.field__input--error]="err('name')"
+        type="text" formControlName="name" placeholder="Ej: Tarifa carro estándar"
+        [attr.aria-describedby]="err('name') ? 't-name-err' : null" />
+      @if (err('name')) {
+        <span id="t-name-err" class="field__error" role="alert">{{ errMsg('name') }}</span>
+      }
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for="t-type">Tipo de vehículo</label>
+        <select id="t-type" class="field__select" formControlName="vehicleType">
+          @for (vt of vehicleTypes; track vt.value) {
+            <option [value]="vt.value">{{ vt.label }}</option>
+          }
+        </select>
+        @if (isEdit) {
+          <span class="field__hint">El tipo de vehículo no se puede cambiar</span>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="t-unit">Unidad de cobro</label>
+        <select id="t-unit" class="field__select" formControlName="unit">
+          @for (u of units; track u.value) {
+            <option [value]="u.value">{{ u.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for="t-value">Valor (COP)</label>
+        <input id="t-value" class="field__input" [class.field__input--error]="err('valueCents')"
+          type="number" formControlName="valueCents" min="1" placeholder="500000"
+          [attr.aria-describedby]="err('valueCents') ? 't-value-err' : null" />
+        @if (err('valueCents')) {
+          <span id="t-value-err" class="field__error" role="alert">{{ errMsg('valueCents') }}</span>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="t-cap">Tope diario (COP)</label>
+        <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
+          type="number" formControlName="dailyCapCents" min="1" placeholder="30000000"
+          [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
+        @if (err('dailyCapCents')) {
+          <span id="t-cap-err" class="field__error" role="alert">{{ errMsg('dailyCapCents') }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="field" style="max-width: 160px">
+      <label class="field__label" for="t-grace">Minutos de gracia</label>
+      <input id="t-grace" class="field__input" [class.field__input--error]="err('graceMinutes')"
+        type="number" formControlName="graceMinutes" min="0" placeholder="0"
+        [attr.aria-describedby]="err('graceMinutes') ? 't-grace-err' : null" />
+      @if (err('graceMinutes')) {
+        <span id="t-grace-err" class="field__error" role="alert">{{ errMsg('graceMinutes') }}</span>
+      }
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label" for="t-from">Válida desde</label>
+        <input id="t-from" class="field__input" type="date" formControlName="validFrom" />
+      </div>
+      <div class="field">
+        <label class="field__label" for="t-to">Válida hasta</label>
+        <input id="t-to" class="field__input" type="date" formControlName="validTo" />
+      </div>
+    </div>
+
+    @if (isEdit) {
+      <label class="field-checkbox">
+        <input type="checkbox" formControlName="isActive" />
+        <span>Tarifa activa</span>
+      </label>
+    }
+
+    <div class="dialog__actions">
+      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
+      <button type="submit" class="btn btn--primary">
+        {{ isEdit ? 'Guardar cambios' : 'Crear tarifa' }}
+      </button>
+    </div>
+  </form>
+</div>

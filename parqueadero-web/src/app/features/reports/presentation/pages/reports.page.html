@@ -1,0 +1,157 @@
+<div class="reports-page">
+  <header class="reports-page__header">
+    <h1>Reportes</h1>
+  </header>
+
+  <!-- Date filter -->
+  <section class="reports-filters">
+    <form [formGroup]="filterForm" (ngSubmit)="loadReport()">
+      <label>
+        Desde
+        <input type="date" formControlName="dateFrom" />
+      </label>
+      <label>
+        Hasta
+        <input type="date" formControlName="dateTo" />
+      </label>
+      <label>
+        Agrupar por
+        <select formControlName="groupBy">
+          <option value="day">Día</option>
+          <option value="week">Semana</option>
+          <option value="month">Mes</option>
+        </select>
+      </label>
+      <button type="submit" [disabled]="filterForm.invalid || loading()">
+        {{ loading() ? 'Cargando…' : 'Consultar' }}
+      </button>
+      <button type="button" class="btn-export" (click)="exportCsv()" [disabled]="loading()">
+        Exportar CSV
+      </button>
+    </form>
+    @if (errorMsg()) {
+      <p class="reports-error">{{ errorMsg() }}</p>
+    }
+  </section>
+
+  <!-- Tabs -->
+  <nav class="reports-tabs">
+    <button [class.active]="tab() === 'revenue'" (click)="tab.set('revenue')">Ingresos</button>
+    <button [class.active]="tab() === 'vehicles'" (click)="tab.set('vehicles')">Vehículos</button>
+    @if (isAdmin()) {
+      <button [class.active]="tab() === 'operators'" (click)="tab.set('operators')">Operadores</button>
+    }
+  </nav>
+
+  <!-- Revenue tab -->
+  @if (tab() === 'revenue' && revenue()) {
+    <section class="reports-card">
+      <div class="reports-summary">
+        <div class="reports-kpi">
+          <span>Total ingresos</span>
+          <strong>{{ revenue()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+        </div>
+        <div class="reports-kpi">
+          <span>Sesiones</span>
+          <strong>{{ revenue()!.totalSessions }}</strong>
+        </div>
+      </div>
+
+      <h3>Por período</h3>
+      @if (revenue()!.byPeriod.length === 0) {
+        <p class="reports-empty">Sin datos para el período seleccionado.</p>
+      } @else {
+        <table class="reports-table">
+          <thead><tr><th>Período</th><th>Sesiones</th><th>Ingresos</th></tr></thead>
+          <tbody>
+            @for (row of revenue()!.byPeriod; track row.periodLabel) {
+              <tr>
+                <td>{{ row.periodLabel }}</td>
+                <td>{{ row.sessions }}</td>
+                <td>{{ row.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      <h3>Por método de pago</h3>
+      <table class="reports-table">
+        <thead><tr><th>Método</th><th>Transacciones</th><th>Total</th></tr></thead>
+        <tbody>
+          @for (m of revenue()!.byMethod; track m.method) {
+            <tr>
+              <td>{{ m.method }}</td>
+              <td>{{ m.count }}</td>
+              <td>{{ m.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  <!-- Vehicles tab -->
+  @if (tab() === 'vehicles' && sessionsByType()) {
+    <section class="reports-card">
+      <div class="reports-summary">
+        <div class="reports-kpi">
+          <span>Total sesiones</span>
+          <strong>{{ sessionsByType()!.totalSessions }}</strong>
+        </div>
+      </div>
+      @if (sessionsByType()!.byType.length === 0) {
+        <p class="reports-empty">Sin datos para el período seleccionado.</p>
+      } @else {
+        <table class="reports-table">
+          <thead>
+            <tr><th>Tipo</th><th>Sesiones</th><th>Duración prom.</th><th>Ingresos</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            @for (row of sessionsByType()!.byType; track row.vehicleType) {
+              <tr>
+                <td>{{ row.vehicleType }}</td>
+                <td>{{ row.count }}</td>
+                <td>{{ row.avgDurationMinutes }} min</td>
+                <td>{{ row.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td>{{ row.percentOfTotal }}%</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- Operators tab (admin only) -->
+  @if (tab() === 'operators' && operatorPerf()) {
+    <section class="reports-card">
+      @if (operatorPerf()!.operators.length === 0) {
+        <p class="reports-empty">Sin datos para el período seleccionado.</p>
+      } @else {
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th>Operador</th><th>Turnos</th><th>Horas</th>
+              <th>Sesiones</th><th>Ingresos</th><th>Diff. caja</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (op of operatorPerf()!.operators; track op.operatorId) {
+              <tr>
+                <td>{{ op.operatorName }}</td>
+                <td>{{ op.shiftsWorked }}</td>
+                <td>{{ op.totalHoursWorked }}h</td>
+                <td>{{ op.sessionsAttended }}</td>
+                <td>{{ op.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td [class.diff-alert]="op.cashDifferenceCents > 500000">
+                  {{ op.cashDifferenceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+</div>

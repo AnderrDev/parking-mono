@@ -1,0 +1,70 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Dashboard ejecutivo</h1>
+      <p class="page__subtitle">Vista rápida del negocio.</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="state-msg">Cargando indicadores…</p>
+  } @else {
+    <section class="kpis" aria-label="Indicadores clave">
+      @for (kpi of kpis(); track kpi.label) {
+        <article class="kpi" [attr.data-variant]="kpi.variant ?? 'default'">
+          <span class="kpi__label">{{ kpi.label }}</span>
+          <strong class="kpi__value mono">{{ kpi.value }}</strong>
+          @if (kpi.detail) {
+            <span class="kpi__detail">{{ kpi.detail }}</span>
+          }
+        </article>
+      }
+    </section>
+
+    <section class="card">
+      <header class="card__head">
+        <h2>Ingresos últimos 7 días</h2>
+      </header>
+      @if (revenueByDay().length === 0) {
+        <p class="empty">Sin datos en el rango.</p>
+      } @else {
+        <ul class="bars" role="list">
+          @for (point of revenueByDay(); track point.label) {
+            <li class="bar-row">
+              <span class="bar-row__label">{{ point.label }}</span>
+              <div class="bar-row__bar-track">
+                <div class="bar-row__bar-fill" [style.width.%]="barWidth(point.value)"></div>
+              </div>
+              <span class="bar-row__value mono">{{ point.value | currencyCop }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="card">
+      <header class="card__head">
+        <h2>Sesiones por tipo (últimos 7 días)</h2>
+      </header>
+      @if (sessionsByType().length === 0) {
+        <p class="empty">Sin sesiones cerradas en el período.</p>
+      } @else {
+        <ul class="types" role="list">
+          @for (t of sessionsByType(); track t.type) {
+            <li class="type">
+              <span class="type__name">{{ t.type }}</span>
+              <strong class="type__count mono">{{ t.count }}</strong>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="quick-links">
+      <a routerLink="/reports" class="quick-link">Ver reportes detallados →</a>
+      <a routerLink="/cashier/history" class="quick-link">Historial de turnos →</a>
+      <a routerLink="/invoicing" class="quick-link">Gestionar facturas →</a>
+      <a routerLink="/audit" class="quick-link">Bitácora de auditoría →</a>
+    </section>
+  }
+</div>

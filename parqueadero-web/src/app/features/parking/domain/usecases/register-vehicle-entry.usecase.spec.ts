@@ -26,8 +26,6 @@ const makeSession = (plate = 'ABC123'): ParkingSessionEntity =>
     null,
     null,
     null,
-    null,
-    null,
     'synced',
   );
 
@@ -100,6 +98,14 @@ class MockParkingRepository extends ParkingRepository {
   }
 
   async getActiveTariff(_vehicleType: unknown) {
+    return Promise.resolve(right(null as never));
+  }
+
+  async listSessions() {
+    return Promise.resolve(right({ data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }));
+  }
+
+  async cancelSession() {
     return Promise.resolve(right(null as never));
   }
 }

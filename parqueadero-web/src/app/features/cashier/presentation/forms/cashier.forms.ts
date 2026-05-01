@@ -17,4 +17,20 @@ export class CashierForms {
       justification: [''],
     });
   }
+
+  createWithdrawalForm(): FormGroup {
+    return this.fb.group({
+      amountCents: [null, [Validators.required, Validators.min(100)]],
+      recipient: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
+      justification: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(500)]],
+    });
+  }
+
+  createShiftHistoryFilterForm(defaults: { dateFrom: string; dateTo: string; onlyWithDiff: boolean }): FormGroup {
+    return this.fb.group({
+      dateFrom: [defaults.dateFrom],
+      dateTo: [defaults.dateTo],
+      onlyWithDiff: [defaults.onlyWithDiff],
+    });
+  }
 }
