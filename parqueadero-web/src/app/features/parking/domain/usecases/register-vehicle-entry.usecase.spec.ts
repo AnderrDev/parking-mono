@@ -74,6 +74,10 @@ class MockParkingRepository extends ParkingRepository {
     return Promise.resolve(right(this.shiftId));
   }
 
+  async getOpenShiftSummary(_userId: string) {
+    return Promise.resolve(right(null));
+  }
+
   async getActiveSessionByPlate(_plate: string) {
     return Promise.resolve(right(this.activeSession));
   }

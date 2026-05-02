@@ -19,6 +19,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 import { ParkingDataSource } from '../datasources/parking.datasource';
 
@@ -67,6 +68,12 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
   async getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>> {
     return this.remoteDs.getOpenCashierShiftId(userId);
+  }
+
+  async getOpenShiftSummary(
+    userId: string,
+  ): Promise<Either<Failure, OpenShiftSummary | null>> {
+    return this.remoteDs.getOpenShiftSummary(userId);
   }
 
   async getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {

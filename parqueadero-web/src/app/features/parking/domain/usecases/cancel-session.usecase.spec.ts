@@ -35,6 +35,7 @@ class MockParkingRepository extends ParkingRepository {
   }
   async searchPlateSuggestions() { return Promise.resolve(right([])); }
   async getOpenCashierShiftId() { return Promise.resolve(right(null as string | null)); }
+  async getOpenShiftSummary() { return Promise.resolve(right(null)); }
   async getActivePlanByPlate() { return Promise.resolve(right(null as MonthlyPlanEntity | null)); }
   async registerExit() { return Promise.resolve(right(null as never)); }
   async getActiveTariff() { return Promise.resolve(right(null as never)); }

@@ -1,11 +1,77 @@
 <div class="dashboard">
+  <!-- Cinta de estado de caja (siempre visible). Color NUNCA es el único
+       indicador: ícono + texto + fondo. -->
+  @if (shiftStatusLoading()) {
+    <section class="shift-banner shift-banner--loading" role="status" aria-live="polite">
+      <span class="shift-banner__icon" aria-hidden="true">
+        <app-loading-spinner />
+      </span>
+      <span class="shift-banner__text">Verificando estado de caja…</span>
+    </section>
+  } @else if (shiftStatusError()) {
+    <section class="shift-banner shift-banner--error" role="alert">
+      <span class="shift-banner__icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </span>
+      <div class="shift-banner__body">
+        <span class="shift-banner__title">No pudimos verificar la caja</span>
+        <span class="shift-banner__detail">{{ shiftStatusError() }}</span>
+      </div>
+      <button type="button" class="shift-banner__cta shift-banner__cta--ghost" (click)="loadShiftStatus()">
+        Reintentar
+      </button>
+    </section>
+  } @else if (cashRegisterClosed()) {
+    <section class="shift-banner shift-banner--closed" role="alert">
+      <span class="shift-banner__icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9v4"/>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </span>
+      <div class="shift-banner__body">
+        <span class="shift-banner__title">Caja cerrada</span>
+        <span class="shift-banner__detail">Para registrar entradas, primero debes abrir la caja.</span>
+      </div>
+      <a class="shift-banner__cta shift-banner__cta--primary" routerLink="/cashier">
+        Abrir caja
+      </a>
+    </section>
+  } @else if (shiftStatus()?.isOpen) {
+    @let st = shiftStatus()!;
+    <section class="shift-banner shift-banner--open" role="status">
+      <span class="shift-banner__icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </span>
+      <div class="shift-banner__body">
+        <span class="shift-banner__title">Caja abierta</span>
+        <span class="shift-banner__detail">
+          @if (st.openedAt) { Desde {{ formatShiftOpenedAt(st.openedAt) }} }
+          @if (st.openingBalanceCents !== null) {
+            · Saldo apertura {{ formatCOP(st.openingBalanceCents) }}
+          }
+        </span>
+      </div>
+    </section>
+  }
+
   <header class="dashboard__top">
     <div class="dashboard__greeting">
       <span class="dashboard__eyebrow">{{ todayLabel() }}</span>
       <h1 class="dashboard__title">
-        Buen turno{{ authState.currentUser() ? ', ' + authState.currentUser()!.nombre : '' }}
+        Hola{{ authState.currentUser() ? ', ' + authState.currentUser()!.nombre : '' }}
       </h1>
-      <p class="dashboard__subtitle">Registra entradas y salidas de vehículos en tiempo real.</p>
+      <p class="dashboard__subtitle">Registra entradas y salidas de vehículos.</p>
     </div>
 
     <div class="metrics" role="group" aria-label="Métricas en vivo">
@@ -49,7 +115,7 @@
         </span>
         <div class="metric__body">
           <span class="metric__value mono">{{ clockNow() }}</span>
-          <span class="metric__label">Hora local</span>
+          <span class="metric__label">Hora actual</span>
         </div>
       </div>
     </div>
@@ -208,7 +274,8 @@
   }
 
   <div class="dashboard__layout">
-    <section class="panel panel--action" aria-labelledby="entry-heading">
+    <section class="panel panel--action" aria-labelledby="entry-heading"
+      [class.panel--locked]="cashRegisterClosed()">
       <div class="panel__head">
         <h2 id="entry-heading" class="panel__title">
           <span class="panel__title-icon" aria-hidden="true">
@@ -222,12 +289,33 @@
         </h2>
         <p class="panel__subtitle">Captura placa, tipo de vehículo y datos opcionales.</p>
       </div>
-      <app-vehicle-entry-form
-        #entryForm
-        [loading]="entryLoading()"
-        [monthlyPlanWarning]="monthlyPlanWarning()"
-        (submitted)="onEntrySubmit($event)"
-      />
+
+      <div class="entry-form-wrap">
+        <app-vehicle-entry-form
+          #entryForm
+          [loading]="entryLoading()"
+          [disabled]="entryDisabled()"
+          [monthlyPlanWarning]="monthlyPlanWarning()"
+          (submitted)="onEntrySubmit($event)"
+        />
+
+        @if (cashRegisterClosed()) {
+          <div class="entry-overlay" role="region" aria-label="Caja cerrada">
+            <span class="entry-overlay__icon" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </span>
+            <p class="entry-overlay__title">Abre la caja para empezar</p>
+            <p class="entry-overlay__detail">
+              No puedes registrar entradas mientras la caja esté cerrada.
+            </p>
+            <a class="entry-overlay__cta" routerLink="/cashier">Ir a la caja</a>
+          </div>
+        }
+      </div>
     </section>
 
     <section class="panel" aria-labelledby="sessions-heading">
@@ -265,8 +353,8 @@
               <path d="M9 17V7h4a3 3 0 0 1 0 6h-4"/>
             </svg>
           </span>
-          <p class="state-block__title">Parqueadero vacío</p>
-          <p class="state-block__desc">No hay vehículos registrados. Las entradas que registres aparecerán aquí.</p>
+          <p class="state-block__title">Aún no hay vehículos</p>
+          <p class="state-block__desc">Cuando registres una entrada, aparecerá en esta lista.</p>
         </div>
       } @else {
         <ul class="sessions" role="list">
@@ -295,6 +383,7 @@
                 type="button"
                 class="exit-btn"
                 (click)="openExitDialog(session)"
+                [disabled]="cashRegisterClosed()"
                 [attr.aria-label]="'Registrar salida de ' + session.vehiclePlate"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   input,
   output,
   OnInit,
@@ -34,6 +35,7 @@ interface VehicleTypeOption {
 })
 export class VehicleEntryFormComponent implements OnInit {
   loading = input(false);
+  disabled = input(false);
   monthlyPlanWarning = input<string | null>(null);
   submitted = output<VehicleEntryFormValue>();
 
@@ -62,13 +64,21 @@ export class VehicleEntryFormComponent implements OnInit {
     },
   ];
 
-  constructor(private readonly parkingForms: ParkingForms) {}
+  constructor(private readonly parkingForms: ParkingForms) {
+    effect(() => {
+      if (!this.form) return;
+      if (this.disabled()) this.form.disable({ emitEvent: false });
+      else this.form.enable({ emitEvent: false });
+    });
+  }
 
   ngOnInit(): void {
     this.form = this.parkingForms.createEntryForm();
+    if (this.disabled()) this.form.disable({ emitEvent: false });
   }
 
   onSubmit(): void {
+    if (this.disabled()) return;
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 

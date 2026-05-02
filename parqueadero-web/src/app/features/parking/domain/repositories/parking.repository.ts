@@ -83,6 +83,10 @@ export abstract class ParkingRepository {
     userId: string,
   ): Promise<Either<Failure, string | null>>;
 
+  abstract getOpenShiftSummary(
+    userId: string,
+  ): Promise<Either<Failure, OpenShiftSummary | null>>;
+
   abstract getActivePlanByPlate(
     plate: string,
   ): Promise<Either<Failure, MonthlyPlanEntity | null>>;
@@ -123,4 +127,10 @@ export interface CancelSessionParams {
   sessionId: string;
   reason: string;
   userId: string;
+}
+
+export interface OpenShiftSummary {
+  shiftId: string;
+  openedAt: Date;
+  openingBalanceCents: number;
 }

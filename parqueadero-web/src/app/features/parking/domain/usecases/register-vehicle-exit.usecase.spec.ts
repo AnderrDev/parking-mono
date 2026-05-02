@@ -96,6 +96,9 @@ class MockParkingRepository extends ParkingRepository {
     if (this.shiftError) return Promise.resolve(left(new NetworkFailure()));
     return Promise.resolve(right(this.shiftId));
   }
+  async getOpenShiftSummary(_userId: string) {
+    return Promise.resolve(right(null));
+  }
   async getActiveSessionByPlate(_plate: string) {
     if (this.sessionError) return Promise.resolve(left(new ServerFailure('DB error')));
     return Promise.resolve(right(this.session));

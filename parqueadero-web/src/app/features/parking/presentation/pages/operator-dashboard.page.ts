@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
+import { RouterLink } from '@angular/router';
 import {
   BusinessRuleFailure,
   NetworkFailure,
@@ -25,6 +26,7 @@ import {
   SEARCH_VEHICLE_BY_PLATE_TOKEN,
   SEARCH_PLATE_SUGGESTIONS_TOKEN,
   REQUEST_INVOICE_TOKEN,
+  GET_OPEN_SHIFT_STATUS_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -49,6 +51,10 @@ import {
 import {
   GetActiveTariffUseCase,
 } from '../../domain/usecases/get-active-tariff.usecase';
+import {
+  GetOpenShiftStatusUseCase,
+  OpenShiftStatus,
+} from '../../domain/usecases/get-open-shift-status.usecase';
 import { VehicleSearchResult } from '../../domain/repositories/parking.repository';
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import {
@@ -89,7 +95,7 @@ interface ExitReceipt {
   selector: 'app-operator-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VehicleEntryFormComponent, LoadingSpinnerComponent],
+  imports: [VehicleEntryFormComponent, LoadingSpinnerComponent, RouterLink],
   templateUrl: './operator-dashboard.page.html',
   styleUrl: './operator-dashboard.page.scss',
 })
@@ -104,6 +110,20 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
 
   readonly monthlyCount = computed(
     () => this.activeSessions().filter(s => s.isMonthly).length,
+  );
+
+  // Estado de la caja del operador. Se carga al ngOnInit y bloquea la entrada
+  // cuando no hay turno abierto. La regla server-side ya existe; esto es la
+  // retroalimentación visual previa para evitar el viaje fallido.
+  readonly shiftStatusLoading = signal(true);
+  readonly shiftStatus = signal<OpenShiftStatus | null>(null);
+  readonly shiftStatusError = signal<string | null>(null);
+  readonly cashRegisterClosed = computed(() => {
+    const s = this.shiftStatus();
+    return s !== null && !s.isOpen;
+  });
+  readonly entryDisabled = computed(
+    () => this.shiftStatusLoading() || this.cashRegisterClosed() || this.shiftStatusError() !== null,
   );
 
   // HU-014: buscador por placa con autocomplete
@@ -142,13 +162,41 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     private readonly getActiveTariff: GetActiveTariffUseCase,
     @Inject(REQUEST_INVOICE_TOKEN)
     private readonly requestInvoice: RequestInvoiceUseCase,
+    @Inject(GET_OPEN_SHIFT_STATUS_TOKEN)
+    private readonly getOpenShiftStatus: GetOpenShiftStatusUseCase,
     private readonly _calculateFee: CalculateParkingFeeUseCase,
     readonly authState: AuthStateService,
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await this.loadSessions();
+    await Promise.all([this.loadShiftStatus(), this.loadSessions()]);
     this.clockTimer = setInterval(() => this.clockNow.set(this.formatNow()), 1000);
+  }
+
+  async loadShiftStatus(): Promise<void> {
+    const userId = this.authState.currentUser()?.id;
+    if (!userId) {
+      this.shiftStatusLoading.set(false);
+      return;
+    }
+    this.shiftStatusLoading.set(true);
+    this.shiftStatusError.set(null);
+    const result = await this.getOpenShiftStatus.execute({ userId });
+    this.shiftStatusLoading.set(false);
+    result.fold(
+      (failure) => {
+        this.shiftStatus.set(null);
+        this.shiftStatusError.set(failure.message);
+      },
+      (status) => {
+        this.shiftStatus.set(status);
+        this.shiftStatusError.set(null);
+      },
+    );
+  }
+
+  protected formatShiftOpenedAt(d: Date): string {
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   }
 
   ngOnDestroy(): void {

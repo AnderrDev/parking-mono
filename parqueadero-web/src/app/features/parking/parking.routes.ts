@@ -13,6 +13,7 @@ import {
   CHECK_MONTHLY_PLAN_TOKEN,
   LIST_SESSIONS_TOKEN,
   CANCEL_SESSION_TOKEN,
+  GET_OPEN_SHIFT_STATUS_TOKEN,
 } from '../../core/di/injection-tokens';
 import { ParkingRemoteDataSource } from './data/datasources/parking-remote.datasource';
 import { ParkingRepositoryImpl } from './data/repositories/parking.repository.impl';
@@ -25,6 +26,7 @@ import { CheckMonthlyPlanUseCase } from './domain/usecases/check-monthly-plan.us
 import { ListSessionsUseCase } from './domain/usecases/list-sessions.usecase';
 import { CancelParkingSessionUseCase } from './domain/usecases/cancel-session.usecase';
 import { GetActiveTariffUseCase } from './domain/usecases/get-active-tariff.usecase';
+import { GetOpenShiftStatusUseCase } from './domain/usecases/get-open-shift-status.usecase';
 
 const parkingProviders = [
   { provide: PARKING_REMOTE_DATASOURCE_TOKEN, useClass: ParkingRemoteDataSource },
@@ -38,6 +40,7 @@ const parkingProviders = [
   { provide: LIST_SESSIONS_TOKEN, useClass: ListSessionsUseCase },
   { provide: CANCEL_SESSION_TOKEN, useClass: CancelParkingSessionUseCase },
   { provide: GET_ACTIVE_TARIFF_TOKEN, useClass: GetActiveTariffUseCase },
+  { provide: GET_OPEN_SHIFT_STATUS_TOKEN, useClass: GetOpenShiftStatusUseCase },
 ];
 
 export const parkingRoutes: Routes = [

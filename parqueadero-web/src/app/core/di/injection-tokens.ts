@@ -16,6 +16,7 @@ import type { CheckMonthlyPlanUseCase } from '../../features/parking/domain/usec
 import type { ListSessionsUseCase } from '../../features/parking/domain/usecases/list-sessions.usecase';
 import type { CancelParkingSessionUseCase } from '../../features/parking/domain/usecases/cancel-session.usecase';
 import type { GetActiveTariffUseCase } from '../../features/parking/domain/usecases/get-active-tariff.usecase';
+import type { GetOpenShiftStatusUseCase } from '../../features/parking/domain/usecases/get-open-shift-status.usecase';
 import type { TariffRepository } from '../../features/tariffs/domain/repositories/tariff.repository';
 import type { TariffDataSource } from '../../features/tariffs/data/datasources/tariff.datasource';
 import type { ListTariffsUseCase } from '../../features/tariffs/domain/usecases/list-tariffs.usecase';
@@ -92,6 +93,7 @@ export const CHECK_MONTHLY_PLAN_TOKEN = new InjectionToken<CheckMonthlyPlanUseCa
 export const LIST_SESSIONS_TOKEN = new InjectionToken<ListSessionsUseCase>('ListSessionsUseCase');
 export const CANCEL_SESSION_TOKEN = new InjectionToken<CancelParkingSessionUseCase>('CancelParkingSessionUseCase');
 export const GET_ACTIVE_TARIFF_TOKEN = new InjectionToken<GetActiveTariffUseCase>('GetActiveTariffUseCase');
+export const GET_OPEN_SHIFT_STATUS_TOKEN = new InjectionToken<GetOpenShiftStatusUseCase>('GetOpenShiftStatusUseCase');
 
 // ── Tariffs ──────────────────────────────────────────────────────────────────
 export const TARIFF_REPOSITORY_TOKEN = new InjectionToken<TariffRepository>('TariffRepository');

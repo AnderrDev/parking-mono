@@ -60,8 +60,11 @@ Operario (usuario con rol operador)
    - invoiceId: NULL (se emite factura después si hay cobro)
    - method: parámetro recibido
    - amount_cents: amountDue
-   - status: 'completed' si es cortesía/mensual; 'pending' si es efectivo/tarjeta (el pago se procesa después)
-   - paidAt: NOW() (incluso si es pendiente, se marca cuando se registra)
+   - status: **siempre `'completed'`**. El cajero solo registra cuando ya
+     recibió el dinero (efectivo en mano, tarjeta deslizada, transferencia
+     validada). No hay flujo asíncrono de confirmación. Reservar `'pending'`
+     para cuando exista integración con pasarela que requiera webhook.
+   - paidAt: NOW()
 
 7. **Justificación obligatoria**: Si method es `cortesia`, `error` o `mensual`, el campo `justificationIfFree` es obligatorio. Si no viene, retornar `ValidationFailure`.
 
@@ -107,7 +110,7 @@ Operario (usuario con rol operador)
    - Crear `PaymentEntity`:
      - method: paymentMethod
      - amount_cents: amountDue
-     - status: 'completed' si es sin cobro; 'pending' si es con cobro
+     - status: **siempre `'completed'`** (ver regla 6).
      - paid_at: NOW()
      - cashier_shift_id: shift actual del operario
 
@@ -155,4 +158,4 @@ Operario (usuario con rol operador)
 - **Sin conexión**: Guardar localmente y notificar sincronización pendiente
 
 ---
-Status: Pendiente de Implementación
+Status: Implementado · Última corrección 2026-05-02 (status pago siempre `completed`).

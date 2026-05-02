@@ -14,6 +14,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 
 export interface ActiveSessionsPage {
@@ -51,6 +52,10 @@ export abstract class ParkingDataSource {
   ): Promise<Either<Failure, VehicleEntity[]>>;
 
   abstract getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>>;
+
+  abstract getOpenShiftSummary(
+    userId: string,
+  ): Promise<Either<Failure, OpenShiftSummary | null>>;
 
   abstract getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>>;
 

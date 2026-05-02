@@ -7,7 +7,6 @@ import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
-import { FREE_PAYMENT_METHODS } from '../../domain/entities/payment.entity';
 import {
   RegisterEntryParams,
   RegisterExitParams,
@@ -17,6 +16,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-session.model';
 import { VehicleMapper, VehicleModel } from '../models/vehicle.model';
@@ -231,6 +231,34 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
     }
   }
 
+  async getOpenShiftSummary(
+    userId: string,
+  ): Promise<Either<Failure, OpenShiftSummary | null>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('cashier_shifts')
+        .select('id, opened_at, opening_balance_cents')
+        .eq('user_id', userId)
+        .eq('status', 'open')
+        .eq('_deleted', false)
+        .maybeSingle<{
+          id: string;
+          opened_at: string;
+          opening_balance_cents: number;
+        }>();
+
+      if (error) return left(new ServerFailure(error.message));
+      if (!data) return right(null);
+      return right({
+        shiftId: data.id,
+        openedAt: new Date(data.opened_at),
+        openingBalanceCents: data.opening_balance_cents,
+      });
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
   async getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -270,7 +298,12 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
       if (!sessionData) return left(new ServerFailure('No se recibió datos de la sesión actualizada'));
 
       // 2. Insert payment record
-      const paymentStatus = FREE_PAYMENT_METHODS.includes(params.paymentMethod) ? 'completed' : 'pending';
+      // Todos los métodos se insertan como 'completed': no hay flujo asíncrono
+      // de confirmación. El cajero solo registra después de recibir el dinero
+      // (efectivo en mano, tarjeta deslizada, transferencia validada). Si en
+      // el futuro hay integración con pasarela que requiera confirmar webhook,
+      // ahí sí tiene sentido 'pending'. Mantener consistencia con
+      // payment-remote.datasource.ts:create().
       const { data: paymentData, error: paymentError } = await this.supabase.client
         .from('payments')
         .insert({
@@ -278,7 +311,7 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
           cashier_shift_id: params.cashierShiftId,
           method: params.paymentMethod,
           amount_cents: params.amountCents,
-          status: paymentStatus,
+          status: 'completed',
           paid_at: new Date().toISOString(),
           justification: params.justification,
           invoice_id: null,
