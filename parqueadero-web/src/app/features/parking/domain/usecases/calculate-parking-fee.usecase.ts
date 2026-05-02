@@ -73,7 +73,9 @@ export class CalculateParkingFeeUseCase extends UseCase<CalculateParkingFeeParam
         base = (duration * tariff.valueCents) / 60;
         break;
       case 'hora':
-        base = Math.ceil(duration / 60) * tariff.valueCents;
+        // Proporcional por minuto: el operador configura el valor por hora
+        // y se cobra exactamente los minutos transcurridos (sin redondear a hora completa).
+        base = (duration * tariff.valueCents) / 60;
         break;
       case 'fraccion':
         base = Math.ceil(duration / 30) * tariff.valueCents;

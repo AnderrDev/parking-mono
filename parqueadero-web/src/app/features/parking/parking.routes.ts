@@ -7,7 +7,9 @@ import {
   REGISTER_VEHICLE_ENTRY_TOKEN,
   REGISTER_VEHICLE_EXIT_TOKEN,
   GET_ACTIVE_SESSIONS_TOKEN,
+  GET_ACTIVE_TARIFF_TOKEN,
   SEARCH_VEHICLE_BY_PLATE_TOKEN,
+  SEARCH_PLATE_SUGGESTIONS_TOKEN,
   CHECK_MONTHLY_PLAN_TOKEN,
   LIST_SESSIONS_TOKEN,
   CANCEL_SESSION_TOKEN,
@@ -18,9 +20,11 @@ import { RegisterVehicleEntryUseCase } from './domain/usecases/register-vehicle-
 import { RegisterVehicleExitUseCase } from './domain/usecases/register-vehicle-exit.usecase';
 import { GetActiveSessionsUseCase } from './domain/usecases/get-active-sessions.usecase';
 import { SearchVehicleByPlateUseCase } from './domain/usecases/search-vehicle-by-plate.usecase';
+import { SearchPlateSuggestionsUseCase } from './domain/usecases/search-plate-suggestions.usecase';
 import { CheckMonthlyPlanUseCase } from './domain/usecases/check-monthly-plan.usecase';
 import { ListSessionsUseCase } from './domain/usecases/list-sessions.usecase';
 import { CancelParkingSessionUseCase } from './domain/usecases/cancel-session.usecase';
+import { GetActiveTariffUseCase } from './domain/usecases/get-active-tariff.usecase';
 
 const parkingProviders = [
   { provide: PARKING_REMOTE_DATASOURCE_TOKEN, useClass: ParkingRemoteDataSource },
@@ -29,9 +33,11 @@ const parkingProviders = [
   { provide: REGISTER_VEHICLE_EXIT_TOKEN, useClass: RegisterVehicleExitUseCase },
   { provide: GET_ACTIVE_SESSIONS_TOKEN, useClass: GetActiveSessionsUseCase },
   { provide: SEARCH_VEHICLE_BY_PLATE_TOKEN, useClass: SearchVehicleByPlateUseCase },
+  { provide: SEARCH_PLATE_SUGGESTIONS_TOKEN, useClass: SearchPlateSuggestionsUseCase },
   { provide: CHECK_MONTHLY_PLAN_TOKEN, useClass: CheckMonthlyPlanUseCase },
   { provide: LIST_SESSIONS_TOKEN, useClass: ListSessionsUseCase },
   { provide: CANCEL_SESSION_TOKEN, useClass: CancelParkingSessionUseCase },
+  { provide: GET_ACTIVE_TARIFF_TOKEN, useClass: GetActiveTariffUseCase },
 ];
 
 export const parkingRoutes: Routes = [

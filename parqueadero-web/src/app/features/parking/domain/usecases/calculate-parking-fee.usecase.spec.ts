@@ -104,14 +104,40 @@ describe('CalculateParkingFeeUseCase', () => {
     });
   });
 
-  it('redondea hacia arriba: 61 minutos = 2 horas (unit=hora)', () => {
+  it('cobra proporcional: 61 minutos = 61/60 de hora (unit=hora)', () => {
     const result = usecase.calculate(baseParams({
       durationMinutes: 61,
       tariff: makeTariff({ unit: 'hora', valueCents: 500_000 }),
     }));
     expect(result.isRight()).toBeTrue();
     result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(1_000_000);
+      // (61 * 500_000) / 60 = 508_333.33 → Math.ceil = 508_334
+      expect(fee.amountCents).toBe(508_334);
+    });
+  });
+
+  it('cobra proporcional: 1 minuto = 1/60 de hora (unit=hora)', () => {
+    const result = usecase.calculate(baseParams({
+      durationMinutes: 1,
+      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, graceMinutes: 0 }),
+    }));
+    expect(result.isRight()).toBeTrue();
+    result.fold(f => fail(f.message), fee => {
+      // (1 * 500_000) / 60 = 8_333.33 → Math.ceil = 8_334
+      expect(fee.amountCents).toBe(8_334);
+      expect(fee.reason).toBe('paid');
+    });
+  });
+
+  it('cobra proporcional: 30 minutos = 1/2 hora (unit=hora)', () => {
+    const result = usecase.calculate(baseParams({
+      durationMinutes: 30,
+      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, graceMinutes: 0 }),
+    }));
+    expect(result.isRight()).toBeTrue();
+    result.fold(f => fail(f.message), fee => {
+      // (30 * 500_000) / 60 = 250_000
+      expect(fee.amountCents).toBe(250_000);
     });
   });
 

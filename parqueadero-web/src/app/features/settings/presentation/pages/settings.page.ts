@@ -13,6 +13,7 @@ import {
   UPDATE_SETTING_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { SettingsForms, PAYMENT_METHODS as PM } from '../forms/settings.forms';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 import { GetSettingUseCase } from '../../domain/usecases/get-setting.usecase';
 import { UpdateSettingUseCase } from '../../domain/usecases/update-setting.usecase';
 import {
@@ -30,7 +31,7 @@ const PAYMENT_METHODS = PM;
   selector: 'app-settings-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, CurrencyInputDirective],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.scss',
 })

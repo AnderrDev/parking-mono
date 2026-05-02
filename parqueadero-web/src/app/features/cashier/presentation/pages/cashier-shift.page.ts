@@ -35,6 +35,7 @@ import { CashierForms } from '../forms/cashier.forms';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorDisplayComponent } from '../../../../shared/components/error-display/error-display.component';
 import { ToastService } from '../../../../core/services/toast.service';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 
 type PageView = 'loading' | 'no-shift' | 'open-shift';
 
@@ -42,7 +43,7 @@ type PageView = 'loading' | 'no-shift' | 'open-shift';
   selector: 'app-cashier-shift-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, ErrorDisplayComponent],
+  imports: [CommonModule, ReactiveFormsModule, LoadingSpinnerComponent, ErrorDisplayComponent, CurrencyInputDirective],
   templateUrl: './cashier-shift.page.html',
   styleUrl: './cashier-shift.page.scss',
 })

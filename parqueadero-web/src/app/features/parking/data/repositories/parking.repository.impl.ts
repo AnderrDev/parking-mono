@@ -4,6 +4,7 @@ import { Failure } from '../../../../core/either/failures';
 import { PARKING_REMOTE_DATASOURCE_TOKEN } from '../../../../core/di/injection-tokens';
 import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
+import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
 import {
@@ -55,6 +56,13 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
   async searchVehicleByPlate(plate: string): Promise<Either<Failure, VehicleSearchResult>> {
     return this.remoteDs.searchVehicle(plate);
+  }
+
+  async searchPlateSuggestions(
+    query: string,
+    limit = 8,
+  ): Promise<Either<Failure, VehicleEntity[]>> {
+    return this.remoteDs.searchPlateSuggestions(query, limit);
   }
 
   async getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>> {

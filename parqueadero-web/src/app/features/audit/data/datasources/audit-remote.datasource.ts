@@ -12,13 +12,13 @@ import {
 interface AuditRow {
   id: string;
   user_id: string | null;
+  user_name: string | null;
   action: AuditAction;
   entity_type: string;
   entity_id: string;
   before_json: Record<string, unknown> | null;
   after_json: Record<string, unknown> | null;
   created_at: string;
-  users: { nombre: string } | null;
 }
 
 @Injectable()
@@ -31,8 +31,8 @@ export class AuditRemoteDataSource extends AuditRepository {
     try {
       const offset = (params.page - 1) * params.pageSize;
       let query = this.supabase.client
-        .from('audit_log')
-        .select('*, users(nombre)', { count: 'exact' });
+        .from('v_audit_log')
+        .select('*', { count: 'exact' });
 
       if (params.dateFrom) query = query.gte('created_at', params.dateFrom.toISOString());
       if (params.dateTo) query = query.lte('created_at', params.dateTo.toISOString());
@@ -52,7 +52,7 @@ export class AuditRemoteDataSource extends AuditRepository {
           new AuditEntryEntity(
             r.id,
             r.user_id,
-            r.users?.nombre ?? null,
+            r.user_name ?? null,
             r.action,
             r.entity_type,
             r.entity_id,

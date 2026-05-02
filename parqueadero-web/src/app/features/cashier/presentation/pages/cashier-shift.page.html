@@ -25,12 +25,9 @@
                 <span class="field__money-prefix">$</span>
                 <input
                   id="opening-balance"
-                  type="number"
+                  appCurrencyInput
                   class="field__input"
                   formControlName="openingBalanceCents"
-                  min="0"
-                  step="100"
-                  inputmode="numeric"
                   placeholder="0"
                 />
                 <span class="field__money-suffix">COP</span>
@@ -278,12 +275,9 @@
                   <span class="field__money-prefix">$</span>
                   <input
                     id="closing-balance"
-                    type="number"
+                    appCurrencyInput
                     class="field__input"
                     formControlName="closingBalanceCents"
-                    min="0"
-                    step="100"
-                    inputmode="numeric"
                     placeholder="0"
                   />
                   <span class="field__money-suffix">COP</span>

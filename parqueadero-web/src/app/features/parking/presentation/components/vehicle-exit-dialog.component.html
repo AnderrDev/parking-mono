@@ -52,12 +52,9 @@
           <span class="cash-input__prefix" aria-hidden="true">$</span>
           <input
             id="cashReceived"
-            type="number"
+            appCurrencyInput
             class="form-input cash-input__field"
             formControlName="cashReceivedCents"
-            [min]="amountCents()"
-            step="100"
-            inputmode="numeric"
             placeholder="0"
           />
         </div>

@@ -5,6 +5,7 @@ import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan
 import { MonthlyPlanForms } from '../forms/monthly-plan.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 
 export interface MonthlyPlanDialogData {
   plan: MonthlyPlanEntity | null;
@@ -31,7 +32,7 @@ const PLAN_TYPES = [
   selector: 'app-monthly-plan-edit-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, CurrencyCopPipe],
+  imports: [ReactiveFormsModule, CurrencyCopPipe, CurrencyInputDirective],
   templateUrl: './monthly-plan-edit-dialog.component.html',
   styleUrl: './monthly-plan-edit-dialog.component.scss',
 })

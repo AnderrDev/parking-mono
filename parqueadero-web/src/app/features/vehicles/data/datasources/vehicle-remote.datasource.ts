@@ -12,6 +12,11 @@ import { VehicleDataSource } from './vehicle.datasource';
 export class VehicleRemoteDataSource extends VehicleDataSource {
   constructor(private readonly supabase: SupabaseService) { super(); }
 
+  private toModel(row: unknown): VehicleModel {
+    const r = row as Record<string, unknown>;
+    return { ...r, vehicle_type: r['type'] } as VehicleModel;
+  }
+
   async list(params: ListVehiclesParams): Promise<Either<Failure, { data: VehicleEntity[]; pagination: PaginationMeta }>> {
     try {
       const page = params.pagination?.page ?? 1;
@@ -32,7 +37,7 @@ export class VehicleRemoteDataSource extends VehicleDataSource {
       const { data, error, count } = await query;
       if (error) return left(new ServerFailure(error.message));
 
-      const rows = (data ?? []) as VehicleModel[];
+      const rows = (data ?? []).map(r => this.toModel(r));
       const total = count ?? 0;
       return right({
         data: rows.map(VehicleMapper.toEntity),
@@ -52,7 +57,7 @@ export class VehicleRemoteDataSource extends VehicleDataSource {
           ? left(new NotFoundFailure('Vehículo no encontrado'))
           : left(new ServerFailure(error.message));
       }
-      return right(VehicleMapper.toEntity(data as VehicleModel));
+      return right(VehicleMapper.toEntity(this.toModel(data)));
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }
@@ -71,7 +76,7 @@ export class VehicleRemoteDataSource extends VehicleDataSource {
       const { data, error } = await this.supabase.client
         .from('vehicles').insert(payload).select().single();
       if (error) return left(new ServerFailure(error.message));
-      return right(VehicleMapper.toEntity(data as VehicleModel));
+      return right(VehicleMapper.toEntity(this.toModel(data)));
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }
@@ -87,7 +92,7 @@ export class VehicleRemoteDataSource extends VehicleDataSource {
       const { data, error } = await this.supabase.client
         .from('vehicles').update(patch).eq('id', params.id).select().single();
       if (error) return left(new ServerFailure(error.message));
-      return right(VehicleMapper.toEntity(data as VehicleModel));
+      return right(VehicleMapper.toEntity(this.toModel(data)));
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }

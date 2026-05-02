@@ -25,7 +25,6 @@
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
     "@angular/service-worker": "^18.2.0",
-    "@powersync/web": "^1.37.2",
     "@supabase/supabase-js": "^2.105.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",

@@ -42,9 +42,12 @@
     <div class="field-row">
       <div class="field">
         <label class="field__label" for="t-value">Valor (COP)</label>
-        <input id="t-value" class="field__input" [class.field__input--error]="err('valueCents')"
-          type="number" formControlName="valueCents" min="1" placeholder="500000"
-          [attr.aria-describedby]="err('valueCents') ? 't-value-err' : null" />
+        <div class="field__money">
+          <span class="field__money-prefix">$</span>
+          <input id="t-value" class="field__input" [class.field__input--error]="err('valueCents')"
+            appCurrencyInput formControlName="valueCents" placeholder="5.000"
+            [attr.aria-describedby]="err('valueCents') ? 't-value-err' : null" />
+        </div>
         @if (err('valueCents')) {
           <span id="t-value-err" class="field__error" role="alert">{{ errMsg('valueCents') }}</span>
         }
@@ -52,9 +55,12 @@
 
       <div class="field">
         <label class="field__label" for="t-cap">Tope diario (COP)</label>
-        <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
-          type="number" formControlName="dailyCapCents" min="1" placeholder="30000000"
-          [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
+        <div class="field__money">
+          <span class="field__money-prefix">$</span>
+          <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
+            appCurrencyInput formControlName="dailyCapCents" placeholder="300.000"
+            [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
+        </div>
         @if (err('dailyCapCents')) {
           <span id="t-cap-err" class="field__error" role="alert">{{ errMsg('dailyCapCents') }}</span>
         }

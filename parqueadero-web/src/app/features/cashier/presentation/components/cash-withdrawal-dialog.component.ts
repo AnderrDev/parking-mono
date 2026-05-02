@@ -8,6 +8,7 @@ import { DialogRef } from '@angular/cdk/dialog';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CashierForms } from '../forms/cashier.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 
 export interface WithdrawalFormValue {
   amountCents: number;
@@ -19,7 +20,7 @@ export interface WithdrawalFormValue {
   selector: 'app-cash-withdrawal-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CurrencyInputDirective],
   template: `
     <div class="dialog" role="document">
       <header class="dialog__header">
@@ -38,13 +39,10 @@ export interface WithdrawalFormValue {
             <span class="cash-input__prefix" aria-hidden="true">$</span>
             <input
               id="amount"
-              type="number"
+              appCurrencyInput
               class="form-input"
               [class.form-input--error]="err('amountCents')"
               formControlName="amountCents"
-              min="100"
-              step="100"
-              inputmode="numeric"
               placeholder="0"
             />
           </div>

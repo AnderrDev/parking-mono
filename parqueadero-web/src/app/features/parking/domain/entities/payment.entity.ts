@@ -28,6 +28,7 @@ export class PaymentEntity extends BaseEntity {
     public readonly paidAt: Date,
     public readonly justification: string | null,
     public readonly invoiceId: string | null,
+    public readonly gatewayRef: string | null,
   ) {
     super(id, createdAt, updatedAt);
   }

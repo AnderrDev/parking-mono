@@ -17,6 +17,8 @@ import { TariffEntity } from '../../domain/entities/tariff.entity';
 import { PaymentMethod, FREE_PAYMENT_METHODS } from '../../domain/entities/payment.entity';
 import { CalculateParkingFeeResult } from '../../domain/usecases/calculate-parking-fee.usecase';
 import { formatDuration } from '../../../../shared/utils/date.utils';
+import { formatCOP as copFormatter } from '../../../../shared/utils/currency.utils';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 import { LIST_CUSTOMERS_TOKEN } from '../../../../core/di/injection-tokens';
 import { ListCustomersUseCase } from '../../../customers/domain/usecases/list-customers.usecase';
 import { CustomerEntity } from '../../../customers/domain/entities/customer.entity';
@@ -56,15 +58,11 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   otro: 'Otro',
 };
 
-function formatCOP(amountCents: number): string {
-  return `$${amountCents.toLocaleString('es-CO')}`;
-}
-
 @Component({
   selector: 'app-vehicle-exit-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CurrencyInputDirective],
   templateUrl: './vehicle-exit-dialog.component.html',
   styleUrl: './vehicle-exit-dialog.component.scss',
 })
@@ -99,7 +97,7 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
   }));
 
   readonly formatDuration = formatDuration;
-  readonly formatCOP = formatCOP;
+  readonly formatCOP = copFormatter;
 
   private readonly destroy$ = new Subject<void>();
   private customerSearchTimer: ReturnType<typeof setTimeout> | null = null;

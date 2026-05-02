@@ -45,6 +45,11 @@ export abstract class ParkingDataSource {
 
   abstract searchVehicle(plate: string): Promise<Either<Failure, VehicleSearchData>>;
 
+  abstract searchPlateSuggestions(
+    query: string,
+    limit: number,
+  ): Promise<Either<Failure, VehicleEntity[]>>;
+
   abstract getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>>;
 
   abstract getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>>;

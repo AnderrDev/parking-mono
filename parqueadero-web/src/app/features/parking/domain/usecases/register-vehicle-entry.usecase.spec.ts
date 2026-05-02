@@ -26,6 +26,7 @@ const makeSession = (plate = 'ABC123'): ParkingSessionEntity =>
     null,
     null,
     null,
+    null,
     'synced',
   );
 
@@ -91,6 +92,10 @@ class MockParkingRepository extends ParkingRepository {
 
   async searchVehicleByPlate() {
     return Promise.resolve(right({ vehicle: null, activeSessions: [], lastSessions: [], monthlyPlan: null }));
+  }
+
+  async searchPlateSuggestions() {
+    return Promise.resolve(right([]));
   }
 
   async registerExit(_params: unknown) {

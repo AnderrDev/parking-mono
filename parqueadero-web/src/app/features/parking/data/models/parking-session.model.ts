@@ -13,6 +13,7 @@ export interface ParkingSessionModel {
   entry_user_id: string;
   status: string;
   monthly_plan_id: string | null;
+  tariff_id: string | null;
   exit_at: string | null;
   exit_user_id: string | null;
   amount_due_cents: number | null;
@@ -33,6 +34,7 @@ export class ParkingSessionMapper {
       m.entry_user_id,
       m.status as SessionStatus,
       m.monthly_plan_id,
+      m.tariff_id ?? null,
       m.exit_at ? new Date(m.exit_at) : null,
       m.exit_user_id,
       m.amount_due_cents,
@@ -49,6 +51,7 @@ export class ParkingSessionMapper {
       entry_user_id: e.entryUserId,
       status: e.status,
       monthly_plan_id: e.monthlyPlanId,
+      tariff_id: e.tariffId,
       exit_at: e.exitAt?.toISOString() ?? null,
       exit_user_id: e.exitUserId,
       amount_due_cents: e.amountDueCents,

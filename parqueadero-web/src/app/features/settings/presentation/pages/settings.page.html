@@ -104,8 +104,11 @@
           <h2>Parámetros operativos</h2>
           <div class="grid">
             <label class="field">
-              <span>Tope de efectivo en caja (centavos)</span>
-              <input type="number" formControlName="cash_cap_cents" min="0" step="100" />
+              <span>Tope de efectivo en caja (COP)</span>
+              <div class="field__money">
+                <span class="field__money-prefix">$</span>
+                <input appCurrencyInput formControlName="cash_cap_cents" placeholder="0" />
+              </div>
             </label>
             <label class="field">
               <span>Días de gracia mensualidad</span>

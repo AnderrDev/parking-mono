@@ -5,6 +5,7 @@ export interface PaymentModel {
   session_id: string;
   cashier_shift_id: string;
   method: string;
+  gateway_ref: string | null;
   amount_cents: number;
   status: string;
   paid_at: string;
@@ -28,6 +29,7 @@ export class PaymentMapper {
       new Date(m.paid_at),
       m.justification,
       m.invoice_id,
+      m.gateway_ref ?? null,
     );
   }
 }

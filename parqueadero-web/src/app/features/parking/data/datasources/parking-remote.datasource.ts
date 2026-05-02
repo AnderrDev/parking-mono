@@ -4,6 +4,7 @@ import { Failure, NetworkFailure, NotFoundFailure, ServerFailure } from '../../.
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { PaginationMeta as Pagination } from '../../../../shared/models/pagination.model';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
+import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
 import { FREE_PAYMENT_METHODS } from '../../domain/entities/payment.entity';
@@ -390,6 +391,27 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
       });
 
       return right(ParkingSessionMapper.toEntity(sessionRow));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async searchPlateSuggestions(
+    query: string,
+    limit: number,
+  ): Promise<Either<Failure, VehicleEntity[]>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('vehicles')
+        .select()
+        .ilike('plate', `%${query}%`)
+        .eq('_deleted', false)
+        .order('updated_at', { ascending: false })
+        .limit(limit)
+        .returns<VehicleModel[]>();
+
+      if (error) return left(new ServerFailure(error.message));
+      return right((data ?? []).map(VehicleMapper.toEntity));
     } catch {
       return left(new NetworkFailure());
     }

@@ -4,6 +4,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
 import { TariffForms } from '../forms/tariff.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
+import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 
 export interface TariffDialogData {
   tariff: TariffEntity | null;
@@ -39,7 +40,7 @@ const UNITS = [
   selector: 'app-tariff-edit-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CurrencyInputDirective],
   templateUrl: './tariff-edit-dialog.component.html',
   styleUrl: './tariff-edit-dialog.component.scss',
 })

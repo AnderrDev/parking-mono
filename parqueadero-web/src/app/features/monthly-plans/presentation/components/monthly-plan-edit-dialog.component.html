@@ -71,9 +71,12 @@
             </div>
             <div class="field">
               <label class="field__label" for="p-amount">Valor (COP)</label>
-              <input id="p-amount" class="field__input" [class.field__input--error]="err('amountCents')"
-                type="number" formControlName="amountCents" min="1"
-                [attr.aria-describedby]="err('amountCents') ? 'p-amount-err' : null" />
+              <div class="field__money">
+                <span class="field__money-prefix">$</span>
+                <input id="p-amount" class="field__input" [class.field__input--error]="err('amountCents')"
+                  appCurrencyInput formControlName="amountCents" placeholder="0"
+                  [attr.aria-describedby]="err('amountCents') ? 'p-amount-err' : null" />
+              </div>
               @if (err('amountCents')) {
                 <span id="p-amount-err" class="field__error" role="alert">{{ errMsg('amountCents') }}</span>
               }
@@ -84,9 +87,12 @@
         @if (!isEdit) {
           <div class="field">
             <label class="field__label" for="p-amount">Valor (COP)</label>
-            <input id="p-amount" class="field__input" [class.field__input--error]="err('amountCents')"
-              type="number" formControlName="amountCents" min="1" placeholder="150000000"
-              [attr.aria-describedby]="err('amountCents') ? 'p-amount-err' : null" />
+            <div class="field__money">
+              <span class="field__money-prefix">$</span>
+              <input id="p-amount" class="field__input" [class.field__input--error]="err('amountCents')"
+                appCurrencyInput formControlName="amountCents" placeholder="1.500.000"
+                [attr.aria-describedby]="err('amountCents') ? 'p-amount-err' : null" />
+            </div>
             @if (err('amountCents')) {
               <span id="p-amount-err" class="field__error" role="alert">{{ errMsg('amountCents') }}</span>
             }
