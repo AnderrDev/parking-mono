@@ -43,6 +43,16 @@ function stub(invoiceNumber: string): DianServiceResponse {
   };
 }
 
+// Fase 11 / S2: el trigger sync_dian_from_siigo deriva dian_status desde siigo_status.
+// Esta EF legacy mapea su dian_status (proveniente del stub o dian-fe-service) al
+// equivalente Siigo para que el trigger no sobreescriba con un valor incorrecto.
+// Se elimina en S9 cuando esta EF se apague.
+function dianToSiigoStatus(s: 'accepted' | 'rejected' | 'contingency'): string {
+  if (s === 'accepted')    return 'Stamped';
+  if (s === 'rejected')    return 'Rejected';
+  return 'queued_offline';   // contingency
+}
+
 async function callDianService(
   url: string,
   payload: Record<string, unknown>,
@@ -110,16 +120,15 @@ Deno.serve(async (req: Request) => {
     const dianUrl = Deno.env.get('DIAN_FE_SERVICE_URL') ?? '';
     const dianResponse = dianUrl
       ? await callDianService(dianUrl, { invoice_id, reissue: true })
-      : stub(existing['number'] as string);
+      : stub(existing['internal_number'] as string);
 
     const { data: updated } = await supabase
       .from('invoices')
       .update({
-        dian_status: dianResponse.dian_status,
-        dian_cufe: dianResponse.cufe || existing['dian_cufe'],
-        cufe: dianResponse.cufe || existing['cufe'],
-        dian_xml_url: dianResponse.xml_url,
-        dian_pdf_url: dianResponse.pdf_url,
+        siigo_status: dianToSiigoStatus(dianResponse.dian_status),
+        siigo_cufe: dianResponse.cufe || existing['siigo_cufe'],
+        siigo_pdf_url: dianResponse.pdf_url,
+        siigo_xml_url: dianResponse.xml_url,
         updated_at: new Date().toISOString(),
       })
       .eq('id', invoice_id)
@@ -213,17 +222,17 @@ Deno.serve(async (req: Request) => {
   const { data: invoice, error: insertErr } = await supabase
     .from('invoices')
     .insert({
-      number: invoiceNumber,
-      cufe: dianResponse.cufe || null,
+      internal_number: invoiceNumber,
       customer_id,
       session_id,
       subtotal_cents: amountCents,
       tax_cents: taxCents,
       total_cents: totalCents,
-      dian_status: dianResponse.dian_status,
-      dian_cufe: dianResponse.cufe || null,
-      dian_xml_url: dianResponse.xml_url,
-      dian_pdf_url: dianResponse.pdf_url,
+      siigo_status: dianToSiigoStatus(dianResponse.dian_status),
+      siigo_cufe: dianResponse.cufe || null,
+      siigo_xml_url: dianResponse.xml_url,
+      siigo_pdf_url: dianResponse.pdf_url,
+      requested_invoice: true,
       issued_at: dianResponse.issued_at,
       ...(notes ? { notes } : {}),
       ...(payment?.['id'] ? { payment_id: payment['id'] } : {}),

@@ -2,8 +2,8 @@
 
 **Versión:** 2.0 (reformateado para agentes Claude Code)
 **Última actualización:** 2026-04-28
-**Alcance:** Solo `parqueadero-web` (Angular PWA) y `parqueadero-backend` (Supabase).
-**Fuera de alcance:** `dian-fe-service` se planificará aparte. Este plan deja un **stub** del flujo de facturación electrónica en la Fase 9 para que la integración real se enchufe sin re-arquitectura.
+**Alcance:** `parqueadero-web` (Angular PWA), `parqueadero-backend` (Supabase) y, desde la **Fase 11**, la integración con **Siigo** para facturación electrónica (vive en Edge Functions de Supabase).
+**Histórico:** `dian-fe-service` (Python directo a DIAN) se desarrolló hasta D8 y quedó **congelado** al adoptar Siigo en la Fase 11.
 
 ---
 
@@ -28,10 +28,11 @@ Ver `CLAUDE.md` raíz — protocolo lazy, reglas absolutas y skills disponibles 
 | 8 | Offline hardening (PowerSync, conflictos) | ambos | `angular-architect`, `frontend-quality` |
 | 9 | Invoicing UI + Edge Function `request-invoice` con **stub DIAN** | ambos | `supabase-expert`, `angular-architect` |
 | 10 | QA, hardening, deploy productivo | ambos | `frontend-quality`, `supabase-expert` |
+| 11 | Facturación electrónica con **Siigo** (reemplaza stub/dian-fe-service) | ambos | `supabase-expert`, `angular-architect` |
 
-**Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
+**Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial). La Fase 11 (Siigo) puede arrancar en paralelo a Fase 8 si hay capacidad — son independientes.
 
-**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync).
+**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync) o Fase 11 (Siigo) según prioridad.
 
 ---
 
@@ -454,6 +455,101 @@ Subdivide en 3 sub-fases. Cada una es **una sesión separada** con su entrada en
 
 ---
 
+## Fase 11 — Facturación electrónica con Siigo
+
+🎯 **Goal:** Reemplazar el stub DIAN (Fase 9) y el camino directo `dian-fe-service` por una integración con **Siigo** (proveedor SaaS que firma XAdES, calcula CUFE y envía a DIAN). El operador emite factura electrónica desde el cierre de venta cuando el cliente la pide; el resto sigue siendo ticket POS interno.
+
+**Decisiones cerradas:**
+1. Siigo es **único** proveedor productivo. `dian-fe-service` queda **congelado** (D1–D8 conservados como referencia; D9/D10 nunca se completan).
+2. Integración 100 % en **Edge Functions de Supabase (Deno)** — sin nuevo subproyecto.
+3. **Numeración dual**: `internal_number` (sigue `nextval_invoices()`, sirve offline / ticket / auditoría) + `siigo_number` (consecutivo fiscal asignado por Siigo).
+4. **Cuándo emitir**: solo cuando el cliente lo pide (toggle existente en `vehicle-exit-dialog`). Salidas contra mensualidad NO emiten FE (toggle bloqueado).
+5. **Sincronía**: asíncrona. Cajero cierra → invoice queda en `pending` → cron polling cada 30 s actualiza estado en BD; UI refresca via Realtime.
+6. **Cliente fiscal**: auto-create on-demand en Siigo si no existe; `siigo_customer_id` se persiste en `customers`.
+
+🛠️ **Skills:** `supabase-expert`, `angular-architect`, `frontend-quality`.
+
+📐 **Specs (a crear primero — regla absoluta):**
+- `parqueadero-backend/specs/edge-functions/siigo-emit-invoice.spec.md`
+- `parqueadero-backend/specs/edge-functions/siigo-poll-status.spec.md`
+- `parqueadero-backend/specs/edge-functions/_shared-siigo-client.spec.md`
+- `parqueadero-backend/specs/database-schema-siigo-delta.spec.md`
+- `parqueadero-backend/specs/rls-policies-siigo.spec.md`
+- `parqueadero-web/specs/features/parking/cashier-fiscal-data-capture.spec.md`
+- `parqueadero-web/specs/features/invoicing/siigo-status-realtime.spec.md`
+- Actualizar: `request-invoice.spec.md`, `view-invoice.spec.md`, `reissue-invoice.spec.md` en `parqueadero-web/specs/features/invoicing/`.
+
+📂 **Lectura previa:**
+- `~/.claude/plans/vamos-a-hacer-una-purring-meadow.md` (plan aprobado)
+- `dian-fe-service/CLAUDE.md` (para entender qué se está reemplazando)
+- API Siigo: https://developers.siigo.com/docs/siigoapi/
+
+📋 **Sub-fases:**
+
+### S1 — Specs + sandbox + catálogo iniciado
+- [ ] Specs de la lista superior creadas y aprobadas.
+- [ ] Solicitar credenciales sandbox a `soporteapi@siigo.com`.
+- [ ] Pre-cargar productos en Siigo Nube: "Parqueo por hora", "Plan mensual", (opc) "Cobro diario tope".
+- [ ] Confirmar costo por documento, rate limit oficial, disponibilidad de webhooks privados.
+
+### S2 — Schema delta + audit + trigger
+- [ ] Migration `00013_siigo_integration.sql`:
+  - Renombrar `invoices.number → internal_number` (mantiene UNIQUE).
+  - Agregar `siigo_id, siigo_number, siigo_status, siigo_observations, siigo_pdf_url, siigo_xml_url, siigo_qr_url, siigo_cufe, siigo_cude, siigo_attempts, siigo_last_attempt_at, siigo_last_error, requested_invoice` a `invoices`.
+  - Agregar `siigo_customer_id, siigo_synced_at, siigo_sync_error` a `customers`.
+  - Tabla `siigo_invoice_attempts` (append-only, RLS service_role only).
+  - Tabla `siigo_auth_tokens` (single-row cache bearer 24 h, RLS service_role only).
+  - Función `get_invoices_for_polling(p_limit INT)` `SECURITY DEFINER` con `FOR UPDATE SKIP LOCKED`.
+  - Trigger `BEFORE UPDATE/INSERT` que deriva `dian_status` desde `siigo_status` (compatibilidad con queries actuales).
+  - Índices `(siigo_status, siigo_attempts) WHERE …`, `(siigo_id) WHERE NOT NULL`.
+- [ ] Tests RLS en `tests/rls/04_siigo_audit_immutable.test.sql`, `05_siigo_status_trigger.test.sql`.
+
+### S3 — Auth helper + token cache
+- [ ] `supabase/functions/_shared/siigo/auth.ts` — `getSiigoToken()` con cache de 24 h en tabla `siigo_auth_tokens`.
+- [ ] `supabase/functions/_shared/siigo/client.ts` — `siigoFetch()` con timeout 28 s, retry simple en 429/5xx, audita en `siigo_invoice_attempts`.
+- [ ] `supabase/functions/_shared/siigo/{customer,mapper,types,errors}.ts`.
+- [ ] Test manual: invocar `getSiigoToken()` desde una EF temporal con credenciales sandbox; persiste token.
+
+### S4 — Edge Function `siigo-emit-invoice`
+- [ ] `supabase/functions/siigo-emit-invoice/index.ts` — verifica JWT, idempotencia por `session_id`, `ensureSiigoCustomer`, `nextval_invoices`, `POST /v1/invoices` con `stamp.send:true`, persiste resultado.
+- [ ] Manejo de 4xx/5xx/timeout: invoice queda persistida en `pending`/`Rejected`, polling toma el relevo.
+- [ ] Test sandbox: una factura emitida queda en `Stamped` o `pending`; audit row registrado.
+
+### S5 — Edge Function cron `siigo-poll-status`
+- [ ] `supabase/functions/siigo-poll-status/index.ts` — `get_invoices_for_polling(20)`, `GET /v1/invoices/{siigo_id}`, mapear a `siigo_status`, backoff `min(intent²×5s, 5min)`.
+- [ ] Migration `00014_siigo_polling_cron.sql` con `pg_cron` + `pg_net` (frecuencia 30 s).
+- [ ] Setup post-deploy: `ALTER DATABASE postgres SET app.siigo_poll_url = '...'`.
+- [ ] Test sandbox: una factura `pending` pasa a `Stamped` sin intervención.
+
+### S6 — UI cashier (toggle + form fiscal + bloqueo plan mensual)
+- [ ] `vehicle-exit-dialog.component.{ts,html}`: el toggle `emitInvoice` ya existe; extender con form fiscal inline cuando el cliente seleccionado no tiene `email/name/doc_type/doc_number`. **Bloquear toggle** si la salida se cierra contra mensualidad.
+- [ ] `invoice.entity.ts`: renombrar `number → internalNumber`. Agregar `siigoId, siigoNumber, siigoStatus, siigoObservations, siigoPdfUrl, siigoQrUrl, siigoAttempts, siigoLastError, requestedInvoice`. Tipo `SiigoStatus`. Getters `isFinal`, `isStamped`, `canDownloadPdf`, `canReissue`.
+- [ ] `invoicing-remote.datasource.ts`: switch `request-invoice → siigo-emit-invoice`. Implementar `observeInvoiceStatus(id)` con Realtime.
+
+### S7 — UI invoices-list con Realtime
+- [ ] Página `invoices-list.page` muestra columna "Estado Siigo" con `<app-status-badge>`. Suscripción Realtime refresca filas.
+- [ ] Botón "Descargar PDF" deshabilitado salvo `Stamped && siigo_pdf_url !== null`. Botón "Reintentar" solo si `canReissue`.
+
+### S8 — Catálogo Siigo Nube + QA sandbox (manual)
+- [ ] Productos, formas de pago, tipo de documento, vendedor verificados en portal Siigo Nube.
+- [ ] 5 facturas sandbox emitidas y descargadas. Health-check: `GET /v1/products/<id>` por cada producto configurado.
+
+### S9 — Production cutover + deprecation
+- [ ] `supabase functions delete request-invoice`. Remover `DIAN_FE_SERVICE_URL` del `.env.example` y de `supabase secrets`.
+- [ ] Marcar `dian-fe-service/PLAN-DIAN.md` como **CONGELADO**. Conservar D1–D8 en repo como referencia.
+
+✅ **DoD Fase 11 completa:**
+- 10 facturas reales emitidas en producción Siigo, todas en `Stamped`.
+- Cajero cierra venta con FE en < 3 s percibidos (asíncrono); UI refresca cuando Siigo confirma.
+- Salida contra mensualidad NO genera FE (toggle bloqueado, no hay invoice creado).
+- Modo offline encola FE en `queued_offline` y emite al reconectar (coordinado con Fase 8).
+- `request-invoice` EF eliminada; `dian_status` se sigue alimentando desde `siigo_status` vía trigger.
+
+🔁 **Prompt de handoff:**
+> Siigo en producción, `dian-fe-service` congelado. Próxima sesión opcional: planear notas crédito (`siigo-emit-credit-note`) o vista admin de auditoría `siigo_invoice_attempts`.
+
+---
+
 ## Trabajo transversal (todas las fases)
 
 - **Specs siempre vivos.** Cualquier cambio de comportamiento → actualizar spec antes que código. Documentar en la sesión.
@@ -494,16 +590,11 @@ Subdivide en 3 sub-fases. Cada una es **una sesión separada** con su entrada en
 
 ---
 
-## Cuándo entra `dian-fe-service` (referencia futura)
+## Cuándo entra `dian-fe-service` (histórico — **CONGELADO**)
 
-Este plan **no construye DIAN**, pero deja preparado:
+`dian-fe-service` (Python/FastAPI con UBL + XAdES + CUFE + SOAP DIAN directo) llegó hasta D8 (107 tests, Docker build OK) pero **queda congelado** porque la Fase 11 lo reemplaza con Siigo. D9/D10 nunca se completan. El código se conserva en repo como referencia o contingencia.
 
-1. Tabla `invoices` con `dian_status`, `cufe`, `dian_xml_url`, `dian_pdf_url` ya existe (Fase 1).
-2. Edge Function `request-invoice` con interfaz idéntica al servicio real (Fase 9). Switch = cambiar `DIAN_FE_SERVICE_URL`.
-3. Specs de `dian-fe-service` ya escritas y validadas.
-4. Storage bucket `invoices/` creado.
-
-Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fases (D1 bootstrap Python · D2 Either · D3 UBL builder · D4 CUFE · D5 XAdES · D6 SOAP · D7 FastAPI · D8 Docker/Fly · D9 switch del Edge Function · D10 QA contra DIAN sandbox).
+La integración de facturación electrónica vive ahora en la Fase 11 (Siigo) — ver sección arriba. La tabla `invoices` se preserva con el schema delta de S2 (campos `siigo_*` agregados; `dian_status` se deriva via trigger desde `siigo_status` para no romper queries históricas).
 
 ---
 
@@ -517,14 +608,14 @@ Cuando se planifique DIAN, será un `PLAN-DIAN.md` separado con sus propias fase
 - [x] **Fase 5** — Catálogos (tarifas, vehículos, clientes, planes) *(cerrada 2026-04-29)*
 - [x] **Fase 6** — Cierre de caja & payments *(cerrada 2026-04-29)*
 - [x] **Fase 7** — Reportes *(cerrada 2026-04-29)*
-- [ ] **Fase 8** — Offline hardening (PowerSync) — ⏳ siguiente
+- [ ] **Fase 8** — Offline hardening (PowerSync) — ⏳ pendiente
 - [x] **Fase 9** — Invoicing + DIAN stub *(cerrada 2026-04-29)*
 - [ ] **Fase 10** — QA + deploy
+- [ ] **Fase 11** — Facturación electrónica con Siigo — ⏳ en curso (S1 Specs)
 
-**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync).
+**Fase actual:** ⏳ Fase 11 (Siigo) en sub-fase S1 (Specs). Plan aprobado en `~/.claude/plans/vamos-a-hacer-una-purring-meadow.md`.
 
 **Próxima acción del agente:**
-1. Leer `parqueadero-web/specs/infrastructure/offline-sync.spec.md` y actualizar con política de conflictos.
-2. Configurar PowerSync schema + sync rules en `parqueadero-backend/`.
-3. Reescribir todos los `*-local.datasource.ts` con queries SQLite reales (reemplazar `CacheFailure` stubs).
-4. Skill clave: `angular-architect`, `frontend-quality`.
+1. Crear specs de la Fase 11 (ver lista bajo "📐 Specs" arriba).
+2. Solicitar credenciales sandbox Siigo a `soporteapi@siigo.com` (manual).
+3. Tras aprobación de specs → arrancar S2 con migration `00013_siigo_integration.sql`.
