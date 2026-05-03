@@ -1,157 +1,481 @@
 <div class="reports-page">
   <header class="reports-page__header">
-    <h1>Reportes</h1>
+    <div>
+      <h1>Reportes</h1>
+      <p class="subtitle">Vista contable y estadística del parqueadero.</p>
+    </div>
+    <button type="button" class="btn-export" (click)="exportCsv()" [disabled]="loading()">
+      ⬇ Descargar CSV del tab actual
+    </button>
   </header>
 
-  <!-- Date filter -->
-  <section class="reports-filters">
-    <form [formGroup]="filterForm" (ngSubmit)="loadReport()">
-      <label>
-        Desde
-        <input type="date" formControlName="dateFrom" />
+  <!-- ── FILTROS (sticky) ── -->
+  <section class="filters" [formGroup]="filterForm">
+    <div class="filters__presets" role="group" aria-label="Períodos rápidos">
+      @for (p of presetOptions; track p) {
+        <button
+          type="button"
+          class="preset"
+          [class.preset--active]="filterForm.value.preset === p"
+          (click)="applyPreset(p)"
+        >{{ presetLabels[p] }}</button>
+      }
+    </div>
+
+    <div class="filters__row">
+      <label class="field">
+        <span>Desde</span>
+        <input type="date" formControlName="dateFrom" (change)="onCustomDateChange()" />
       </label>
-      <label>
-        Hasta
-        <input type="date" formControlName="dateTo" />
+      <label class="field">
+        <span>Hasta</span>
+        <input type="date" formControlName="dateTo" (change)="onCustomDateChange()" />
       </label>
-      <label>
-        Agrupar por
-        <select formControlName="groupBy">
+      <label class="field">
+        <span>Agrupar por</span>
+        <select formControlName="groupBy" (change)="loadReport()">
           <option value="day">Día</option>
           <option value="week">Semana</option>
           <option value="month">Mes</option>
         </select>
       </label>
-      <button type="submit" [disabled]="filterForm.invalid || loading()">
+      <button type="button" class="btn-primary" (click)="loadReport()" [disabled]="loading()">
         {{ loading() ? 'Cargando…' : 'Consultar' }}
       </button>
-      <button type="button" class="btn-export" (click)="exportCsv()" [disabled]="loading()">
-        Exportar CSV
-      </button>
-    </form>
+
+      <label class="compare-toggle">
+        <input
+          type="checkbox"
+          [checked]="filterForm.value.compare"
+          (change)="toggleCompare()"
+        />
+        <span>Comparar con período anterior</span>
+      </label>
+    </div>
+
     @if (errorMsg()) {
-      <p class="reports-error">{{ errorMsg() }}</p>
+      <p class="error">{{ errorMsg() }}</p>
     }
   </section>
 
-  <!-- Tabs -->
-  <nav class="reports-tabs">
-    <button [class.active]="tab() === 'revenue'" (click)="tab.set('revenue')">Ingresos</button>
-    <button [class.active]="tab() === 'vehicles'" (click)="tab.set('vehicles')">Vehículos</button>
+  <!-- ── TABS ── -->
+  <nav class="tabs" role="tablist" aria-label="Categorías de reporte">
     @if (isAdmin()) {
-      <button [class.active]="tab() === 'operators'" (click)="tab.set('operators')">Operadores</button>
+      <button
+        role="tab"
+        type="button"
+        [attr.aria-selected]="tab() === 'accounting'"
+        [class.tabs__btn--active]="tab() === 'accounting'"
+        class="tabs__btn"
+        (click)="setTab('accounting')"
+      >📒 Resumen contable</button>
+    }
+    <button
+      role="tab"
+      type="button"
+      [attr.aria-selected]="tab() === 'revenue'"
+      [class.tabs__btn--active]="tab() === 'revenue'"
+      class="tabs__btn"
+      (click)="setTab('revenue')"
+    >💰 Ingresos</button>
+    <button
+      role="tab"
+      type="button"
+      [attr.aria-selected]="tab() === 'vehicles'"
+      [class.tabs__btn--active]="tab() === 'vehicles'"
+      class="tabs__btn"
+      (click)="setTab('vehicles')"
+    >🚗 Vehículos</button>
+    @if (isAdmin()) {
+      <button
+        role="tab"
+        type="button"
+        [attr.aria-selected]="tab() === 'operators'"
+        [class.tabs__btn--active]="tab() === 'operators'"
+        class="tabs__btn"
+        (click)="setTab('operators')"
+      >👥 Operadores</button>
     }
   </nav>
 
-  <!-- Revenue tab -->
-  @if (tab() === 'revenue' && revenue()) {
-    <section class="reports-card">
-      <div class="reports-summary">
-        <div class="reports-kpi">
-          <span>Total ingresos</span>
-          <strong>{{ revenue()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
-        </div>
-        <div class="reports-kpi">
-          <span>Sesiones</span>
-          <strong>{{ revenue()!.totalSessions }}</strong>
-        </div>
-      </div>
+  <!-- ── CONTENIDO (aria-live para anunciar cambios al filtrar) ── -->
+  <div class="results" aria-live="polite">
 
-      <h3>Por período</h3>
-      @if (revenue()!.byPeriod.length === 0) {
-        <p class="reports-empty">Sin datos para el período seleccionado.</p>
-      } @else {
-        <table class="reports-table">
-          <thead><tr><th>Período</th><th>Sesiones</th><th>Ingresos</th></tr></thead>
-          <tbody>
-            @for (row of revenue()!.byPeriod; track row.periodLabel) {
-              <tr>
-                <td>{{ row.periodLabel }}</td>
-                <td>{{ row.sessions }}</td>
-                <td>{{ row.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-              </tr>
+    <!-- ============ TAB: RESUMEN CONTABLE ============ -->
+    @if (tab() === 'accounting' && isAdmin()) {
+      <section class="panel">
+        <div class="kpi-grid">
+          <article class="kpi" data-variant="success" aria-label="Total cobrado en el período">
+            <span class="kpi__label">
+              Total cobrado
+              <span class="kpi__hint" title="Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia).">?</span>
+            </span>
+            <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
+            @if (compareEnabled()) {
+              <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
+                @if (revenueDelta().isNew) { Nuevo período }
+                @else if (revenueDelta().pct !== null) {
+                  {{ revenueDelta().pct! >= 0 ? '▲' : '▼' }}
+                  {{ revenueDelta().pct! >= 0 ? '+' : '' }}{{ revenueDelta().pct }}% ({{ revenueDelta().abs | currencyCop }})
+                }
+              </span>
             }
-          </tbody>
-        </table>
-      }
+          </article>
 
-      <h3>Por método de pago</h3>
-      <table class="reports-table">
-        <thead><tr><th>Método</th><th>Transacciones</th><th>Total</th></tr></thead>
-        <tbody>
-          @for (m of revenue()!.byMethod; track m.method) {
-            <tr>
-              <td>{{ m.method }}</td>
-              <td>{{ m.count }}</td>
-              <td>{{ m.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-            </tr>
+          <article class="kpi" data-variant="primary" aria-label="Total facturado a la DIAN">
+            <span class="kpi__label">
+              Total facturado (DIAN)
+              <span class="kpi__hint" title="Suma del total de las facturas electrónicas emitidas y aceptadas por la DIAN.">?</span>
+            </span>
+            <strong class="kpi__value">{{ (invoicingSummary()?.totalCents ?? 0) | currencyCop }}</strong>
+            <span class="kpi__detail">{{ invoicingSummary()?.count ?? 0 }} facturas aceptadas</span>
+          </article>
+
+          <article class="kpi" aria-label="Ticket promedio por sesión">
+            <span class="kpi__label">
+              Ticket promedio
+              <span class="kpi__hint" title="Promedio de plata recaudada por sesión cerrada.">?</span>
+            </span>
+            <strong class="kpi__value">{{ avgTicketCents() | currencyCop }}</strong>
+            @if (compareEnabled()) {
+              <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(avgTicketDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(avgTicketDelta(), true)">
+                @if (avgTicketDelta().isNew) { Nuevo período }
+                @else if (avgTicketDelta().pct !== null) {
+                  {{ avgTicketDelta().pct! >= 0 ? '▲' : '▼' }}
+                  {{ avgTicketDelta().pct! >= 0 ? '+' : '' }}{{ avgTicketDelta().pct }}%
+                }
+              </span>
+            }
+          </article>
+
+          <article class="kpi" aria-label="Día con mayor recaudo">
+            <span class="kpi__label">
+              Día más fuerte
+              <span class="kpi__hint" title="Día con mayor recaudo dentro del período.">?</span>
+            </span>
+            @if (bestDay()) {
+              <strong class="kpi__value">{{ bestDay()!.revenueCents | currencyCop }}</strong>
+              <span class="kpi__detail">{{ formatBogotaDay(bestDay()!.label) }}</span>
+            } @else {
+              <strong class="kpi__value">—</strong>
+            }
+          </article>
+        </div>
+
+        <!-- Stack horizontal: Por método de pago -->
+        <article class="card" aria-label="Distribución por método de pago">
+          <header class="card__head">
+            <h2>Cómo cobrás</h2>
+            <p class="card__hint">Distribución del recaudo por método de pago en el período.</p>
+          </header>
+          @if ((revenue()?.byMethod?.length ?? 0) === 0) {
+            <p class="empty">Sin pagos en el período.</p>
+          } @else {
+            <div class="stack-bar" role="img" [attr.aria-label]="'Distribución por método de pago, total ' + (methodTotalCents() | currencyCop)">
+              @for (m of revenue()!.byMethod; track m.method) {
+                <span
+                  class="stack-bar__seg"
+                  [attr.data-method]="m.method"
+                  [style.width.%]="pctOfMethodTotal(m.amountCents)"
+                  [title]="methodLabel(m.method) + ': ' + (m.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0') + ' (' + pctOfMethodTotal(m.amountCents) + '%)'"
+                ></span>
+              }
+            </div>
+            <ul class="legend" role="list">
+              @for (m of revenue()!.byMethod; track m.method) {
+                <li class="legend__item">
+                  <span class="legend__dot" [attr.data-method]="m.method"></span>
+                  <span class="legend__label">{{ methodLabel(m.method) }}</span>
+                  <span class="legend__value mono">
+                    {{ m.amountCents | currencyCop }} · {{ pctOfMethodTotal(m.amountCents) }}%
+                    <small class="legend__count">({{ m.count }} {{ m.count === 1 ? 'pago' : 'pagos' }})</small>
+                  </span>
+                </li>
+              }
+            </ul>
           }
-        </tbody>
-      </table>
-    </section>
-  }
+        </article>
 
-  <!-- Vehicles tab -->
-  @if (tab() === 'vehicles' && sessionsByType()) {
-    <section class="reports-card">
-      <div class="reports-summary">
-        <div class="reports-kpi">
-          <span>Total sesiones</span>
-          <strong>{{ sessionsByType()!.totalSessions }}</strong>
+        <!-- Estado DIAN -->
+        @if (invoicingSummary() && invoicingSummary()!.byStatus.length > 0) {
+          <article class="card" aria-label="Estado de facturación electrónica DIAN">
+            <header class="card__head">
+              <h2>Facturación electrónica (DIAN)</h2>
+              <p class="card__hint">Estado de las facturas emitidas en el período.</p>
+            </header>
+            <ul class="status-grid" role="list">
+              @for (s of invoicingSummary()!.byStatus; track s.status) {
+                <li class="status-card" [attr.data-status]="s.status">
+                  <span class="status-card__name">{{ dianLabel(s.status) }}</span>
+                  <strong class="status-card__count">{{ s.count }}</strong>
+                  <span class="status-card__amount mono">{{ s.totalCents | currencyCop }}</span>
+                </li>
+              }
+            </ul>
+          </article>
+        }
+      </section>
+    }
+
+    <!-- ============ TAB: INGRESOS ============ -->
+    @if (tab() === 'revenue' && revenue()) {
+      <section class="panel">
+        <div class="kpi-grid">
+          <article class="kpi" data-variant="success" aria-label="Total ingresos">
+            <span class="kpi__label">
+              Total ingresos
+              <span class="kpi__hint" title="Suma de todos los pagos confirmados en el período.">?</span>
+            </span>
+            <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
+            @if (compareEnabled()) {
+              <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
+                @if (revenueDelta().isNew) { Nuevo período }
+                @else if (revenueDelta().pct !== null) {
+                  {{ revenueDelta().pct! >= 0 ? '▲' : '▼' }}
+                  {{ revenueDelta().pct! >= 0 ? '+' : '' }}{{ revenueDelta().pct }}% ({{ revenueDelta().abs | currencyCop }})
+                }
+              </span>
+            }
+          </article>
+
+          <article class="kpi" aria-label="Sesiones cobradas">
+            <span class="kpi__label">
+              Sesiones cobradas
+              <span class="kpi__hint" title="Cantidad de sesiones que generaron un pago.">?</span>
+            </span>
+            <strong class="kpi__value">{{ totalSessions() }}</strong>
+            @if (compareEnabled()) {
+              <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(sessionsDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(sessionsDelta(), true)">
+                @if (sessionsDelta().isNew) { Nuevo período }
+                @else if (sessionsDelta().pct !== null) {
+                  {{ sessionsDelta().pct! >= 0 ? '▲' : '▼' }}
+                  {{ sessionsDelta().pct! >= 0 ? '+' : '' }}{{ sessionsDelta().pct }}%
+                }
+              </span>
+            }
+          </article>
+
+          <article class="kpi" aria-label="Ticket promedio">
+            <span class="kpi__label">
+              Ticket promedio
+              <span class="kpi__hint" title="Promedio de plata recaudada por sesión.">?</span>
+            </span>
+            <strong class="kpi__value">{{ avgTicketCents() | currencyCop }}</strong>
+            @if (compareEnabled()) {
+              <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(avgTicketDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(avgTicketDelta(), true)">
+                @if (avgTicketDelta().isNew) { Nuevo período }
+                @else if (avgTicketDelta().pct !== null) {
+                  {{ avgTicketDelta().pct! >= 0 ? '▲' : '▼' }}
+                  {{ avgTicketDelta().pct! >= 0 ? '+' : '' }}{{ avgTicketDelta().pct }}%
+                }
+              </span>
+            }
+          </article>
+
+          @if (dominantMethod()) {
+            <article class="kpi" aria-label="Método dominante">
+              <span class="kpi__label">
+                Método dominante
+                <span class="kpi__hint" title="El método de pago con mayor monto recaudado.">?</span>
+              </span>
+              <strong class="kpi__value kpi__value--text">{{ dominantMethod()!.label }}</strong>
+              <span class="kpi__detail">{{ dominantMethod()!.pct }}% del total</span>
+            </article>
+          }
         </div>
-      </div>
-      @if (sessionsByType()!.byType.length === 0) {
-        <p class="reports-empty">Sin datos para el período seleccionado.</p>
-      } @else {
-        <table class="reports-table">
-          <thead>
-            <tr><th>Tipo</th><th>Sesiones</th><th>Duración prom.</th><th>Ingresos</th><th>%</th></tr>
-          </thead>
-          <tbody>
-            @for (row of sessionsByType()!.byType; track row.vehicleType) {
-              <tr>
-                <td>{{ row.vehicleType }}</td>
-                <td>{{ row.count }}</td>
-                <td>{{ row.avgDurationMinutes }} min</td>
-                <td>{{ row.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                <td>{{ row.percentOfTotal }}%</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </section>
-  }
 
-  <!-- Operators tab (admin only) -->
-  @if (tab() === 'operators' && operatorPerf()) {
-    <section class="reports-card">
-      @if (operatorPerf()!.operators.length === 0) {
-        <p class="reports-empty">Sin datos para el período seleccionado.</p>
-      } @else {
-        <table class="reports-table">
-          <thead>
-            <tr>
-              <th>Operador</th><th>Turnos</th><th>Horas</th>
-              <th>Sesiones</th><th>Ingresos</th><th>Diff. caja</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (op of operatorPerf()!.operators; track op.operatorId) {
-              <tr>
-                <td>{{ op.operatorName }}</td>
-                <td>{{ op.shiftsWorked }}</td>
-                <td>{{ op.totalHoursWorked }}h</td>
-                <td>{{ op.sessionsAttended }}</td>
-                <td>{{ op.revenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                <td [class.diff-alert]="op.cashDifferenceCents > 500000">
-                  {{ op.cashDifferenceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
-                </td>
-              </tr>
+        <!-- Gráfico: ingresos por período -->
+        <article class="card" aria-label="Ingresos por período">
+          <header class="card__head">
+            <h2>Ingresos por período</h2>
+            <p class="card__hint">Cada barra representa el recaudo de ese {{ filterForm.value.groupBy === 'day' ? 'día' : filterForm.value.groupBy === 'week' ? 'semana' : 'mes' }}.</p>
+          </header>
+          @if (revenue()!.byPeriod.length === 0) {
+            <p class="empty">Sin datos en el rango.</p>
+            <button type="button" class="btn-link" (click)="expandToLast30()">Ampliar a últimos 30 días</button>
+          } @else {
+            <ul class="bars" role="list">
+              @for (p of revenue()!.byPeriod; track p.periodLabel) {
+                <li class="bar-row" [attr.aria-label]="formatBogotaDay(p.periodLabel) + ': ' + (p.revenueCents | currencyCop)">
+                  <span class="bar-row__label">{{ formatBogotaDay(p.periodLabel) }}</span>
+                  <div class="bar-row__track">
+                    <div class="bar-row__fill" [style.width.%]="barWidth(p.revenueCents, maxRevenueByPeriod())"></div>
+                  </div>
+                  <span class="bar-row__value mono">{{ p.revenueCents | currencyCop }}</span>
+                  <span class="bar-row__sub mono">{{ p.sessions }} ses.</span>
+                </li>
+              }
+            </ul>
+          }
+        </article>
+
+        <!-- Tabla detalle -->
+        <details class="details">
+          <summary>Ver detalle en tabla</summary>
+          <table class="table">
+            <caption class="visually-hidden">Detalle de ingresos por período</caption>
+            <thead><tr><th>Período</th><th class="num">Sesiones</th><th class="num">Ingresos</th></tr></thead>
+            <tbody>
+              @for (row of revenue()!.byPeriod; track row.periodLabel) {
+                <tr>
+                  <td>{{ formatBogotaDay(row.periodLabel) }}</td>
+                  <td class="num mono">{{ row.sessions }}</td>
+                  <td class="num mono">{{ row.revenueCents | currencyCop }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </details>
+      </section>
+    }
+
+    <!-- ============ TAB: VEHÍCULOS ============ -->
+    @if (tab() === 'vehicles' && sessionsByType()) {
+      <section class="panel">
+        <div class="kpi-grid">
+          <article class="kpi" aria-label="Total sesiones cerradas">
+            <span class="kpi__label">
+              Total sesiones cerradas
+              <span class="kpi__hint" title="Sesiones que ya finalizaron en el período.">?</span>
+            </span>
+            <strong class="kpi__value">{{ sessionsByType()!.totalSessions }}</strong>
+          </article>
+
+          @if (dominantVehicle()) {
+            <article class="kpi" data-variant="primary" aria-label="Tipo dominante">
+              <span class="kpi__label">
+                Tipo dominante
+                <span class="kpi__hint" title="El tipo de vehículo con más sesiones.">?</span>
+              </span>
+              <strong class="kpi__value kpi__value--text">{{ dominantVehicle()!.label }}</strong>
+              <span class="kpi__detail">{{ dominantVehicle()!.pct }}% del total</span>
+            </article>
+          }
+
+          <article class="kpi" aria-label="Duración promedio global">
+            <span class="kpi__label">
+              Duración promedio
+              <span class="kpi__hint" title="Tiempo promedio que un vehículo permanece estacionado.">?</span>
+            </span>
+            <strong class="kpi__value">{{ avgDurationGlobal() }} min</strong>
+          </article>
+        </div>
+
+        <article class="card" aria-label="Sesiones por tipo de vehículo">
+          <header class="card__head">
+            <h2>Sesiones por tipo</h2>
+            <p class="card__hint">Distribución de las sesiones cerradas por tipo de vehículo.</p>
+          </header>
+          @if (sessionsByType()!.byType.length === 0) {
+            <p class="empty">Sin datos para el período seleccionado.</p>
+            <button type="button" class="btn-link" (click)="expandToLast30()">Ampliar a últimos 30 días</button>
+          } @else {
+            <ul class="bars" role="list">
+              @for (row of sessionsByType()!.byType; track row.vehicleType) {
+                <li class="bar-row" [attr.aria-label]="vehicleLabel(row.vehicleType) + ': ' + row.count + ' sesiones, ' + (row.revenueCents | currencyCop)">
+                  <span class="bar-row__label">{{ vehicleLabel(row.vehicleType) }}</span>
+                  <div class="bar-row__track">
+                    <div class="bar-row__fill bar-row__fill--alt" [style.width.%]="barWidth(row.count, maxVehicleCount())"></div>
+                  </div>
+                  <span class="bar-row__value mono">{{ row.count }} <small>({{ row.percentOfTotal }}%)</small></span>
+                  <span class="bar-row__sub mono">{{ row.revenueCents | currencyCop }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </article>
+
+        <details class="details">
+          <summary>Ver detalle en tabla</summary>
+          <table class="table">
+            <caption class="visually-hidden">Detalle por tipo de vehículo</caption>
+            <thead>
+              <tr><th>Tipo</th><th class="num">Sesiones</th><th class="num">Duración prom.</th><th class="num">Ingresos</th><th class="num">%</th></tr>
+            </thead>
+            <tbody>
+              @for (row of sessionsByType()!.byType; track row.vehicleType) {
+                <tr>
+                  <td>{{ vehicleLabel(row.vehicleType) }}</td>
+                  <td class="num mono">{{ row.count }}</td>
+                  <td class="num mono">{{ row.avgDurationMinutes }} min</td>
+                  <td class="num mono">{{ row.revenueCents | currencyCop }}</td>
+                  <td class="num mono">{{ row.percentOfTotal }}%</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </details>
+      </section>
+    }
+
+    <!-- ============ TAB: OPERADORES ============ -->
+    @if (tab() === 'operators' && isAdmin() && operatorPerf()) {
+      <section class="panel">
+        <div class="kpi-grid">
+          @if (topOperatorByShifts()) {
+            <article class="kpi" aria-label="Operador con más turnos">
+              <span class="kpi__label">Más turnos</span>
+              <strong class="kpi__value kpi__value--text">{{ topOperatorByShifts()!.operatorName }}</strong>
+              <span class="kpi__detail">{{ topOperatorByShifts()!.shiftsWorked }} turnos</span>
+            </article>
+          }
+          @if (topOperatorByRevenue()) {
+            <article class="kpi" data-variant="success" aria-label="Operador con más ingresos">
+              <span class="kpi__label">Más ingresos</span>
+              <strong class="kpi__value kpi__value--text">{{ topOperatorByRevenue()!.operatorName }}</strong>
+              <span class="kpi__detail">{{ topOperatorByRevenue()!.revenueCents | currencyCop }}</span>
+            </article>
+          }
+          <article class="kpi" [attr.data-variant]="totalCashDiff() > 500000 ? 'warning' : 'default'" aria-label="Diferencia caja acumulada">
+            <span class="kpi__label">
+              Diferencia caja total
+              <span class="kpi__hint" title="Suma de faltantes y sobrantes (en valor absoluto) reportados al cerrar turno.">?</span>
+            </span>
+            <strong class="kpi__value">{{ totalCashDiff() | currencyCop }}</strong>
+            @if (totalCashDiff() > 500000) {
+              <span class="kpi__detail kpi__detail--warn">⚠️ Revisar arqueos</span>
             }
-          </tbody>
-        </table>
-      }
-    </section>
-  }
+          </article>
+        </div>
+
+        @if (operatorPerf()!.operators.length === 0) {
+          <p class="empty">Sin actividad de operadores en el período.</p>
+        } @else {
+          <article class="card" aria-label="Detalle de operadores">
+            <header class="card__head">
+              <h2>Detalle por operador</h2>
+              <p class="card__hint">Filas con diferencia de caja superior a $5.000 marcadas en ámbar.</p>
+            </header>
+            <table class="table">
+              <caption class="visually-hidden">Rendimiento por operador</caption>
+              <thead>
+                <tr>
+                  <th>Operador</th>
+                  <th class="num">Turnos</th>
+                  <th class="num">Horas</th>
+                  <th class="num">Sesiones</th>
+                  <th class="num">Ingresos</th>
+                  <th class="num">Dif. caja</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (op of operatorPerf()!.operators; track op.operatorId) {
+                  <tr [class.row--alert]="op.cashDifferenceCents > 500000">
+                    <td>{{ op.operatorName }}</td>
+                    <td class="num mono">{{ op.shiftsWorked }}</td>
+                    <td class="num mono">{{ op.totalHoursWorked }}h</td>
+                    <td class="num mono">{{ op.sessionsAttended }}</td>
+                    <td class="num mono">{{ op.revenueCents | currencyCop }}</td>
+                    <td class="num mono" [class.diff-alert]="op.cashDifferenceCents > 500000">
+                      {{ op.cashDifferenceCents | currencyCop }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </article>
+        }
+      </section>
+    }
+  </div>
 </div>
