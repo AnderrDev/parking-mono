@@ -5,6 +5,7 @@ import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
 import { TariffForms } from '../forms/tariff.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
+import { VEHICLE_TYPES, TARIFF_UNITS } from '../../../../shared/constants/form-options';
 
 export interface TariffDialogData {
   tariff: TariffEntity | null;
@@ -26,21 +27,6 @@ export interface TariffFormValue {
   isActive: boolean;
 }
 
-const VEHICLE_TYPES = [
-  { value: 'carro', label: 'Carro' },
-  { value: 'moto', label: 'Moto' },
-  { value: 'bicicleta', label: 'Bicicleta' },
-  { value: 'otro', label: 'Otro' },
-];
-
-// 'dia' eliminado del selector — no se usa en este parqueadero. El tipo
-// TariffUnit lo conserva para compatibilidad con tarifas legacy en BD.
-const UNITS = [
-  { value: 'hora', label: 'Por hora' },
-  { value: 'fraccion', label: 'Por fracción (30 min)' },
-  { value: 'minuto', label: 'Por minuto' },
-  { value: 'mensualidad', label: 'Mensualidad (mes completo)' },
-];
 
 @Component({
   selector: 'app-tariff-edit-dialog',
@@ -57,7 +43,7 @@ export class TariffEditDialogComponent implements OnInit {
 
   protected form!: FormGroup;
   protected readonly vehicleTypes = VEHICLE_TYPES;
-  protected readonly units = UNITS;
+  protected readonly units = TARIFF_UNITS;
   protected get isEdit(): boolean { return this.data.tariff !== null; }
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);

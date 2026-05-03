@@ -22,6 +22,7 @@ import { CustomerEntity, DocType } from '../../../customers/domain/entities/cust
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { normalizePlate } from '../../../../shared/utils/plate.utils';
 import { todayIsoBogota } from '../../../../shared/utils/date.utils';
+import { DOC_TYPES, VEHICLE_TYPES, PLAN_TYPES, PAYMENT_METHODS_PLAN } from '../../../../shared/constants/form-options';
 
 export interface MonthlyPlanDialogData {
   plan: MonthlyPlanEntity | null;
@@ -50,27 +51,6 @@ export interface MonthlyPlanFormValue {
   customerSnapshot?: { name: string; docType: string; docNumber: string } | null;
 }
 
-const PLAN_TYPES = [
-  { value: 'basico', label: 'Básico' },
-  { value: 'premium', label: 'Premium' },
-  { value: 'ilimitado', label: 'Ilimitado' },
-];
-
-const PAYMENT_METHODS = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'tarjeta_credito', label: 'Tarjeta crédito' },
-  { value: 'tarjeta_debito', label: 'Tarjeta débito' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'nequi', label: 'Nequi' },
-  { value: 'daviplata', label: 'Daviplata' },
-];
-
-const VEHICLE_TYPES: { value: VehicleType; label: string }[] = [
-  { value: 'carro', label: 'Carro' },
-  { value: 'moto', label: 'Moto' },
-  { value: 'bicicleta', label: 'Bici' },
-  { value: 'otro', label: 'Otro' },
-];
 
 @Component({
   selector: 'app-monthly-plan-edit-dialog',
@@ -105,15 +85,11 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
   protected readonly creatingCustomerLoading = signal(false);
   protected readonly creatingCustomerError = signal<string | null>(null);
   protected newCustomerForm!: FormGroup;
-  protected readonly docTypes: { value: DocType; label: string }[] = [
-    { value: 'cedula', label: 'Cédula' },
-    { value: 'nit', label: 'NIT' },
-    { value: 'pasaporte', label: 'Pasaporte' },
-  ];
+  protected readonly docTypes = DOC_TYPES;
 
   protected form!: FormGroup;
   protected readonly planTypes = PLAN_TYPES;
-  protected readonly paymentMethods = PAYMENT_METHODS;
+  protected readonly paymentMethods = PAYMENT_METHODS_PLAN;
   protected readonly vehicleTypes = VEHICLE_TYPES;
   protected readonly tariffNotConfigured = signal(false);
   protected readonly submitting = signal(false);

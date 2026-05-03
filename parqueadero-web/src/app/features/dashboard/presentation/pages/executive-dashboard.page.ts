@@ -25,6 +25,8 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { RouterLink } from '@angular/router';
 import { RevenueReportResult } from '../../../reports/domain/repositories/report.repository';
+import { formatCOP } from '../../../../shared/utils/currency.utils';
+import { barWidth as calcBarWidth } from '../../../../shared/utils/chart.utils';
 
 interface Kpi {
   label: string;
@@ -114,11 +116,11 @@ export class ExecutiveDashboardPageComponent implements OnInit {
   }
 
   protected formatCop(cents: number): string {
-    return `$${Math.round(cents / 100).toLocaleString('es-CO')}`;
+    return formatCOP(cents);
   }
 
   protected barWidth(value: number): number {
-    return (value / this.maxRevenueBar()) * 100;
+    return calcBarWidth(value, this.maxRevenueBar());
   }
 
   protected formatBarValue(cents: number): string {

@@ -4,6 +4,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { CustomerEntity } from '../../domain/entities/customer.entity';
 import { CustomerForms } from '../forms/customer.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
+import { DOC_TYPES } from '../../../../shared/constants/form-options';
 
 export interface CustomerDialogData {
   customer: CustomerEntity | null;
@@ -27,11 +28,6 @@ export interface CustomerFormValue {
   responsabilidadesFiscales: string;
 }
 
-const DOC_TYPES = [
-  { value: 'cedula', label: 'Cédula de ciudadanía' },
-  { value: 'nit', label: 'NIT' },
-  { value: 'pasaporte', label: 'Pasaporte' },
-];
 
 @Component({
   selector: 'app-customer-edit-dialog',

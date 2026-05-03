@@ -4,6 +4,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { VehicleEntity } from '../../../parking/domain/entities/vehicle.entity';
 import { VehicleForms } from '../forms/vehicle.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
+import { VEHICLE_TYPES } from '../../../../shared/constants/form-options';
 
 export interface VehicleDialogData {
   vehicle: VehicleEntity | null;
@@ -20,12 +21,6 @@ export interface VehicleFormValue {
   ownerCustomerId: string | null;
 }
 
-const VEHICLE_TYPES = [
-  { value: 'carro', label: 'Carro' },
-  { value: 'moto', label: 'Moto' },
-  { value: 'bicicleta', label: 'Bicicleta' },
-  { value: 'otro', label: 'Otro' },
-];
 
 @Component({
   selector: 'app-vehicle-edit-dialog',

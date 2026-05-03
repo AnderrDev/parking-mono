@@ -59,6 +59,20 @@ export function isoBogotaPlusDays(days: number): string {
   return format(base, 'yyyy-MM-dd');
 }
 
+/**
+ * Convierte un label de período (`YYYY-MM-DD`, `YYYY-Www`, `YYYY-MM`) a una
+ * etiqueta legible en zona Bogotá. Para `day` devuelve "lun 03 may"; los
+ * demás formatos los devuelve intactos (ya son legibles).
+ */
+export function formatBogotaDay(label: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
+    const parts = label.split('-').map(Number);
+    const date = new Date(parts[0]!, parts[1]! - 1, parts[2]!, 12, 0, 0, 0);
+    return date.toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' });
+  }
+  return label;
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} m`;
   const days = Math.floor(minutes / 1440);
