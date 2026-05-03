@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@angular/core';
-import { Either, right } from '../../../../core/either/either';
+import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
 import { PARKING_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';

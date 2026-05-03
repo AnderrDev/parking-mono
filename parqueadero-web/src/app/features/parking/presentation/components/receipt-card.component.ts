@@ -28,8 +28,8 @@ export interface ExitReceipt {
   template: `
     @if (receipt) {
       <div class="receipt-card" role="status" aria-label="Comprobante de salida listo"
-           (mouseenter)="pause.emit()" (mouseleave)="resume.emit()"
-           (focusin)="pause.emit()" (focusout)="resume.emit()">
+           (mouseenter)="paused.emit()" (mouseleave)="resumed.emit()"
+           (focusin)="paused.emit()" (focusout)="resumed.emit()">
         <div class="receipt-card__head">
           <span class="receipt-card__icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -45,7 +45,7 @@ export interface ExitReceipt {
             <p class="receipt-card__title">Comprobante listo</p>
             <p class="receipt-card__plate mono">{{ receipt.plate }}</p>
           </div>
-          <button type="button" class="receipt-card__dismiss" (click)="dismiss.emit()" aria-label="Cerrar comprobante">×</button>
+          <button type="button" class="receipt-card__dismiss" (click)="dismissed.emit()" aria-label="Cerrar comprobante">×</button>
         </div>
         <div class="receipt-card__body">
           <span class="receipt-card__amount">
@@ -53,7 +53,7 @@ export interface ExitReceipt {
           </span>
           <span class="receipt-card__method">{{ receipt.paymentMethod }}</span>
         </div>
-        <button type="button" class="receipt-card__print" (click)="print.emit()">
+        <button type="button" class="receipt-card__print" (click)="printRequested.emit()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="6 9 6 2 18 2 18 9"/>
@@ -69,10 +69,10 @@ export interface ExitReceipt {
 export class ReceiptCardComponent {
   @Input() receipt: ExitReceipt | null = null;
 
-  @Output() dismiss = new EventEmitter<void>();
-  @Output() print = new EventEmitter<void>();
-  @Output() pause = new EventEmitter<void>();
-  @Output() resume = new EventEmitter<void>();
+  @Output() dismissed = new EventEmitter<void>();
+  @Output() printRequested = new EventEmitter<void>();
+  @Output() paused = new EventEmitter<void>();
+  @Output() resumed = new EventEmitter<void>();
 
   protected readonly formatCOP = formatCOP;
 }

@@ -183,10 +183,10 @@
 
   <app-receipt-card
     [receipt]="lastReceipt()"
-    (dismiss)="dismissReceipt()"
-    (print)="lastReceipt() && printReceipt(lastReceipt()!)"
-    (pause)="pauseReceiptDismiss()"
-    (resume)="resumeReceiptDismiss()"
+    (dismissed)="dismissReceipt()"
+    (printRequested)="lastReceipt() && printReceipt(lastReceipt()!)"
+    (paused)="pauseReceiptDismiss()"
+    (resumed)="resumeReceiptDismiss()"
   />
 
   <div class="dashboard__layout">
