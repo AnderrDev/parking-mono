@@ -12,51 +12,12 @@
   color: var(--color-text-muted);
 }
 
+// .kpi*, .kpi-grid → globales en shared/styles/_data-viz.scss
+// Alias .kpis (legacy) → mismo grid.
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-3);
-}
-
-.kpi {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4) var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
-  border-left: 4px solid var(--color-border);
-  transition: transform var(--motion-fast) var(--ease-out);
-
-  &:hover { transform: translateY(-1px); }
-
-  &[data-variant="success"]  { border-left-color: var(--color-success); }
-  &[data-variant="primary"]  { border-left-color: var(--color-primary); }
-  &[data-variant="warning"]  { border-left-color: var(--color-warning); }
-  &[data-variant="danger"]   { border-left-color: var(--color-danger); }
-}
-
-.kpi__label {
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.kpi__value {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-strong);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.kpi__detail {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
 }
 
 .card {
