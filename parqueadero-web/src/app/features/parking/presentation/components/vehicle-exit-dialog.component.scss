@@ -2,14 +2,35 @@
   background: var(--color-surface);
   border-radius: var(--radius-xl);
   width: 100%;
-  max-width: 480px;
-  max-height: 90dvh;
+  max-width: 640px;
+  max-height: 92dvh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-5);
+  padding: var(--space-6) var(--space-7);
   box-shadow: var(--shadow-3);
+
+  @media (max-width: 640px) {
+    padding: var(--space-5);
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* En pantallas ≥ 560px, los campos de pago se reparten en dos columnas
+   para aprovechar el ancho extra del modal sin alargarlo verticalmente. */
+.dialog__form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dialog__form-grid > .form-field--full {
+  grid-column: 1 / -1;
 }
 
 .dialog__header {

@@ -70,6 +70,14 @@ Operario (usuario con rol operador)
 
 8. **Timestamp UTC**: `exit_at` se convierte a UTC antes de guardar.
 
+9. **Tarifa solo si hay cobro real**: el lookup de
+   `repo.getActiveTariff(session.vehicleType)` se hace **únicamente** si
+   el método de pago no es gratis y la sesión no es mensualidad activa.
+   Esto permite cerrar sesiones de tipos sin tarifa configurada
+   (ej. `'otro'`) usando un método gratis (cortesía/error) con
+   justificación. Si el método requiere cobro y no hay tarifa,
+   retorna `ValidationFailure('No se encontró tarifa activa', 'tariff')`.
+
 ## Flujo Principal
 
 1. **Encontrar sesión activa**

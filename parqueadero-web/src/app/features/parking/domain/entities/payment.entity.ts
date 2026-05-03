@@ -20,7 +20,12 @@ export class PaymentEntity extends BaseEntity {
     id: string,
     createdAt: Date,
     updatedAt: Date,
-    public readonly sessionId: string,
+    /**
+     * ID de la sesión de parking asociada al pago.
+     * `null` cuando el pago no proviene de una sesión (ej: venta de
+     * mensualidad desde `/monthly-plans`, ajustes, otros cobros futuros).
+     */
+    public readonly sessionId: string | null,
     public readonly cashierShiftId: string,
     public readonly method: PaymentMethod,
     public readonly amountCents: number,

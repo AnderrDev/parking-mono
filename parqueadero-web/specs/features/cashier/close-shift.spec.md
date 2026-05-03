@@ -33,7 +33,13 @@ Operador, Admin.
 
 ## Reglas de Negocio
 
-1. `expected_balance_cents = opening_balance_cents + Σ(payments.amount_cents WHERE method='efectivo' AND status='completed' AND shift_id=shiftId)`.
+1. `expected_balance_cents = opening_balance_cents
+     + Σ(payments.amount_cents WHERE method='efectivo' AND status='completed' AND shift_id=shiftId)
+     − Σ(cash_withdrawals.amount_cents WHERE shift_id=shiftId AND _deleted=false)`.
+
+   Los retiros parciales (HU-039) sacan efectivo de la caja durante el
+   turno; deben restarse del esperado para que el cuadre sea simétrico
+   con `ReconcileShiftUseCase` (UI).
 2. `difference_cents = closing_balance_cents - expected_balance_cents`.
 3. Si `|difference_cents| > 500_000` y `justification` es null o vacío → `ValidationFailure`.
 4. Al cerrar: `status = 'closed'`, `closed_at = now()`, guardar `closing_balance_cents`, `expected_balance_cents`, `difference_cents`.
@@ -43,22 +49,27 @@ Operador, Admin.
 
 1. Buscar turno por `shiftId`. Verificar que pertenece al usuario y `status = 'open'`.
 2. Validar `closingBalanceCents ≥ 0`.
-3. Calcular `expected_balance_cents` sumando pagos en efectivo del turno.
-4. Calcular `difference_cents`.
-5. Si `|difference_cents| > 500_000`: verificar `justification` presente.
-6. Actualizar turno con totales y `status = 'closed'`.
-7. Retornar `Right(shiftEntity)`.
+3. Sumar pagos en efectivo del turno (`sumCashByShift`).
+4. Sumar retiros parciales del turno (`listWithdrawalsByShift`).
+5. Calcular `expected_balance_cents = opening + cash − withdrawals`.
+6. Calcular `difference_cents = closing − expected`.
+7. Si `|difference_cents| > 500_000`: verificar `justification` presente.
+8. Actualizar turno con totales y `status = 'closed'`.
+9. Retornar `Right(shiftEntity)`.
 
 ## Edge Cases
 
 - Cierre exacto (`difference = 0`): no requiere justificación.
 - Sobrante de $1 peso (`diff = 100` cents): dentro del umbral, sin bloqueo.
 - Faltante de $10.000 COP (`diff = -1.000.000` cents): requiere justificación.
-- Turno sin pagos en efectivo: `expected = opening_balance_cents`.
+- Turno sin pagos en efectivo y sin retiros: `expected = opening_balance_cents`.
+- Turno con retiro de $10.000 sin justificar: el cajero debe contar
+  `opening + cash − $10.000`. Si lo cuenta correctamente, no hay diferencia.
 
 ## Dependencias
 - `CashierRepository.findById()`
 - `CashierRepository.close()`
+- `CashierRepository.listWithdrawalsByShift(shiftId)` — para descontar retiros
 - `PaymentRepository.sumCashByShift(shiftId)` — suma pagos en efectivo del turno
 
 ## Mapping a UI

@@ -66,29 +66,49 @@ export class RegisterVehicleExitUseCase extends UseCase<RegisterVehicleExitParam
     const exitAt = params.exitAt ?? new Date();
     const durationMinutes = Math.max(1, Math.ceil((exitAt.getTime() - session.entryAt.getTime()) / 60_000));
 
-    // 4. Get active tariff
-    const tariffResult = await this.repo.getActiveTariff(session.vehicleType);
-    if (tariffResult.isLeft()) return tariffResult as Either<Failure, never>;
-    const tariff: TariffEntity | null = tariffResult.fold(() => null, (t) => t);
-    if (!tariff) return left(new ValidationFailure('No se encontró tarifa activa', 'tariff'));
+    // 4. Resolver método y monto.
+    //
+    // Si el método elegido es gratis (cortesía/error/mensual) o la sesión es
+    // mensualidad activa, el cobro es 0 y NO necesitamos consultar tarifa.
+    // Esto permite cerrar sesiones cuyo `vehicle_type` no tenga tarifa
+    // configurada (ej: 'otro' sin tarifa específica) eligiendo un método
+    // gratis con justificación.
+    //
+    // Si el método requiere cobro, sí buscamos tarifa y calculamos.
+    const isMonthlyExit = session.isMonthly;
+    const isFreeMethod = FREE_PAYMENT_METHODS.includes(params.paymentMethod);
 
-    // 5. Calculate fee
-    const feeEither = this.calculateFee.calculate({
-      durationMinutes,
-      tariff,
-      isMonthly: session.isMonthly,
-      vehicleType: session.vehicleType,
-    });
-    if (feeEither.isLeft()) return feeEither as Either<Failure, never>;
-    const fee: CalculateParkingFeeResult | null = feeEither.fold(() => null, (f) => f);
-    if (!fee) return left(new ValidationFailure('No se pudo calcular la tarifa', 'fee'));
+    let effectiveMethod: PaymentMethod = params.paymentMethod;
+    let amountCents = 0;
 
-    // Auto-set method for monthly plan sessions
-    const effectiveMethod: PaymentMethod =
-      fee.reason === 'monthly' ? 'mensual' : params.paymentMethod;
-    const amountCents = FREE_PAYMENT_METHODS.includes(effectiveMethod) ? 0 : fee.amountCents;
+    if (isMonthlyExit) {
+      // Mensualidad activa siempre fuerza method='mensual' y monto 0.
+      effectiveMethod = 'mensual';
+      amountCents = 0;
+    } else if (isFreeMethod) {
+      // Cortesía / error: no se cobra, no se necesita tarifa.
+      amountCents = 0;
+    } else {
+      // Cobro real: se requiere tarifa configurada para el tipo de vehículo.
+      const tariffResult = await this.repo.getActiveTariff(session.vehicleType);
+      if (tariffResult.isLeft()) return tariffResult as Either<Failure, never>;
+      const tariff: TariffEntity | null = tariffResult.fold(() => null, (t) => t);
+      if (!tariff) return left(new ValidationFailure('No se encontró tarifa activa', 'tariff'));
 
-    // 6. Validate justification for free methods
+      const feeEither = this.calculateFee.calculate({
+        durationMinutes,
+        tariff,
+        isMonthly: false,
+        vehicleType: session.vehicleType,
+      });
+      if (feeEither.isLeft()) return feeEither as Either<Failure, never>;
+      const fee: CalculateParkingFeeResult | null = feeEither.fold(() => null, (f) => f);
+      if (!fee) return left(new ValidationFailure('No se pudo calcular la tarifa', 'fee'));
+
+      amountCents = fee.amountCents;
+    }
+
+    // 5. Validar justificación obligatoria para todo cierre sin cobro.
     if (FREE_PAYMENT_METHODS.includes(effectiveMethod)) {
       if (!params.justificationIfFree?.trim()) {
         return left(
@@ -100,7 +120,7 @@ export class RegisterVehicleExitUseCase extends UseCase<RegisterVehicleExitParam
       }
     }
 
-    // 7. Register exit
+    // 6. Register exit
     const exitParams: RegisterExitParams = {
       sessionId: session.id,
       plate,

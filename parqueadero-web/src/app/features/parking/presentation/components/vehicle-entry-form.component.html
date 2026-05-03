@@ -48,14 +48,18 @@
     <span class="field__label">Tipo de vehículo</span>
     <div class="vehicle-types" role="radiogroup" aria-label="Tipo de vehículo">
       @for (opt of vehicleTypeOptions; track opt.value) {
+        @let unavailable = !isTypeAvailable(opt.value);
         <label
           class="chip"
           [class.chip--selected]="form.value.vehicleType === opt.value"
+          [class.chip--unavailable]="unavailable"
+          [attr.title]="unavailable ? 'Sin tarifa configurada para ' + opt.label + '. Crea una en Tarifas (admin) si vas a cobrar este tipo.' : null"
         >
           <input
             type="radio"
             formControlName="vehicleType"
             [value]="opt.value"
+            [attr.disabled]="unavailable ? '' : null"
             class="sr-only"
           />
           <svg class="chip__icon" width="18" height="18" viewBox="0 0 24 24" fill="none"

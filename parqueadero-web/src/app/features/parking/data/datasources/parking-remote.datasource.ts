@@ -333,11 +333,15 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
   async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
     try {
+      // Excluimos 'mensualidad' del lookup de parking porque mensualidad es
+      // un cobro distinto (precio por mes completo, no por minuto/hora).
+      // El use case de mensualidades usa su propio query (`getActiveMonthlyTariff`).
       const { data, error } = await this.supabase.client
         .from('tariffs')
         .select()
         .eq('vehicle_type', vehicleType)
         .eq('is_active', true)
+        .neq('unit', 'mensualidad')
         .limit(1)
         .maybeSingle<TariffModel>();
 

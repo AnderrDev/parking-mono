@@ -121,6 +121,26 @@
     </div>
   </header>
 
+  @if (tariffsList().length > 0) {
+    <section class="tariffs-bar" aria-label="Tarifas vigentes">
+      <span class="tariffs-bar__title">Tarifas vigentes</span>
+      <ul class="tariffs-bar__list" role="list">
+        @for (item of tariffsList(); track item.type) {
+          <li class="tariff-chip">
+            <span class="tariff-chip__type">{{ item.label }}</span>
+            <span class="tariff-chip__rate mono">
+              {{ formatCOP(tariffPerHourCents(item.tariff)) }}<span class="tariff-chip__unit">/h</span>
+            </span>
+            <span class="tariff-chip__sep" aria-hidden="true">·</span>
+            <span class="tariff-chip__rate tariff-chip__rate--secondary mono">
+              {{ formatCOP(tariffPerMinuteCents(item.tariff)) }}<span class="tariff-chip__unit">/min</span>
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
   <!-- HU-014: buscador de vehículo por placa -->
   <section class="search-bar" aria-labelledby="search-heading">
     <div class="search-bar__head">
@@ -237,7 +257,9 @@
   </section>
 
   @if (lastReceipt(); as receipt) {
-    <div class="receipt-card" role="status" aria-label="Comprobante de salida listo">
+    <div class="receipt-card" role="status" aria-label="Comprobante de salida listo"
+         (mouseenter)="pauseReceiptDismiss()" (mouseleave)="resumeReceiptDismiss()"
+         (focusin)="pauseReceiptDismiss()" (focusout)="resumeReceiptDismiss()">
       <div class="receipt-card__head">
         <span class="receipt-card__icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -295,6 +317,7 @@
           #entryForm
           [loading]="entryLoading()"
           [disabled]="entryDisabled()"
+          [availableTypes]="availableTypesForEntry()"
           [monthlyPlanWarning]="monthlyPlanWarning()"
           (submitted)="onEntrySubmit($event)"
         />

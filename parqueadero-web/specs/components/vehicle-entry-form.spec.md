@@ -15,6 +15,9 @@ Formulario reactivo para registrar la entrada de un vehículo. Captura placa, ti
 |---|---|---|---|
 | preFilledData | Partial<VehicleEntity> | null | Datos pre-llenados de búsqueda anterior |
 | isLoading | boolean | false | True mientras se procesa la entrada |
+| disabled | boolean | false | Bloquea el form completo (overlay externo, ej. caja cerrada) |
+| availableTypes | VehicleType[] \| null | null | Tipos con tarifa configurada. Chips fuera de la lista quedan deshabilitados con tooltip "Sin tarifa configurada — crea una en admin". `null` o lista vacía = todos habilitados (estado de carga). |
+| monthlyPlanWarning | string \| null | null | Texto a mostrar como badge informativo (ej. mensualidad próxima a vencer). |
 
 ## Outputs
 

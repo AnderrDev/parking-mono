@@ -136,7 +136,8 @@ export class CashierShiftPageComponent implements OnInit {
     return map[method] ?? method;
   }
 
-  protected shortId(id: string): string {
+  protected shortId(id: string | null): string {
+    if (!id) return '—';
     return id.length > 8 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id;
   }
 

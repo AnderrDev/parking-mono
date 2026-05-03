@@ -349,6 +349,19 @@
       font-size: var(--text-xs);
     }
 
+    .payments-table__tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      background: var(--color-monthly-soft);
+      color: var(--color-monthly);
+      font-size: 10px;
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-sans);
+    }
+
     // ===== Diff =====
     .diff {
       display: flex;

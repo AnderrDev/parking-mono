@@ -4,6 +4,7 @@ import { Failure, ValidationFailure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
 import { TariffEntity } from '../entities/tariff.entity';
 import { VehicleType } from '../entities/parking-session.entity';
+import { roundToCopStep } from '../../../../shared/utils/currency.utils';
 
 export interface CalculateParkingFeeParams {
   durationMinutes: number;
@@ -87,7 +88,12 @@ export class CalculateParkingFeeUseCase extends UseCase<CalculateParkingFeeParam
         base = 0;
     }
 
-    const amountCents = Math.ceil(Math.min(base, tariff.dailyCapCents));
+    // Aplicar tope diario y redondear al múltiplo de $50 (mínimo físico
+    // circulante en Colombia). Sin esto, el cálculo proporcional por
+    // minuto produce montos como $166,67 que no se pueden cobrar ni dar
+    // de vuelta con monedas reales.
+    const capped = Math.min(base, tariff.dailyCapCents);
+    const amountCents = roundToCopStep(capped);
     return right({
       amountCents,
       reason: 'paid',

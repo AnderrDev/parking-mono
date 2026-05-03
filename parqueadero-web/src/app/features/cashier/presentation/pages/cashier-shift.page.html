@@ -209,7 +209,13 @@
                     @for (p of payments(); track p.id) {
                       <tr>
                         <td class="mono">{{ p.paidAt | date:'HH:mm' }}</td>
-                        <td class="payments-table__plate mono">{{ shortId(p.sessionId) }}</td>
+                        <td class="payments-table__plate mono">
+                          @if (p.sessionId) {
+                            {{ shortId(p.sessionId) }}
+                          } @else {
+                            <span class="payments-table__tag">Mensualidad</span>
+                          }
+                        </td>
                         <td>{{ methodLabel(p.method) }}</td>
                         <td class="num mono">{{ p.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
                       </tr>

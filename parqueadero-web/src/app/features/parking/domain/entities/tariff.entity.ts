@@ -1,7 +1,7 @@
 import { BaseEntity } from '../../../../core/base/base.entity';
 import { VehicleType } from './parking-session.entity';
 
-export type TariffUnit = 'minuto' | 'hora' | 'fraccion' | 'dia';
+export type TariffUnit = 'minuto' | 'hora' | 'fraccion' | 'dia' | 'mensualidad';
 
 export class TariffEntity extends BaseEntity {
   constructor(

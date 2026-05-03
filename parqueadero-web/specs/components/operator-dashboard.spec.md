@@ -56,19 +56,48 @@ deshabilitado.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ [CINTA DE ESTADO DE CAJA]                                   │  ← nuevo
+│ [CINTA DE ESTADO DE CAJA]                                   │
 ├─────────────────────────────────────────────────────────────┤
 │ Saludo · métricas en vivo (3 chips)                         │
 ├─────────────────────────────────────────────────────────────┤
-│ Buscador por placa (autocomplete)                           │
+│ Tarifas vigentes (chips: Carro $X/h · $Y/min, Moto…, Bici…) │
 ├─────────────────────────────────────────────────────────────┤
-│ [Comprobante último · si existe]                            │
+│ Buscador por placa (autocomplete, sección inline)           │
+├─────────────────────────────────────────────────────────────┤
+│ [Comprobante último · auto-dismiss 12 s · hover pausa]      │
 ├─────────────────────────────────────────────────────────────┤
 │ Registrar entrada       │  Vehículos en parqueadero         │
 │ (form bloqueado si       │  (lista; botón Salida por item)  │
 │  caja cerrada)           │                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Panel "Tarifas vigentes"
+Carga en paralelo (al `ngOnInit`) las tarifas activas de carro, moto y
+bicicleta (`GetActiveTariffUseCase` × 3). Si un tipo no tiene tarifa
+configurada, se omite silenciosamente (no se muestra fila vacía).
+
+Cada chip muestra:
+- Tipo de vehículo (label).
+- Precio/hora destacado (`tariffPerHourCents`).
+- Precio/minuto en color secundario (`tariffPerMinuteCents`).
+
+Conversiones según `tariff.unit`:
+| unit       | /hora                | /minuto              |
+|------------|----------------------|----------------------|
+| `minuto`   | `valueCents × 60`    | `valueCents`         |
+| `hora`     | `valueCents`         | `valueCents / 60`    |
+| `fraccion` | `valueCents × 2`     | `valueCents / 30`    |
+| `dia`      | `valueCents / 24`    | `valueCents / 1440`  |
+
+Sirve como referencia visible para el operador (no tiene que ir a
+admin a consultar) y para el cliente que pregunta el precio.
+
+**Decisión de diseño:** se mantiene el layout multi-columna denso (todo al
+alcance, sin scroll) por preferencia explícita del usuario. Un intento de
+rediseño "v2" 1-columna con buscador en overlay (2026-05-02) se revirtió
+porque el operador prefiere el modelo dashboard. Ver
+`feedback_dashboard_density.md` en memory.
 
 ## Cinta de estado de caja — detalle
 
@@ -97,16 +126,17 @@ Componente inline (no se extrae a shared todavía; si reusable, se promueve).
 
 ## Mejoras UX para usuarios mayores (concretas)
 
-| Elemento                              | Antes              | Después                            |
+| Elemento                              | Original           | Aplicado                           |
 |---------------------------------------|--------------------|------------------------------------|
 | Tamaño de placa en cards              | `--text-md` (16)   | `--text-lg` (18) bold              |
-| Tamaño de placa en buscador (input)   | `--text-md` (16)   | 22 px, tracking 0.10 em            |
+| Tamaño de placa en buscador (input)   | `--text-md` (16)   | `--text-lg` (18) bold, alto 56 px  |
 | Alto botón "Salida" / "Registrar"     | 40 px              | 52 px                              |
 | Alto botón "Abrir caja"               | n/a                | 56 px                              |
 | Subtítulos de panel                   | `--text-sm` (14)   | `--text-md` (16)                   |
 | Etiqueta hora local                   | "Hora local"       | "Hora actual"                      |
 | Mensaje vacío parqueadero             | "Parqueadero vacío"| "Aún no hay vehículos. Cuando registres una entrada aparecerá aquí." |
 | Saludo                                | "Buen turno, X"    | "Hola, X" (más directo)            |
+| Comprobante post-salida               | persistente        | auto-dismiss 12 s, pausa en hover  |
 | Tooltip de ícono solo                 | (varía)            | Siempre visible o aria-label       |
 
 Mantener: tipografía actual (Inter), paleta, espaciado base 8 px.

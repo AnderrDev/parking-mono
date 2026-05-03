@@ -41,7 +41,18 @@ export class CloseShiftUseCase extends UseCase<CloseShiftParams, CashierShiftEnt
     if (cashSumResult.isLeft()) return left(cashSumResult.value);
     const cashSum = cashSumResult.value as number;
 
-    const expected = shift.openingBalanceCents + cashSum;
+    // Los retiros parciales (HU-039) sacan efectivo de la caja durante el
+    // turno, por lo que reducen el efectivo esperado al cierre. Mantener
+    // simetría con `ReconcileShiftUseCase` (UI), que ya descuenta los
+    // retiros del cashExpected mostrado al cajero.
+    const withdrawalsResult = await this.cashierRepo.listWithdrawalsByShift(params.shiftId);
+    if (withdrawalsResult.isLeft()) return left(withdrawalsResult.value);
+    const withdrawalsTotal = withdrawalsResult.value.reduce(
+      (acc, w) => acc + w.amountCents,
+      0,
+    );
+
+    const expected = shift.openingBalanceCents + cashSum - withdrawalsTotal;
     const difference = params.closingBalanceCents - expected;
 
     if (Math.abs(difference) > DIFF_THRESHOLD_CENTS) {

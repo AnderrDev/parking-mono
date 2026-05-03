@@ -32,6 +32,7 @@ import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
+import { TariffEntity } from '../../domain/entities/tariff.entity';
 import { NoParams } from '../../../../core/base/usecase';
 import {
   RegisterVehicleEntryUseCase,
@@ -106,11 +107,6 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly monthlyPlanWarning = signal<string | null>(null);
   readonly lastReceipt = signal<ExitReceipt | null>(null);
 
-  readonly clockNow = signal(this.formatNow());
-
-  readonly monthlyCount = computed(
-    () => this.activeSessions().filter(s => s.isMonthly).length,
-  );
 
   // Estado de la caja del operador. Se carga al ngOnInit y bloquea la entrada
   // cuando no hay turno abierto. La regla server-side ya existe; esto es la
@@ -125,6 +121,24 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly entryDisabled = computed(
     () => this.shiftStatusLoading() || this.cashRegisterClosed() || this.shiftStatusError() !== null,
   );
+
+  readonly clockNow = signal(this.formatNow());
+
+  readonly monthlyCount = computed(
+    () => this.activeSessions().filter(s => s.isMonthly).length,
+  );
+
+  // Tarifas vigentes para mostrar como referencia visible al operador y al
+  // cliente, y para deshabilitar tipos sin tarifa en el form de entrada.
+  // Se cargan en paralelo al ngOnInit.
+  readonly visibleTariffTypes: VehicleType[] = ['carro', 'moto', 'bicicleta', 'otro'];
+  readonly activeTariffs = signal<Map<VehicleType, TariffEntity>>(new Map());
+  readonly availableTypesForEntry = computed<VehicleType[]>(() =>
+    Array.from(this.activeTariffs().keys()),
+  );
+
+  private receiptDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly RECEIPT_AUTO_DISMISS_MS = 12_000;
 
   // HU-014: buscador por placa con autocomplete
   readonly plateSearchQuery = signal('');
@@ -169,8 +183,54 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadShiftStatus(), this.loadSessions()]);
+    await Promise.all([this.loadShiftStatus(), this.loadSessions(), this.loadTariffs()]);
     this.clockTimer = setInterval(() => this.clockNow.set(this.formatNow()), 1000);
+  }
+
+  private async loadTariffs(): Promise<void> {
+    const results = await Promise.all(
+      this.visibleTariffTypes.map((t) =>
+        this.getActiveTariff.execute(t).then((r) => [t, r] as const),
+      ),
+    );
+    const map = new Map<VehicleType, TariffEntity>();
+    for (const [type, result] of results) {
+      result.fold(
+        () => { /* sin tarifa configurada para ese tipo: no mostrar */ },
+        (tariff) => map.set(type, tariff),
+      );
+    }
+    this.activeTariffs.set(map);
+  }
+
+  protected tariffPerHourCents(t: TariffEntity): number {
+    switch (t.unit) {
+      case 'minuto': return t.valueCents * 60;
+      case 'hora': return t.valueCents;
+      case 'fraccion': return t.valueCents * 2;
+      case 'dia': return Math.round(t.valueCents / 24);
+      case 'mensualidad': return 0;  // No aplica per-hour para mensualidad.
+    }
+  }
+
+  protected tariffPerMinuteCents(t: TariffEntity): number {
+    switch (t.unit) {
+      case 'minuto': return t.valueCents;
+      case 'hora': return Math.round(t.valueCents / 60);
+      case 'fraccion': return Math.round(t.valueCents / 30);
+      case 'dia': return Math.round(t.valueCents / 1440);
+      case 'mensualidad': return 0;
+    }
+  }
+
+  protected tariffsList(): { type: VehicleType; label: string; tariff: TariffEntity }[] {
+    const map = this.activeTariffs();
+    // 'otro' se omite del bar de tarifas visible (es un fallback técnico,
+    // no algo que el cliente típico pregunte). Sigue contando para
+    // availableTypesForEntry y deshabilita el chip si no hay tarifa.
+    return this.visibleTariffTypes
+      .filter((t) => t !== 'otro' && map.has(t))
+      .map((t) => ({ type: t, label: VEHICLE_TYPE_LABEL[t], tariff: map.get(t)! }));
   }
 
   async loadShiftStatus(): Promise<void> {
@@ -202,6 +262,29 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
+    if (this.receiptDismissTimer) clearTimeout(this.receiptDismissTimer);
+  }
+
+  // Programa auto-dismiss del comprobante para que no se quede colgado en
+  // pantalla. Si el cajero quiere imprimirlo o leerlo de cerca, hace hover
+  // o pulsa el botón antes de los 12 s.
+  private scheduleReceiptDismiss(): void {
+    if (this.receiptDismissTimer) clearTimeout(this.receiptDismissTimer);
+    this.receiptDismissTimer = setTimeout(() => {
+      this.lastReceipt.set(null);
+      this.receiptDismissTimer = null;
+    }, OperatorDashboardPageComponent.RECEIPT_AUTO_DISMISS_MS);
+  }
+
+  protected pauseReceiptDismiss(): void {
+    if (this.receiptDismissTimer) {
+      clearTimeout(this.receiptDismissTimer);
+      this.receiptDismissTimer = null;
+    }
+  }
+
+  protected resumeReceiptDismiss(): void {
+    if (this.lastReceipt()) this.scheduleReceiptDismiss();
   }
 
   // HU-014: autocomplete con debounce. El input dispara una búsqueda de
@@ -404,6 +487,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           paymentMethod: value.paymentMethod,
           cashReceivedCents: value.cashReceivedCents,
         });
+        this.scheduleReceiptDismiss();
 
         // HU-040: emitir factura electrónica si el operador la pidió.
         if (value.emitInvoice && value.customerId) {
@@ -423,6 +507,10 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   protected dismissReceipt(): void {
+    if (this.receiptDismissTimer) {
+      clearTimeout(this.receiptDismissTimer);
+      this.receiptDismissTimer = null;
+    }
     this.lastReceipt.set(null);
   }
 

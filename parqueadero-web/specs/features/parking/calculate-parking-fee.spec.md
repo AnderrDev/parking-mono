@@ -43,7 +43,16 @@ Sistema (invocado por register-vehicle-exit, búsqueda de sesiones activas, repo
 
 4. **Tope diario**: `finalAmount = Math.min(amount, tariff.daily_cap_cents)` — nunca se cobra más que el tope.
 
-5. **Redondeo**: Todos los montos finales se redondean hacia arriba (Math.ceil) a centavos enteros.
+5. **Redondeo a paso físico colombiano**: el monto final se redondea al
+   múltiplo más cercano de **$50** (5.000 cents) usando half-up. Esto
+   refleja la realidad: en Colombia no existen monedas menores a $50,
+   por lo que cobrar $166,67 imposibilita el cambio físico. La función
+   `roundToCopStep(cents, 5000)` vive en
+   `shared/utils/currency.utils.ts`. Las tarifas y planes mensuales
+   ya deben ser múltiplos de $50 (validador `multipleOfCentsValidator`
+   en sus forms), pero el cálculo proporcional por minuto puede
+   producir valores intermedios fraccionados que se normalizan en este
+   paso final.
 
 ## Flujo Principal
 
@@ -79,16 +88,16 @@ Sistema (invocado por register-vehicle-exit, búsqueda de sesiones activas, repo
 
 5. **Aplicar tope diario**
    ```
-   finalAmount = Math.min(baseAmount, tariff.daily_cap_cents)
+   capped = Math.min(baseAmount, tariff.daily_cap_cents)
    ```
 
-6. **Redondear y retornar**
+6. **Redondear al paso físico ($50) y retornar**
    ```
-   amountCents = Math.ceil(finalAmount)
+   amountCents = roundToCopStep(capped, 5000)  // half-up al múltiplo de $50
    return Right({
      amountCents,
      breakdown: {
-       base: baseAmount,
+       base: baseAmount,        // valor pre-redondeo, para auditoría
        grace: tariff.grace_minutes,
        cap: tariff.daily_cap_cents,
        durationMinutes,

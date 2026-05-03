@@ -37,9 +37,20 @@ export class VehicleEntryFormComponent implements OnInit {
   loading = input(false);
   disabled = input(false);
   monthlyPlanWarning = input<string | null>(null);
+  // Tipos para los que el catálogo tiene tarifa activa configurada. Si la
+  // lista llega vacía, se asume "todavía no cargado" y se permiten todos
+  // (no bloquear durante el load inicial). Si llega con valores, los chips
+  // fuera de la lista quedan deshabilitados con tooltip explicativo.
+  availableTypes = input<VehicleType[] | null>(null);
   submitted = output<VehicleEntryFormValue>();
 
   form!: FormGroup;
+
+  protected isTypeAvailable(t: VehicleType): boolean {
+    const allowed = this.availableTypes();
+    if (allowed === null || allowed.length === 0) return true;
+    return allowed.includes(t);
+  }
 
   protected readonly vehicleTypeOptions: VehicleTypeOption[] = [
     {

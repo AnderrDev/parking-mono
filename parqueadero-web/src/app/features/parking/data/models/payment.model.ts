@@ -2,7 +2,7 @@ import { PaymentEntity, PaymentMethod, PaymentStatus } from '../../domain/entiti
 
 export interface PaymentModel {
   id: string;
-  session_id: string;
+  session_id: string | null;
   cashier_shift_id: string;
   method: string;
   gateway_ref: string | null;
@@ -21,7 +21,7 @@ export class PaymentMapper {
       m.id,
       new Date(m.created_at),
       new Date(m.updated_at),
-      m.session_id,
+      m.session_id ?? null,
       m.cashier_shift_id,
       m.method as PaymentMethod,
       m.amount_cents,
