@@ -1,0 +1,93 @@
+// ── Cinta de estado de caja ─────────────────────────────────────────────────
+.shift-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-1);
+
+  &--loading {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+  }
+  // Estado normal "todo bien": fondo neutro como cualquier panel.
+  // Solo el ícono lleva color verde como indicador discreto.
+  // Las variantes cerrada / error sí mantienen color de fondo porque
+  // requieren acción del operador.
+  &--open {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
+  &--open .shift-banner__icon { background: var(--color-success-soft); color: var(--color-success-strong); }
+  &--open .shift-banner__title { color: var(--color-text-strong); }
+  &--open .shift-banner__detail { color: var(--color-text-muted); }
+  &--closed {
+    background: var(--color-warning-soft);
+    border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+    color: var(--color-warning-strong);
+  }
+  &--error {
+    background: var(--color-danger-soft);
+    border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+    color: var(--color-danger);
+  }
+}
+
+.shift-banner__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+}
+
+.shift-banner__text { font-size: var(--text-md); font-weight: var(--font-weight-medium); }
+
+.shift-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.shift-banner__title { font-size: var(--text-md); font-weight: var(--font-weight-bold); letter-spacing: -0.01em; }
+.shift-banner__detail { font-size: var(--text-sm); font-weight: var(--font-weight-medium); opacity: 0.95; }
+
+.shift-banner__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-5);
+  min-height: 48px;
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+
+  &--primary {
+    background: var(--color-warning-strong);
+    color: #fff;
+    &:hover { background: color-mix(in srgb, var(--color-warning-strong) 88%, black); }
+    &:active { transform: scale(0.98); }
+    &:focus-visible { outline: 2px solid var(--color-warning); outline-offset: 2px; }
+  }
+  &--ghost {
+    background: transparent;
+    color: var(--color-danger);
+    border: 1.5px solid currentColor;
+    &:hover { background: rgba(255, 255, 255, 0.4); }
+  }
+}

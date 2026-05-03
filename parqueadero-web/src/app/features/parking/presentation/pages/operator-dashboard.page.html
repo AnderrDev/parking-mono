@@ -1,69 +1,12 @@
 <div class="dashboard">
-  <!-- Cinta de estado de caja (siempre visible). Color NUNCA es el único
-       indicador: ícono + texto + fondo. -->
-  @if (shiftStatusLoading()) {
-    <section class="shift-banner shift-banner--loading" role="status" aria-live="polite">
-      <span class="shift-banner__icon" aria-hidden="true">
-        <app-loading-spinner />
-      </span>
-      <span class="shift-banner__text">Verificando estado de caja…</span>
-    </section>
-  } @else if (shiftStatusError()) {
-    <section class="shift-banner shift-banner--error" role="alert">
-      <span class="shift-banner__icon" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-      </span>
-      <div class="shift-banner__body">
-        <span class="shift-banner__title">No pudimos verificar la caja</span>
-        <span class="shift-banner__detail">{{ shiftStatusError() }}</span>
-      </div>
-      <button type="button" class="shift-banner__cta shift-banner__cta--ghost" (click)="loadShiftStatus()">
-        Reintentar
-      </button>
-    </section>
-  } @else if (cashRegisterClosed()) {
-    <section class="shift-banner shift-banner--closed" role="alert">
-      <span class="shift-banner__icon" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 9v4"/>
-          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      </span>
-      <div class="shift-banner__body">
-        <span class="shift-banner__title">Caja cerrada</span>
-        <span class="shift-banner__detail">Para registrar entradas, primero debes abrir la caja.</span>
-      </div>
-      <a class="shift-banner__cta shift-banner__cta--primary" routerLink="/cashier">
-        Abrir caja
-      </a>
-    </section>
-  } @else if (shiftStatus()?.isOpen) {
-    @let st = shiftStatus()!;
-    <section class="shift-banner shift-banner--open" role="status">
-      <span class="shift-banner__icon" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </span>
-      <div class="shift-banner__body">
-        <span class="shift-banner__title">Caja abierta</span>
-        <span class="shift-banner__detail">
-          @if (st.openedAt) { Desde {{ formatShiftOpenedAt(st.openedAt) }} }
-          @if (st.openingBalanceCents !== null) {
-            · Saldo apertura {{ formatCOP(st.openingBalanceCents) }}
-          }
-        </span>
-      </div>
-    </section>
-  }
+  <app-shift-status-banner
+    [state]="shiftBannerState()"
+    [errorMessage]="shiftStatusError()"
+    [openedAt]="shiftStatus()?.openedAt ?? null"
+    [openingBalanceCents]="shiftStatus()?.openingBalanceCents ?? null"
+    (retry)="loadShiftStatus()"
+  />
+
 
   <header class="dashboard__top">
     <div class="dashboard__greeting">
@@ -121,25 +64,7 @@
     </div>
   </header>
 
-  @if (tariffsList().length > 0) {
-    <section class="tariffs-bar" aria-label="Tarifas vigentes">
-      <span class="tariffs-bar__title">Tarifas vigentes</span>
-      <ul class="tariffs-bar__list" role="list">
-        @for (item of tariffsList(); track item.type) {
-          <li class="tariff-chip">
-            <span class="tariff-chip__type">{{ item.label }}</span>
-            <span class="tariff-chip__rate mono">
-              {{ formatCOP(tariffPerHourCents(item.tariff)) }}<span class="tariff-chip__unit">/h</span>
-            </span>
-            <span class="tariff-chip__sep" aria-hidden="true">·</span>
-            <span class="tariff-chip__rate tariff-chip__rate--secondary mono">
-              {{ formatCOP(tariffPerMinuteCents(item.tariff)) }}<span class="tariff-chip__unit">/min</span>
-            </span>
-          </li>
-        }
-      </ul>
-    </section>
-  }
+  <app-tariffs-bar [tariffs]="tariffsList()" />
 
   <!-- HU-014: buscador de vehículo por placa -->
   <section class="search-bar" aria-labelledby="search-heading">
@@ -256,44 +181,13 @@
     }
   </section>
 
-  @if (lastReceipt(); as receipt) {
-    <div class="receipt-card" role="status" aria-label="Comprobante de salida listo"
-         (mouseenter)="pauseReceiptDismiss()" (mouseleave)="resumeReceiptDismiss()"
-         (focusin)="pauseReceiptDismiss()" (focusout)="resumeReceiptDismiss()">
-      <div class="receipt-card__head">
-        <span class="receipt-card__icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
-        </span>
-        <div class="receipt-card__info">
-          <p class="receipt-card__title">Comprobante listo</p>
-          <p class="receipt-card__plate mono">{{ receipt.plate }}</p>
-        </div>
-        <button type="button" class="receipt-card__dismiss" (click)="dismissReceipt()" aria-label="Cerrar comprobante">×</button>
-      </div>
-      <div class="receipt-card__body">
-        <span class="receipt-card__amount">
-          {{ receipt.amountCents > 0 ? formatCOP(receipt.amountCents) : 'Sin cobro' }}
-        </span>
-        <span class="receipt-card__method">{{ receipt.paymentMethod }}</span>
-      </div>
-      <button type="button" class="receipt-card__print" (click)="printReceipt(receipt)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polyline points="6 9 6 2 18 2 18 9"/>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-          <rect x="6" y="14" width="12" height="8"/>
-        </svg>
-        Imprimir comprobante
-      </button>
-    </div>
-  }
+  <app-receipt-card
+    [receipt]="lastReceipt()"
+    (dismiss)="dismissReceipt()"
+    (print)="lastReceipt() && printReceipt(lastReceipt()!)"
+    (pause)="pauseReceiptDismiss()"
+    (resume)="resumeReceiptDismiss()"
+  />
 
   <div class="dashboard__layout">
     <section class="panel panel--action" aria-labelledby="entry-heading"

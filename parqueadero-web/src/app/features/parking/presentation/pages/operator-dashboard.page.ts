@@ -71,6 +71,9 @@ import {
   VehicleExitDialogData,
   ExitFormValue,
 } from '../components/vehicle-exit-dialog.component';
+import { ShiftStatusBannerComponent, ShiftBannerState } from '../components/shift-status-banner.component';
+import { TariffsBarComponent } from '../components/tariffs-bar.component';
+import { ReceiptCardComponent, ExitReceipt } from '../components/receipt-card.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 
@@ -81,22 +84,20 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   otro: 'Otro',
 };
 
-interface ExitReceipt {
-  plate: string;
-  vehicleType: VehicleType;
-  entryAt: Date;
-  exitAt: Date;
-  durationMinutes: number;
-  amountCents: number;
-  paymentMethod: string;
-  cashReceivedCents: number | null;
-}
+// ExitReceipt → ahora vive en `receipt-card.component.ts` y se importa.
 
 @Component({
   selector: 'app-operator-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VehicleEntryFormComponent, LoadingSpinnerComponent, RouterLink],
+  imports: [
+    VehicleEntryFormComponent,
+    LoadingSpinnerComponent,
+    RouterLink,
+    ShiftStatusBannerComponent,
+    TariffsBarComponent,
+    ReceiptCardComponent,
+  ],
   templateUrl: './operator-dashboard.page.html',
   styleUrl: './operator-dashboard.page.scss',
 })
@@ -121,6 +122,14 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly entryDisabled = computed(
     () => this.shiftStatusLoading() || this.cashRegisterClosed() || this.shiftStatusError() !== null,
   );
+
+  /** Estado consolidado para `<app-shift-status-banner>`. */
+  readonly shiftBannerState = computed<ShiftBannerState>(() => {
+    if (this.shiftStatusLoading()) return 'loading';
+    if (this.shiftStatusError() !== null) return 'error';
+    if (this.cashRegisterClosed()) return 'closed';
+    return 'open';
+  });
 
   readonly clockNow = signal(this.formatNow());
 
