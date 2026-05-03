@@ -111,8 +111,9 @@ describe('CalculateParkingFeeUseCase', () => {
     }));
     expect(result.isRight()).toBeTrue();
     result.fold(f => fail(f.message), fee => {
-      // (61 * 500_000) / 60 = 508_333.33 → Math.ceil = 508_334
-      expect(fee.amountCents).toBe(508_334);
+      // (61 * 500_000) / 60 = 508_333.33 → roundToCopStep($50 = 5_000 cents) = 510_000
+      // (regla Colombia: cobrar siempre múltiplos de $50)
+      expect(fee.amountCents).toBe(510_000);
     });
   });
 
@@ -123,8 +124,8 @@ describe('CalculateParkingFeeUseCase', () => {
     }));
     expect(result.isRight()).toBeTrue();
     result.fold(f => fail(f.message), fee => {
-      // (1 * 500_000) / 60 = 8_333.33 → Math.ceil = 8_334
-      expect(fee.amountCents).toBe(8_334);
+      // (1 * 500_000) / 60 = 8_333.33 → roundToCopStep($50) = 10_000 ($100)
+      expect(fee.amountCents).toBe(10_000);
       expect(fee.reason).toBe('paid');
     });
   });

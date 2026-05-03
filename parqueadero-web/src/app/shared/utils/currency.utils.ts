@@ -7,7 +7,10 @@ const COP_FORMAT = new Intl.NumberFormat('es-CO', {
 
 export function formatCOP(cents: number): string {
   const pesos = Math.round(cents / 100);
-  return COP_FORMAT.format(pesos).replace('COP', '$').trim();
+  // Intl.NumberFormat usa NBSP (U+00A0) como separador entre símbolo y número.
+  // Lo reemplazamos por espacio normal para evitar problemas de copy/paste,
+  // tests con strings literales y compatibilidad con sistemas no-Unicode.
+  return COP_FORMAT.format(pesos).replace('COP', '$').replace(/\u00A0/g, ' ').trim();
 }
 
 export function centsToNumber(cents: number): number {
@@ -15,7 +18,11 @@ export function centsToNumber(cents: number): number {
 }
 
 export function numberToCents(pesos: number): number {
-  return Math.round(pesos * 100);
+  // Sumamos un delta escalado (1e-9) post-multiplicación para corregir el
+  // clásico bug de FP: 1.005 * 100 = 100.4999..., sin offset → Math.round = 100.
+  // Number.EPSILON solo (~2.22e-16) es demasiado pequeño tras escalar × 100.
+  // 1e-9 no afecta valores realistas de pesos (delta < 0.001 cents).
+  return Math.round(pesos * 100 + 1e-9);
 }
 
 /**
@@ -29,9 +36,6 @@ export const COP_CASH_STEP_CENTS = 5000;
  * Por defecto, al múltiplo más cercano de $50 (5.000 cents) — coincide con
  * la moneda física más pequeña en circulación en Colombia, lo que permite
  * cobrar y dar cambio sin centavos.
- *
- * Ejemplos: 16.667 → 15.000 ($150); 17.500 → 17.500 ($175 → no, sí: 17500 / 5000 = 3.5,
- * redondea a 4 → 20.000 = $200, half-up).
  */
 export function roundToCopStep(
   cents: number,

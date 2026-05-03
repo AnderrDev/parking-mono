@@ -16,7 +16,8 @@ describe('formatCOP', () => {
   });
 
   it('rounds to nearest peso', () => {
-    expect(formatCOP(150)).toBe(formatCOP(100)); // 1.5 pesos → 2 pesos (rounds)
+    // 150 cents = 1.5 pesos → Math.round = 2 (half-up). Mismo resultado que 200 cents.
+    expect(formatCOP(150)).toBe(formatCOP(200));
   });
 });
 

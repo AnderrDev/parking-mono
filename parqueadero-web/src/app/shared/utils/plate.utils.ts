@@ -7,8 +7,11 @@ export function normalizePlate(raw: string): string {
 }
 
 export function isValidPlate(plate: string): boolean {
-  const normalized = normalizePlate(plate);
-  return PLATE_CAR_RE.test(normalized) || PLATE_MOTO_RE.test(normalized);
+  // Limpiar (uppercase + remover no-alfanuméricos) pero NO recortar a 6.
+  // Si entra "ZZZ999999" debe ser inválido, no normalizarse silenciosamente
+  // a "ZZZ999". Para inputs de UI usar `normalizePlate` que sí recorta.
+  const cleaned = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return PLATE_CAR_RE.test(cleaned) || PLATE_MOTO_RE.test(cleaned);
 }
 
 export function formatPlate(plate: string): string {
