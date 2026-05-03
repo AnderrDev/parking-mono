@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Either, left, right } from '../../../../core/either/either';
 import { Failure, NetworkFailure, ServerFailure } from '../../../../core/either/failures';
 import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { TariffModel, TariffMapper } from '../../../parking/data/models/tariff.model';
 import { PaginatedResult } from '../../../../shared/models/pagination.model';
 import { SupabaseService } from '../../../../core/services/supabase.service';
@@ -140,6 +141,48 @@ export class TariffRemoteDataSource extends TariffDataSource {
       const { count, error } = await query;
       if (error) return left(new ServerFailure(error.message));
       return right((count ?? 0) > 0);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async existsActiveSameCategory(vehicleType: VehicleType, isMonthly: boolean, excludeId?: string): Promise<Either<Failure, boolean>> {
+    try {
+      let query = this.supabase.client
+        .from('tariffs')
+        .select('id', { count: 'exact', head: true })
+        .eq('vehicle_type', vehicleType)
+        .eq('is_active', true)
+        .eq('_deleted', false);
+      if (isMonthly) {
+        query = query.eq('unit', 'mensualidad');
+      } else {
+        query = query.neq('unit', 'mensualidad');
+      }
+      if (excludeId) query = query.neq('id', excludeId);
+
+      const { count, error } = await query;
+      if (error) return left(new ServerFailure(error.message));
+      return right((count ?? 0) > 0);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('tariffs')
+        .select()
+        .eq('vehicle_type', vehicleType)
+        .eq('unit', 'mensualidad')
+        .eq('is_active', true)
+        .eq('_deleted', false)
+        .limit(1)
+        .maybeSingle<TariffModel>();
+
+      if (error) return left(new ServerFailure(error.message));
+      return right(data ? TariffMapper.toEntity(data) : null);
     } catch {
       return left(new NetworkFailure());
     }

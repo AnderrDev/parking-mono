@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { multipleOfCentsValidator } from '../../../../shared/forms/validators/multiple-of-cents.validator';
 
 @Injectable({ providedIn: 'root' })
 export class TariffForms {
@@ -20,9 +21,9 @@ export class TariffForms {
       name: [defaults?.name ?? '', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
       vehicleType: [defaults?.vehicleType ?? 'carro', Validators.required],
       unit: [defaults?.unit ?? 'hora', Validators.required],
-      valueCents: [defaults?.valueCents ?? null, [Validators.required, Validators.min(1)]],
+      valueCents: [defaults?.valueCents ?? null, [Validators.required, Validators.min(1), multipleOfCentsValidator()]],
       graceMinutes: [defaults?.graceMinutes ?? 0, [Validators.required, Validators.min(0)]],
-      dailyCapCents: [defaults?.dailyCapCents ?? null, [Validators.required, Validators.min(1)]],
+      dailyCapCents: [defaults?.dailyCapCents ?? null, [Validators.required, Validators.min(1), multipleOfCentsValidator()]],
       validFrom: [defaults?.validFrom ?? null],
       validTo: [defaults?.validTo ?? null],
       isActive: [defaults?.isActive ?? true],

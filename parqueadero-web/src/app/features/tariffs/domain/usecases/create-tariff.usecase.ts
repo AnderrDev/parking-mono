@@ -28,11 +28,26 @@ export class CreateTariffUseCase extends UseCase<CreateTariffParams, TariffEntit
     if (!Number.isInteger(params.dailyCapCents) || params.dailyCapCents <= 0) {
       return left(new ValidationFailure('El tope diario debe ser un entero mayor a 0', 'dailyCapCents'));
     }
-    if (params.dailyCapCents <= params.valueCents) {
+    // Mensualidad: el cap se sincroniza con el value (no aplica como tope
+    // por encima del valor); para parking sí debe ser estrictamente mayor.
+    const isMonthly = params.unit === 'mensualidad';
+    if (!isMonthly && params.dailyCapCents <= params.valueCents) {
       return left(new ValidationFailure('El tope diario debe ser mayor al valor por unidad', 'dailyCapCents'));
     }
     if (params.validFrom && params.validTo && params.validTo <= params.validFrom) {
       return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio', 'validTo'));
+    }
+
+    // Una sola tarifa activa por (tipo de vehículo, categoría parking|mensualidad).
+    // Sin esta validación, el sistema tomaría "cualquiera" al cobrar.
+    const sameCatResult = await this.repo.existsActiveSameCategory(params.vehicleType, isMonthly);
+    if (sameCatResult.isLeft()) return sameCatResult as Either<Failure, never>;
+    if (sameCatResult.fold(() => false, exists => exists)) {
+      const cat = isMonthly ? 'mensualidad' : 'parking';
+      return left(new BusinessRuleFailure(
+        `Ya existe una tarifa activa de ${cat} para ${params.vehicleType}. ` +
+        `Desactivá la actual antes de crear una nueva.`
+      ));
     }
 
     const duplicateResult = await this.repo.existsActive(params.name.trim(), params.vehicleType);

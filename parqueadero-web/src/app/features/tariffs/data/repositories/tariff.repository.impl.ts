@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@angular/core';
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaginatedResult } from '../../../../shared/models/pagination.model';
 import { TariffDataSource } from '../datasources/tariff.datasource';
 import { TariffRepository, ListTariffsParams, CreateTariffParams, UpdateTariffParams } from '../../domain/repositories/tariff.repository';
@@ -37,5 +38,13 @@ export class TariffRepositoryImpl extends TariffRepository {
 
   async existsActive(name: string, vehicleType: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     return this.remoteDs.existsActive(name, vehicleType, excludeId);
+  }
+
+  async existsActiveSameCategory(vehicleType: VehicleType, isMonthly: boolean, excludeId?: string): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.existsActiveSameCategory(vehicleType, isMonthly, excludeId);
+  }
+
+  async getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>> {
+    return this.remoteDs.getActiveMonthlyTariff(vehicleType);
   }
 }

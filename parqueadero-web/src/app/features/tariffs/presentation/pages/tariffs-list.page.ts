@@ -39,6 +39,7 @@ const VEHICLE_LABEL: Record<string, string> = {
 
 const UNIT_LABEL: Record<string, string> = {
   hora: 'Por hora', fraccion: 'Por fracción', minuto: 'Por minuto', dia: 'Por día',
+  mensualidad: 'Mensualidad',
 };
 
 @Component({
@@ -57,7 +58,6 @@ export class TariffsListPageComponent implements OnInit {
 
   private currentPage = 1;
   private filterType: VehicleType | null = null;
-  private showInactive = false;
 
   protected readonly columns = COLUMNS;
 
@@ -80,7 +80,10 @@ export class TariffsListPageComponent implements OnInit {
     const s = this.sort();
     const result = await this.listUC.execute({
       vehicleType: this.filterType,
-      isActive: this.showInactive ? null : true,
+      // En este parqueadero no se desactivan tarifas como flujo regular,
+      // así que solo mostramos activas. Si en el futuro se reactiva el
+      // flujo de inactivas, restaurar el filtro.
+      isActive: true,
       pagination: { page: this.currentPage, pageSize: 25 },
       ...(s ? { sort: s } : {}),
     });
@@ -101,58 +104,58 @@ export class TariffsListPageComponent implements OnInit {
     this.load();
   }
 
-  protected onShowInactive(event: Event): void {
-    this.showInactive = (event.target as HTMLInputElement).checked;
-    this.currentPage = 1;
-    this.load();
-  }
-
   protected onSort(s: SortParams): void { this.sort.set(s); this.currentPage = 1; this.load(); }
   protected onPage(page: number): void { this.currentPage = page; this.load(); }
 
   protected openCreate(): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
-      data: { tariff: null } satisfies TariffDialogData,
+      data: {
+        tariff: null,
+        onSubmit: async (value) => {
+          const result = await this.createUC.execute({
+            name: value.name,
+            vehicleType: value.vehicleType as VehicleType,
+            unit: value.unit as TariffUnit,
+            valueCents: Number(value.valueCents),
+            graceMinutes: Number(value.graceMinutes),
+            dailyCapCents: Number(value.dailyCapCents),
+            validFrom: value.validFrom ? new Date(value.validFrom) : null,
+            validTo: value.validTo ? new Date(value.validTo) : null,
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies TariffDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.createUC.execute({
-        name: value.name,
-        vehicleType: value.vehicleType as VehicleType,
-        unit: value.unit as TariffUnit,
-        valueCents: Number(value.valueCents),
-        graceMinutes: Number(value.graceMinutes),
-        dailyCapCents: Number(value.dailyCapCents),
-        validFrom: value.validFrom ? new Date(value.validFrom) : null,
-        validTo: value.validTo ? new Date(value.validTo) : null,
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Tarifa creada exitosamente'); this.load(); },
-      );
+      this.toast.success('Tarifa creada exitosamente');
+      this.load();
     });
   }
 
   protected openEdit(tariff: TariffEntity): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
-      data: { tariff } satisfies TariffDialogData,
+      data: {
+        tariff,
+        onSubmit: async (value) => {
+          const result = await this.updateUC.execute({
+            id: tariff.id,
+            name: value.name,
+            valueCents: Number(value.valueCents),
+            graceMinutes: Number(value.graceMinutes),
+            dailyCapCents: Number(value.dailyCapCents),
+            validFrom: value.validFrom ? new Date(value.validFrom) : null,
+            validTo: value.validTo ? new Date(value.validTo) : null,
+            isActive: value.isActive,
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies TariffDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.updateUC.execute({
-        id: tariff.id,
-        name: value.name,
-        valueCents: Number(value.valueCents),
-        graceMinutes: Number(value.graceMinutes),
-        dailyCapCents: Number(value.dailyCapCents),
-        validFrom: value.validFrom ? new Date(value.validFrom) : null,
-        validTo: value.validTo ? new Date(value.validTo) : null,
-        isActive: value.isActive,
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Tarifa actualizada'); this.load(); },
-      );
+      this.toast.success('Tarifa actualizada');
+      this.load();
     });
   }
 

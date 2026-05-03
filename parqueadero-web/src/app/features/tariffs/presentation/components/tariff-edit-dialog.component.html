@@ -41,7 +41,12 @@
 
     <div class="field-row">
       <div class="field">
-        <label class="field__label" for="t-value">Valor (COP)</label>
+        <label class="field__label" for="t-value">
+          Valor (COP)
+          @if (isMonthly()) {
+            <span class="field__hint-inline">precio mensual</span>
+          }
+        </label>
         <div class="field__money">
           <span class="field__money-prefix">$</span>
           <input id="t-value" class="field__input" [class.field__input--error]="err('valueCents')"
@@ -53,40 +58,46 @@
         }
       </div>
 
-      <div class="field">
-        <label class="field__label" for="t-cap">Tope diario (COP)</label>
-        <div class="field__money">
-          <span class="field__money-prefix">$</span>
-          <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
-            appCurrencyInput formControlName="dailyCapCents" placeholder="300.000"
-            [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
+      @if (!isMonthly()) {
+        <div class="field">
+          <label class="field__label" for="t-cap">Tope diario (COP)</label>
+          <div class="field__money">
+            <span class="field__money-prefix">$</span>
+            <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
+              appCurrencyInput formControlName="dailyCapCents" placeholder="300.000"
+              [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
+          </div>
+          @if (err('dailyCapCents')) {
+            <span id="t-cap-err" class="field__error" role="alert">{{ errMsg('dailyCapCents') }}</span>
+          }
         </div>
-        @if (err('dailyCapCents')) {
-          <span id="t-cap-err" class="field__error" role="alert">{{ errMsg('dailyCapCents') }}</span>
-        }
-      </div>
-    </div>
-
-    <div class="field" style="max-width: 160px">
-      <label class="field__label" for="t-grace">Minutos de gracia</label>
-      <input id="t-grace" class="field__input" [class.field__input--error]="err('graceMinutes')"
-        type="number" formControlName="graceMinutes" min="0" placeholder="0"
-        [attr.aria-describedby]="err('graceMinutes') ? 't-grace-err' : null" />
-      @if (err('graceMinutes')) {
-        <span id="t-grace-err" class="field__error" role="alert">{{ errMsg('graceMinutes') }}</span>
       }
     </div>
 
-    <div class="field-row">
-      <div class="field">
-        <label class="field__label" for="t-from">Válida desde</label>
-        <input id="t-from" class="field__input" type="date" formControlName="validFrom" />
+    @if (!isMonthly()) {
+      <div class="field" style="max-width: 160px">
+        <label class="field__label" for="t-grace">Minutos de gracia</label>
+        <input id="t-grace" class="field__input" [class.field__input--error]="err('graceMinutes')"
+          type="number" formControlName="graceMinutes" min="0" placeholder="0"
+          [attr.aria-describedby]="err('graceMinutes') ? 't-grace-err' : null" />
+        @if (err('graceMinutes')) {
+          <span id="t-grace-err" class="field__error" role="alert">{{ errMsg('graceMinutes') }}</span>
+        }
       </div>
-      <div class="field">
-        <label class="field__label" for="t-to">Válida hasta</label>
-        <input id="t-to" class="field__input" type="date" formControlName="validTo" />
+    }
+
+    @if (isMonthly()) {
+      <div class="field-row">
+        <div class="field">
+          <label class="field__label" for="t-from">Válida desde</label>
+          <input id="t-from" class="field__input" type="date" formControlName="validFrom" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="t-to">Válida hasta</label>
+          <input id="t-to" class="field__input" type="date" formControlName="validTo" />
+        </div>
       </div>
-    </div>
+    }
 
     @if (isEdit) {
       <label class="field-checkbox">
@@ -95,10 +106,18 @@
       </label>
     }
 
+    @if (submitError()) {
+      <div class="submit-error" role="alert">
+        <span class="submit-error__icon" aria-hidden="true">⚠</span>
+        <span class="submit-error__text">{{ submitError() }}</span>
+      </div>
+    }
+
     <div class="dialog__actions">
-      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
-      <button type="submit" class="btn btn--primary">
-        {{ isEdit ? 'Guardar cambios' : 'Crear tarifa' }}
+      <button type="button" class="btn btn--ghost"
+        (click)="cancel()" [disabled]="submitting()">Cancelar</button>
+      <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+        {{ submitting() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear tarifa') }}
       </button>
     </div>
   </form>

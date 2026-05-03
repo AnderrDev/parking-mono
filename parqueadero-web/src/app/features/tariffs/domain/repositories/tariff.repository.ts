@@ -42,4 +42,20 @@ export abstract class TariffRepository {
   abstract update(id: string, params: UpdateTariffParams): Promise<Either<Failure, TariffEntity>>;
   abstract deactivate(id: string): Promise<Either<Failure, void>>;
   abstract existsActive(name: string, vehicleType: VehicleType, excludeId?: string): Promise<Either<Failure, boolean>>;
+
+  /**
+   * Devuelve true si ya hay otra tarifa activa para el mismo
+   * `vehicleType` en la misma categoría (parking vs mensualidad).
+   * `isMonthly=true` busca tarifas con `unit='mensualidad'`;
+   * `false` busca el resto. Usado para evitar tarifas duplicadas que
+   * causarían que el sistema tome "cualquiera" al cobrar.
+   */
+  abstract existsActiveSameCategory(
+    vehicleType: VehicleType,
+    isMonthly: boolean,
+    excludeId?: string,
+  ): Promise<Either<Failure, boolean>>;
+
+  /** Tarifa activa de mensualidad para un tipo de vehículo. Null si no existe. */
+  abstract getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>>;
 }

@@ -1,6 +1,7 @@
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaginatedResult } from '../../../../shared/models/pagination.model';
 import { ListTariffsParams, CreateTariffParams, UpdateTariffParams } from '../../domain/repositories/tariff.repository';
 
@@ -11,4 +12,6 @@ export abstract class TariffDataSource {
   abstract update(id: string, params: UpdateTariffParams): Promise<Either<Failure, TariffEntity>>;
   abstract deactivate(id: string): Promise<Either<Failure, void>>;
   abstract existsActive(name: string, vehicleType: string, excludeId?: string): Promise<Either<Failure, boolean>>;
+  abstract existsActiveSameCategory(vehicleType: VehicleType, isMonthly: boolean, excludeId?: string): Promise<Either<Failure, boolean>>;
+  abstract getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>>;
 }

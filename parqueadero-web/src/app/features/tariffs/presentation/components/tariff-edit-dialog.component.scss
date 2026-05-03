@@ -14,4 +14,5 @@
 .btn { padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); font-weight: var(--font-weight-semibold); font-size: var(--text-base); min-height: var(--touch-target-secondary); cursor: pointer; }
 .btn--ghost { background: var(--color-surface-2); color: var(--color-text); border: 1px solid var(--color-border); }
 .btn--primary { background: var(--color-primary); color: var(--color-primary-fg); }
+.field__hint-inline { font-size: var(--text-xs); font-weight: var(--font-weight-regular); color: var(--color-text-muted); margin-left: var(--space-2); }
 @media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }

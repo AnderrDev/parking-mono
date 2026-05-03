@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
@@ -8,6 +8,10 @@ import { CurrencyInputDirective } from '../../../../shared/directives/currency-i
 
 export interface TariffDialogData {
   tariff: TariffEntity | null;
+  /** Si se provee, el dialog mantiene abierto el formulario en caso de
+   * error y muestra el mensaje retornado inline. Ver
+   * `feedback_dialog_inline_errors.md` en memory. */
+  onSubmit?: (value: TariffFormValue) => Promise<string | null>;
 }
 
 export interface TariffFormValue {
@@ -29,11 +33,13 @@ const VEHICLE_TYPES = [
   { value: 'otro', label: 'Otro' },
 ];
 
+// 'dia' eliminado del selector — no se usa en este parqueadero. El tipo
+// TariffUnit lo conserva para compatibilidad con tarifas legacy en BD.
 const UNITS = [
   { value: 'hora', label: 'Por hora' },
   { value: 'fraccion', label: 'Por fracción (30 min)' },
   { value: 'minuto', label: 'Por minuto' },
-  { value: 'dia', label: 'Por día' },
+  { value: 'mensualidad', label: 'Mensualidad (mes completo)' },
 ];
 
 @Component({
@@ -53,6 +59,11 @@ export class TariffEditDialogComponent implements OnInit {
   protected readonly vehicleTypes = VEHICLE_TYPES;
   protected readonly units = UNITS;
   protected get isEdit(): boolean { return this.data.tariff !== null; }
+  protected readonly submitting = signal(false);
+  protected readonly submitError = signal<string | null>(null);
+  // Mensualidad: oculta minutos de gracia y tope diario (no aplican); muestra
+  // fechas de validez. Otras unidades: al revés. Sigue el `unit` del form.
+  protected readonly isMonthly = signal(false);
 
   ngOnInit(): void {
     const t = this.data.tariff;
@@ -71,6 +82,34 @@ export class TariffEditDialogComponent implements OnInit {
     if (this.isEdit) {
       this.form.get('vehicleType')?.disable();
     }
+
+    // Estado inicial + suscripción al cambio de unit para reaccionar.
+    this.applyUnitVisibility(this.form.get('unit')?.value as string);
+    this.form.get('unit')?.valueChanges.subscribe((u: string) => this.applyUnitVisibility(u));
+  }
+
+  private applyUnitVisibility(unit: string): void {
+    const monthly = unit === 'mensualidad';
+    this.isMonthly.set(monthly);
+
+    if (monthly) {
+      // Mensualidad: grace y dailyCap no aplican. Set defaults para satisfacer
+      // los validators del backend (grace_minutes ≥ 0, daily_cap > 0). El
+      // dailyCap se sincroniza con el valor para no chocar con cobros.
+      this.form.get('graceMinutes')?.setValue(0, { emitEvent: false });
+      const value = Number(this.form.get('valueCents')?.value ?? 0);
+      this.form.get('dailyCapCents')?.setValue(value > 0 ? value : 1_000_000_00, { emitEvent: false });
+      // Mantener cap sincronizado con value mientras siga en mensualidad.
+      this.form.get('valueCents')?.valueChanges.subscribe((v: number | null) => {
+        if (this.isMonthly() && v != null) {
+          this.form.get('dailyCapCents')?.setValue(v, { emitEvent: false });
+        }
+      });
+    } else {
+      // No-mensualidad: las fechas de validez se ocultan; default null.
+      this.form.get('validFrom')?.setValue(null, { emitEvent: false });
+      this.form.get('validTo')?.setValue(null, { emitEvent: false });
+    }
   }
 
   protected err(field: string): boolean {
@@ -82,10 +121,24 @@ export class TariffEditDialogComponent implements OnInit {
     return getErrorMessage(this.form.get(field)?.errors ?? null);
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
-    this.dialogRef.close(this.form.getRawValue() as TariffFormValue);
+    const value = this.form.getRawValue() as TariffFormValue;
+
+    if (this.data.onSubmit) {
+      this.submitting.set(true);
+      this.submitError.set(null);
+      const errorMsg = await this.data.onSubmit(value);
+      this.submitting.set(false);
+      if (errorMsg) {
+        this.submitError.set(errorMsg);
+        return;
+      }
+      this.dialogRef.close(value);
+      return;
+    }
+    this.dialogRef.close(value);
   }
 
   protected cancel(): void {

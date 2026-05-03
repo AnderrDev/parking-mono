@@ -55,8 +55,23 @@ export class UpdateTariffUseCase extends UseCase<UpdateTariffUseCaseParams, Tari
 
     const valueCents = fields.valueCents ?? tariff.valueCents;
     const dailyCapCents = fields.dailyCapCents ?? tariff.dailyCapCents;
-    if (dailyCapCents <= valueCents) {
+    const isMonthly = tariff.unit === 'mensualidad';
+    if (!isMonthly && dailyCapCents <= valueCents) {
       return left(new ValidationFailure('El tope diario debe ser mayor al valor por unidad', 'dailyCapCents'));
+    }
+
+    // Si reactivamos una tarifa que estaba inactiva, asegurar que no
+    // colisione con otra activa de la misma categoría (parking|mensualidad).
+    if (fields.isActive === true && !tariff.isActive) {
+      const sameCatResult = await this.repo.existsActiveSameCategory(tariff.vehicleType, isMonthly, id);
+      if (sameCatResult.isLeft()) return sameCatResult as Either<Failure, never>;
+      if (sameCatResult.fold(() => false, exists => exists)) {
+        const cat = isMonthly ? 'mensualidad' : 'parking';
+        return left(new BusinessRuleFailure(
+          `Ya existe una tarifa activa de ${cat} para ${tariff.vehicleType}. ` +
+          `Desactivá la actual antes de reactivar esta.`
+        ));
+      }
     }
 
     return this.repo.update(id, fields);
