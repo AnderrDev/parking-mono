@@ -1,0 +1,35 @@
+.empty { margin: 0; text-align: center; padding: var(--space-5); color: var(--color-text-muted); font-size: var(--text-sm); }
+
+.stack-bar {
+  display: flex;
+  width: 100%;
+  height: 28px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+  margin-bottom: var(--space-3);
+  &__seg {
+    height: 100%;
+    transition: opacity var(--motion-fast) var(--ease-out);
+    &:hover { opacity: 0.85; }
+    &[data-method='cash']     { background: var(--color-success); }
+    &[data-method='card']     { background: var(--color-accent); }
+    &[data-method='transfer'] { background: var(--color-info); }
+    &[data-method='free']     { background: var(--color-monthly); }
+  }
+}
+
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.legend__item { display: grid; grid-template-columns: 14px 1fr auto; gap: var(--space-3); align-items: center; font-size: var(--text-sm); }
+.legend__dot {
+  width: 14px; height: 14px; border-radius: 4px;
+  &[data-method='cash']     { background: var(--color-success); }
+  &[data-method='card']     { background: var(--color-accent); }
+  &[data-method='transfer'] { background: var(--color-info); }
+  &[data-method='free']     { background: var(--color-monthly); }
+}
+.legend__label { color: var(--color-text); }
+.legend__value { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-strong); font-weight: var(--font-weight-medium); }
+.legend__count { display: block; color: var(--color-text-muted); font-weight: var(--font-weight-regular); font-size: var(--text-xs); }
+
+.mono { font-variant-numeric: tabular-nums; }

@@ -31,6 +31,10 @@ import {
 } from '../../domain/repositories/report.repository';
 import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
+import { barWidth as calcBarWidth, pctOf } from '../../../../shared/utils/chart.utils';
+import { formatBogotaDay } from '../../../../shared/utils/date.utils';
+import { PaymentMethodStackComponent } from '../components/payment-method-stack.component';
+import { DianStatusGridComponent } from '../components/dian-status-grid.component';
 
 type Tab = 'accounting' | 'revenue' | 'vehicles' | 'operators';
 
@@ -53,7 +57,13 @@ interface InvoicingSummary {
   selector: 'app-reports-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, CurrencyCopPipe],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    CurrencyCopPipe,
+    PaymentMethodStackComponent,
+    DianStatusGridComponent,
+  ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
 })
@@ -420,22 +430,15 @@ export class ReportsPageComponent implements OnInit {
   }
 
   protected pctOfMethodTotal(amountCents: number): number {
-    const total = this.methodTotalCents();
-    return total > 0 ? Math.round((amountCents / total) * 100) : 0;
+    return pctOf(amountCents, this.methodTotalCents());
   }
 
   protected barWidth(value: number, max: number): number {
-    return max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
+    return calcBarWidth(value, max, 2);
   }
 
   protected formatBogotaDay(label: string): string {
-    // periodLabel viene como 'YYYY-MM-DD' (groupBy=day), 'YYYY-Www', o 'YYYY-MM'.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
-      const parts = label.split('-').map(Number);
-      const date = new Date(parts[0]!, parts[1]! - 1, parts[2]!, 12, 0, 0, 0);
-      return date.toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' });
-    }
-    return label;
+    return formatBogotaDay(label);
   }
 
   /** True cuando "más es mejor" (verde si delta positivo). */

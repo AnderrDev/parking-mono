@@ -162,56 +162,21 @@
           </article>
         </div>
 
-        <!-- Stack horizontal: Por método de pago -->
         <article class="card" aria-label="Distribución por método de pago">
           <header class="card__head">
             <h2>Cómo cobrás</h2>
             <p class="card__hint">Distribución del recaudo por método de pago en el período.</p>
           </header>
-          @if ((revenue()?.byMethod?.length ?? 0) === 0) {
-            <p class="empty">Sin pagos en el período.</p>
-          } @else {
-            <div class="stack-bar" role="img" [attr.aria-label]="'Distribución por método de pago, total ' + (methodTotalCents() | currencyCop)">
-              @for (m of revenue()!.byMethod; track m.method) {
-                <span
-                  class="stack-bar__seg"
-                  [attr.data-method]="m.method"
-                  [style.width.%]="pctOfMethodTotal(m.amountCents)"
-                  [title]="methodLabel(m.method) + ': ' + (m.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0') + ' (' + pctOfMethodTotal(m.amountCents) + '%)'"
-                ></span>
-              }
-            </div>
-            <ul class="legend" role="list">
-              @for (m of revenue()!.byMethod; track m.method) {
-                <li class="legend__item">
-                  <span class="legend__dot" [attr.data-method]="m.method"></span>
-                  <span class="legend__label">{{ methodLabel(m.method) }}</span>
-                  <span class="legend__value mono">
-                    {{ m.amountCents | currencyCop }} · {{ pctOfMethodTotal(m.amountCents) }}%
-                    <small class="legend__count">({{ m.count }} {{ m.count === 1 ? 'pago' : 'pagos' }})</small>
-                  </span>
-                </li>
-              }
-            </ul>
-          }
+          <app-payment-method-stack [slices]="revenue()?.byMethod ?? []" />
         </article>
 
-        <!-- Estado DIAN -->
         @if (invoicingSummary() && invoicingSummary()!.byStatus.length > 0) {
           <article class="card" aria-label="Estado de facturación electrónica DIAN">
             <header class="card__head">
               <h2>Facturación electrónica (DIAN)</h2>
               <p class="card__hint">Estado de las facturas emitidas en el período.</p>
             </header>
-            <ul class="status-grid" role="list">
-              @for (s of invoicingSummary()!.byStatus; track s.status) {
-                <li class="status-card" [attr.data-status]="s.status">
-                  <span class="status-card__name">{{ dianLabel(s.status) }}</span>
-                  <strong class="status-card__count">{{ s.count }}</strong>
-                  <span class="status-card__amount mono">{{ s.totalCents | currencyCop }}</span>
-                </li>
-              }
-            </ul>
+            <app-dian-status-grid [entries]="invoicingSummary()!.byStatus" />
           </article>
         }
       </section>
