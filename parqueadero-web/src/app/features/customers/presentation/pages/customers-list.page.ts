@@ -109,53 +109,59 @@ export class CustomersListPageComponent implements OnInit {
 
   protected openCreate(): void {
     const ref = this.dialog.open<CustomerFormValue | null>(CustomerEditDialogComponent, {
-      data: { customer: null } satisfies CustomerDialogData,
+      data: {
+        customer: null,
+        onSubmit: async (value) => {
+          const result = await this.createUC.execute({
+            docType: value.docType as DocType,
+            docNumber: value.docNumber,
+            dv: value.dv,
+            name: value.name,
+            email: value.email || null,
+            phone: value.phone || null,
+            address: value.address || null,
+            municipio: value.municipio || null,
+            departamento: value.departamento || null,
+            responsabilidadesFiscales: value.responsabilidadesFiscales
+              ? value.responsabilidadesFiscales.split(',').map(s => s.trim()).filter(Boolean)
+              : ['R-99-PN'],
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies CustomerDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.createUC.execute({
-        docType: value.docType as DocType,
-        docNumber: value.docNumber,
-        dv: value.dv,
-        name: value.name,
-        email: value.email || null,
-        phone: value.phone || null,
-        address: value.address || null,
-        municipio: value.municipio || null,
-        departamento: value.departamento || null,
-        responsabilidadesFiscales: value.responsabilidadesFiscales
-          ? value.responsabilidadesFiscales.split(',').map(s => s.trim()).filter(Boolean)
-          : ['R-99-PN'],
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Cliente creado exitosamente'); this.load(); },
-      );
+      this.toast.success('Cliente creado exitosamente');
+      this.load();
     });
   }
 
   protected openEdit(customer: CustomerEntity): void {
     const ref = this.dialog.open<CustomerFormValue | null>(CustomerEditDialogComponent, {
-      data: { customer } satisfies CustomerDialogData,
+      data: {
+        customer,
+        onSubmit: async (value) => {
+          const result = await this.updateUC.execute({
+            id: customer.id,
+            name: value.name,
+            email: value.email || null,
+            phone: value.phone || null,
+            address: value.address || null,
+            municipio: value.municipio || null,
+            departamento: value.departamento || null,
+            ...(value.responsabilidadesFiscales ? {
+              responsabilidadesFiscales: value.responsabilidadesFiscales.split(',').map(s => s.trim()).filter(Boolean),
+            } : {}),
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies CustomerDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.updateUC.execute({
-        id: customer.id,
-        name: value.name,
-        email: value.email || null,
-        phone: value.phone || null,
-        address: value.address || null,
-        municipio: value.municipio || null,
-        departamento: value.departamento || null,
-        ...(value.responsabilidadesFiscales ? {
-          responsabilidadesFiscales: value.responsabilidadesFiscales.split(',').map(s => s.trim()).filter(Boolean),
-        } : {}),
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Cliente actualizado'); this.load(); },
-      );
+      this.toast.success('Cliente actualizado');
+      this.load();
     });
   }
 

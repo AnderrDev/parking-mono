@@ -3,6 +3,7 @@ import { Failure } from '../../../../core/either/failures';
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
 import { SortParams } from '../../../../shared/models/sort.model';
 import { MonthlyPlanEntity, MonthlyPlanStatus } from '../../../parking/domain/entities/monthly-plan.entity';
+import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
 
 export interface ListMonthlyPlansParams {
   search?: string | null;
@@ -21,6 +22,14 @@ export interface CreateMonthlyPlanParams {
   amountCents: number;
   autoRenew?: boolean;
   paymentTokenId?: string | null;
+  /**
+   * Método de pago con que el cliente pagó la mensualidad. El use case
+   * registra un row en `payments` ligado al `cashier_shift_id` activo
+   * del usuario, para que el cuadre del turno refleje la venta.
+   */
+  paymentMethod: PaymentMethod;
+  /** UUID del usuario que crea el plan; resuelve el shift activo. */
+  userId: string;
 }
 
 export interface UpdateMonthlyPlanParams {

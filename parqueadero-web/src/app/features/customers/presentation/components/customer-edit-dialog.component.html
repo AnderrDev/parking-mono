@@ -95,10 +95,18 @@
           <span class="field__hint">Códigos separados por comas. Default: R-99-PN</span>
         </div>
 
+        @if (submitError()) {
+          <div class="submit-error" role="alert">
+            <span class="submit-error__icon" aria-hidden="true">⚠</span>
+            <span class="submit-error__text">{{ submitError() }}</span>
+          </div>
+        }
+
         <div class="dialog__actions">
-          <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
-          <button type="submit" class="btn btn--primary">
-            {{ isEdit ? 'Guardar cambios' : 'Crear cliente' }}
+          <button type="button" class="btn btn--ghost"
+            (click)="cancel()" [disabled]="submitting()">Cancelar</button>
+          <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+            {{ submitting() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear cliente') }}
           </button>
         </div>
       </form>

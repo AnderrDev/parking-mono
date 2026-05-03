@@ -53,10 +53,18 @@
         type="text" formControlName="ownerCustomerId" placeholder="Dejar vacío si no tiene propietario" />
     </div>
 
+    @if (submitError()) {
+      <div class="submit-error" role="alert">
+        <span class="submit-error__icon" aria-hidden="true">⚠</span>
+        <span class="submit-error__text">{{ submitError() }}</span>
+      </div>
+    }
+
     <div class="dialog__actions">
-      <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
-      <button type="submit" class="btn btn--primary">
-        {{ isEdit ? 'Guardar cambios' : 'Registrar vehículo' }}
+      <button type="button" class="btn btn--ghost"
+        (click)="cancel()" [disabled]="submitting()">Cancelar</button>
+      <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+        {{ submitting() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Registrar vehículo') }}
       </button>
     </div>
   </form>

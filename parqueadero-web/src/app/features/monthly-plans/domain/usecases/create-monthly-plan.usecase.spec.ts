@@ -1,8 +1,12 @@
 import { CreateMonthlyPlanUseCase } from './create-monthly-plan.usecase';
 import { MonthlyPlanRepository, CreateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
 import { CustomerRepository } from '../../../customers/domain/repositories/customer.repository';
+import { CashierRepository } from '../../../cashier/domain/repositories/cashier.repository';
+import { PaymentRepository, CreatePaymentParams } from '../../../payments/domain/repositories/payment.repository';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import { CustomerEntity } from '../../../customers/domain/entities/customer.entity';
+import { CashierShiftEntity } from '../../../cashier/domain/entities/cashier-shift.entity';
+import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { left, right } from '../../../../core/either/either';
 import { BusinessRuleFailure, NetworkFailure, ValidationFailure } from '../../../../core/either/failures';
 
@@ -70,12 +74,41 @@ class MockCustomerRepository extends CustomerRepository {
   async countActiveMonthlyPlans(_customerId: string) { return Promise.resolve(right(0)); }
 }
 
+const makeShift = (): CashierShiftEntity =>
+  new CashierShiftEntity('shift-1', new Date(), new Date(), 'user-1', 'open', 5_000_000, new Date(), null, null, null, null, null, false);
+
+class MockCashierRepository extends CashierRepository {
+  findOpenResult: ReturnType<CashierRepository['findOpenByUser']> =
+    Promise.resolve(right(makeShift() as CashierShiftEntity | null));
+
+  async findOpenByUser(_userId: string) { return this.findOpenResult; }
+  async findById(_id: string) { return Promise.resolve(right(makeShift() as CashierShiftEntity | null)); }
+  async create(_params: unknown) { return Promise.resolve(right(makeShift())); }
+  async close(_params: unknown) { return Promise.resolve(right(makeShift())); }
+  async listShifts(_params: unknown) { return Promise.resolve(right({ data: [], pagination: emptyPagination })); }
+  async registerWithdrawal(_params: unknown) { return Promise.resolve(right(null as never)); }
+  async listWithdrawalsByShift(_id: string) { return Promise.resolve(right([])); }
+}
+
+class MockPaymentRepository extends PaymentRepository {
+  capturedCreate: CreatePaymentParams | null = null;
+  createResult: ReturnType<PaymentRepository['create']> =
+    Promise.resolve(right(null as never as PaymentEntity));
+
+  async create(params: CreatePaymentParams) { this.capturedCreate = params; return this.createResult; }
+  async list(_params: unknown) { return Promise.resolve(right({ data: [] as PaymentEntity[], pagination: emptyPagination, totalCents: 0 })); }
+  async listByShift(_id: string) { return Promise.resolve(right([] as PaymentEntity[])); }
+  async sumCashByShift(_id: string) { return Promise.resolve(right(0)); }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('CreateMonthlyPlanUseCase', () => {
   let usecase: CreateMonthlyPlanUseCase;
   let planRepo: MockMonthlyPlanRepository;
   let customerRepo: MockCustomerRepository;
+  let cashierRepo: MockCashierRepository;
+  let paymentRepo: MockPaymentRepository;
 
   const baseParams = (overrides: Partial<CreateMonthlyPlanParams> = {}): CreateMonthlyPlanParams => ({
     vehiclePlate: 'ABC123',
@@ -84,13 +117,17 @@ describe('CreateMonthlyPlanUseCase', () => {
     startDate: future(1),
     endDate: future(31),
     amountCents: 150_000,
+    paymentMethod: 'efectivo',
+    userId: 'user-1',
     ...overrides,
   });
 
   beforeEach(() => {
     planRepo = new MockMonthlyPlanRepository();
     customerRepo = new MockCustomerRepository();
-    usecase = new CreateMonthlyPlanUseCase(planRepo, customerRepo);
+    cashierRepo = new MockCashierRepository();
+    paymentRepo = new MockPaymentRepository();
+    usecase = new CreateMonthlyPlanUseCase(planRepo, customerRepo, cashierRepo, paymentRepo);
   });
 
   it('happy path: crea plan mensual con datos válidos', async () => {

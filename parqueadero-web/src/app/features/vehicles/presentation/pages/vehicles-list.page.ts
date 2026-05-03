@@ -118,40 +118,46 @@ export class VehiclesListPageComponent implements OnInit {
 
   protected openCreate(): void {
     const ref = this.dialog.open<VehicleFormValue | null>(VehicleEditDialogComponent, {
-      data: { vehicle: null } satisfies VehicleDialogData,
+      data: {
+        vehicle: null,
+        onSubmit: async (value) => {
+          const result = await this.createUC.execute({
+            plate: value.plate,
+            vehicleType: value.vehicleType as VehicleType,
+            color: value.color || null,
+            brand: value.brand || null,
+            ownerCustomerId: value.ownerCustomerId || null,
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies VehicleDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.createUC.execute({
-        plate: value.plate,
-        vehicleType: value.vehicleType as VehicleType,
-        color: value.color || null,
-        brand: value.brand || null,
-        ownerCustomerId: value.ownerCustomerId || null,
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Vehículo registrado exitosamente'); this.load(); },
-      );
+      this.toast.success('Vehículo registrado exitosamente');
+      this.load();
     });
   }
 
   protected openEdit(vehicle: VehicleEntity): void {
     const ref = this.dialog.open<VehicleFormValue | null>(VehicleEditDialogComponent, {
-      data: { vehicle } satisfies VehicleDialogData,
+      data: {
+        vehicle,
+        onSubmit: async (value) => {
+          const result = await this.updateUC.execute({
+            id: vehicle.id,
+            color: value.color || null,
+            brand: value.brand || null,
+            ownerCustomerId: value.ownerCustomerId || null,
+          });
+          return result.fold((f) => this.failureMsg(f), () => null);
+        },
+      } satisfies VehicleDialogData,
     });
-    ref.closed.subscribe(async (value) => {
+    ref.closed.subscribe((value) => {
       if (!value) return;
-      const result = await this.updateUC.execute({
-        id: vehicle.id,
-        color: value.color || null,
-        brand: value.brand || null,
-        ownerCustomerId: value.ownerCustomerId || null,
-      });
-      result.fold(
-        (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Vehículo actualizado'); this.load(); },
-      );
+      this.toast.success('Vehículo actualizado');
+      this.load();
     });
   }
 

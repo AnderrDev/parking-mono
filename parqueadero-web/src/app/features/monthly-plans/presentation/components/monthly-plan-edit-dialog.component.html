@@ -7,34 +7,144 @@
 
       <form class="dialog__body" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         @if (!isEdit) {
-          <div class="field-row">
-            <div class="field">
-              <label class="field__label" for="p-plate">Placa</label>
-              <input id="p-plate" class="field__input" [class.field__input--error]="err('vehiclePlate')"
-                type="text" formControlName="vehiclePlate" placeholder="ABC123"
-                style="text-transform: uppercase"
-                [attr.aria-describedby]="err('vehiclePlate') ? 'p-plate-err' : null" />
-              @if (err('vehiclePlate')) {
-                <span id="p-plate-err" class="field__error" role="alert">{{ errMsg('vehiclePlate') }}</span>
-              }
-            </div>
-            <div class="field">
-              <label class="field__label" for="p-type">Tipo de plan</label>
-              <select id="p-type" class="field__select" formControlName="planType">
-                @for (pt of planTypes; track pt.value) {
-                  <option [value]="pt.value">{{ pt.label }}</option>
-                }
-              </select>
-            </div>
+          <div class="field">
+            <label class="field__label" for="p-plate">Placa</label>
+            <input id="p-plate" class="field__input field__input--plate"
+              [class.field__input--error]="err('vehiclePlate')"
+              type="text" formControlName="vehiclePlate" placeholder="ABC123"
+              autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6"
+              [attr.aria-describedby]="err('vehiclePlate') ? 'p-plate-err' : null" />
+            @if (err('vehiclePlate')) {
+              <span id="p-plate-err" class="field__error" role="alert">{{ errMsg('vehiclePlate') }}</span>
+            }
           </div>
 
           <div class="field">
-            <label class="field__label" for="p-customer">ID de cliente (UUID)</label>
-            <input id="p-customer" class="field__input" [class.field__input--error]="err('customerId')"
-              type="text" formControlName="customerId" placeholder="uuid del cliente"
-              [attr.aria-describedby]="err('customerId') ? 'p-customer-err' : null" />
-            @if (err('customerId')) {
-              <span id="p-customer-err" class="field__error" role="alert">{{ errMsg('customerId') }}</span>
+            <span class="field__label">Tipo de vehículo</span>
+            <div class="vehicle-types" role="radiogroup">
+              @for (vt of vehicleTypes; track vt.value) {
+                <label class="vt-chip" [class.vt-chip--selected]="form.get('vehicleType')?.value === vt.value">
+                  <input type="radio" formControlName="vehicleType" [value]="vt.value" class="sr-only" />
+                  <span>{{ vt.label }}</span>
+                </label>
+              }
+            </div>
+            <span class="field__hint-inline">El precio se ajusta según el tipo</span>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="p-customer">Cliente</label>
+            @if (selectedCustomer(); as c) {
+              <div class="customer-chip">
+                <div class="customer-chip__info">
+                  <span class="customer-chip__name">{{ c.name }}</span>
+                  @if (c.docNumber) {
+                    <span class="customer-chip__doc">{{ c.docType }} {{ c.docNumber }}</span>
+                  }
+                </div>
+                <button type="button" class="customer-chip__clear" (click)="clearCustomer()" aria-label="Quitar cliente">×</button>
+              </div>
+            } @else if (creatingCustomer()) {
+              <div class="new-customer-form" [formGroup]="newCustomerForm">
+                <p class="new-customer-form__title">Crear cliente nuevo</p>
+
+                <div class="field">
+                  <label class="field__label" for="nc-name">Nombre completo</label>
+                  <input id="nc-name" class="field__input"
+                    [class.field__input--error]="newCustomerErr('name')"
+                    type="text" formControlName="name"
+                    placeholder="Ej: Juan Pérez" autocomplete="off" />
+                  @if (newCustomerErr('name')) {
+                    <span class="field__error" role="alert">{{ newCustomerErrMsg('name') }}</span>
+                  }
+                </div>
+
+                <div class="field-row">
+                  <div class="field">
+                    <label class="field__label" for="nc-doctype">Tipo de documento</label>
+                    <select id="nc-doctype" class="field__select" formControlName="docType">
+                      @for (dt of docTypes; track dt.value) {
+                        <option [value]="dt.value">{{ dt.label }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field__label" for="nc-docnum">Número de documento</label>
+                    <input id="nc-docnum" class="field__input"
+                      [class.field__input--error]="newCustomerErr('docNumber')"
+                      type="text" formControlName="docNumber"
+                      placeholder="1234567890" autocomplete="off" inputmode="numeric" />
+                    @if (newCustomerErr('docNumber')) {
+                      <span class="field__error" role="alert">{{ newCustomerErrMsg('docNumber') }}</span>
+                    }
+                  </div>
+                </div>
+
+                @if (isNewCustomerNit()) {
+                  <div class="field">
+                    <label class="field__label" for="nc-dv">Dígito de verificación (DV)</label>
+                    <input id="nc-dv" class="field__input"
+                      type="number" min="0" max="9"
+                      formControlName="dv"
+                      placeholder="0-9" />
+                  </div>
+                }
+
+                @if (creatingCustomerError()) {
+                  <p class="field__error" role="alert">{{ creatingCustomerError() }}</p>
+                }
+
+                <div class="new-customer-form__actions">
+                  <button type="button" class="btn btn--ghost"
+                    (click)="cancelCreateCustomer()" [disabled]="creatingCustomerLoading()">
+                    Cancelar
+                  </button>
+                  <button type="button" class="btn btn--primary"
+                    (click)="submitCreateCustomer()" [disabled]="creatingCustomerLoading()">
+                    {{ creatingCustomerLoading() ? 'Creando…' : 'Crear y seleccionar' }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <input id="p-customer" class="field__input"
+                [class.field__input--error]="err('customerId')"
+                type="text"
+                [value]="customerQuery()"
+                (input)="onCustomerSearch($event)"
+                placeholder="Buscar por nombre o documento (mín. 3 letras)"
+                autocomplete="off"
+                [attr.aria-describedby]="err('customerId') ? 'p-customer-err' : null" />
+
+              @if (customerSearchLoading()) {
+                <p class="customer-search__hint">Buscando…</p>
+              } @else if (customerQuery().length >= 3 && customerResults().length === 0) {
+                <p class="customer-search__hint">Sin coincidencias para "{{ customerQuery() }}".</p>
+              } @else if (customerResults().length > 0) {
+                <ul class="customer-results" role="listbox">
+                  @for (c of customerResults(); track c.id) {
+                    <li>
+                      <button type="button" class="customer-results__item"
+                        (click)="selectCustomer(c)" role="option" aria-selected="false">
+                        <span class="customer-results__name">{{ c.name }}</span>
+                        @if (c.docNumber) {
+                          <span class="customer-results__doc">{{ c.docType }} {{ c.docNumber }}</span>
+                        }
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <!-- Botón siempre visible: el operador no tiene que "fallar"
+                   una búsqueda para descubrir que puede crear cliente. -->
+              <button type="button" class="btn btn--secondary btn--small customer-search__create-btn"
+                (click)="openCreateCustomer()">
+                + Crear cliente nuevo
+              </button>
+
+              @if (err('customerId')) {
+                <span id="p-customer-err" class="field__error" role="alert">{{ errMsg('customerId') }}</span>
+              }
             }
           </div>
 
@@ -43,19 +153,16 @@
               <label class="field__label" for="p-start">Fecha inicio</label>
               <input id="p-start" class="field__input" [class.field__input--error]="err('startDate')"
                 type="date" formControlName="startDate"
+                [min]="todayIso"
                 [attr.aria-describedby]="err('startDate') ? 'p-start-err' : null" />
               @if (err('startDate')) {
                 <span id="p-start-err" class="field__error" role="alert">{{ errMsg('startDate') }}</span>
               }
             </div>
             <div class="field">
-              <label class="field__label" for="p-end">Fecha fin</label>
-              <input id="p-end" class="field__input" [class.field__input--error]="err('endDate')"
-                type="date" formControlName="endDate"
-                [attr.aria-describedby]="err('endDate') ? 'p-end-err' : null" />
-              @if (err('endDate')) {
-                <span id="p-end-err" class="field__error" role="alert">{{ errMsg('endDate') }}</span>
-              }
+              <label class="field__label" for="p-end">Fecha fin <span class="field__hint-inline">(automática: 30 días)</span></label>
+              <input id="p-end" class="field__input"
+                type="date" formControlName="endDate" />
             </div>
           </div>
         } @else {
@@ -96,6 +203,21 @@
             @if (err('amountCents')) {
               <span id="p-amount-err" class="field__error" role="alert">{{ errMsg('amountCents') }}</span>
             }
+            @if (tariffNotConfigured()) {
+              <span class="field__hint-inline field__hint-inline--warn">
+                Sin tarifa configurada para este tipo · ingresá el monto manualmente
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="p-payment-method">Método de pago</label>
+            <select id="p-payment-method" class="field__select" formControlName="paymentMethod">
+              @for (m of paymentMethods; track m.value) {
+                <option [value]="m.value">{{ m.label }}</option>
+              }
+            </select>
+            <span class="field__hint-inline">El ingreso se contabiliza en tu turno de caja</span>
           </div>
         }
 
@@ -112,10 +234,18 @@
           </div>
         }
 
+        @if (submitError()) {
+          <div class="submit-error" role="alert">
+            <span class="submit-error__icon" aria-hidden="true">⚠</span>
+            <span class="submit-error__text">{{ submitError() }}</span>
+          </div>
+        }
+
         <div class="dialog__actions">
-          <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
-          <button type="submit" class="btn btn--primary">
-            {{ isEdit ? 'Guardar cambios' : 'Crear plan' }}
+          <button type="button" class="btn btn--ghost"
+            (click)="cancel()" [disabled]="submitting()">Cancelar</button>
+          <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+            {{ submitting() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear plan') }}
           </button>
         </div>
       </form>

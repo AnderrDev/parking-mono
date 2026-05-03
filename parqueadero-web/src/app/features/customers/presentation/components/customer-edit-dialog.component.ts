@@ -7,6 +7,11 @@ import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 
 export interface CustomerDialogData {
   customer: CustomerEntity | null;
+  /** Si se provee, el dialog mantiene abierto el formulario en caso de
+   * error y muestra el mensaje retornado inline. Patrón para evitar
+   * pérdida de datos al rechazar el backend. Ver
+   * `feedback_dialog_inline_errors.md` en memory. */
+  onSubmit?: (value: CustomerFormValue) => Promise<string | null>;
 }
 
 export interface CustomerFormValue {
@@ -45,6 +50,8 @@ export class CustomerEditDialogComponent implements OnInit {
   protected readonly docTypes = DOC_TYPES;
   protected get isEdit(): boolean { return this.data.customer !== null; }
   protected readonly isNit = signal(false);
+  protected readonly submitting = signal(false);
+  protected readonly submitError = signal<string | null>(null);
 
   ngOnInit(): void {
     const c = this.data.customer;
@@ -79,10 +86,24 @@ export class CustomerEditDialogComponent implements OnInit {
     return getErrorMessage(this.form.get(field)?.errors ?? null);
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
-    this.dialogRef.close(this.form.getRawValue() as CustomerFormValue);
+    const value = this.form.getRawValue() as CustomerFormValue;
+
+    if (this.data.onSubmit) {
+      this.submitting.set(true);
+      this.submitError.set(null);
+      const errorMsg = await this.data.onSubmit(value);
+      this.submitting.set(false);
+      if (errorMsg) {
+        this.submitError.set(errorMsg);
+        return;
+      }
+      this.dialogRef.close(value);
+      return;
+    }
+    this.dialogRef.close(value);
   }
 
   protected cancel(): void { this.dialogRef.close(null); }

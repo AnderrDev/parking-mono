@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { VehicleEntity } from '../../../parking/domain/entities/vehicle.entity';
@@ -7,6 +7,9 @@ import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 
 export interface VehicleDialogData {
   vehicle: VehicleEntity | null;
+  /** Si se provee, el dialog se mantiene abierto en error y muestra
+   * el mensaje inline. Ver `feedback_dialog_inline_errors.md`. */
+  onSubmit?: (value: VehicleFormValue) => Promise<string | null>;
 }
 
 export interface VehicleFormValue {
@@ -40,6 +43,8 @@ export class VehicleEditDialogComponent implements OnInit {
   protected form!: FormGroup;
   protected readonly vehicleTypes = VEHICLE_TYPES;
   protected get isEdit(): boolean { return this.data.vehicle !== null; }
+  protected readonly submitting = signal(false);
+  protected readonly submitError = signal<string | null>(null);
 
   ngOnInit(): void {
     const v = this.data.vehicle;
@@ -66,10 +71,24 @@ export class VehicleEditDialogComponent implements OnInit {
     return getErrorMessage(this.form.get(field)?.errors ?? null);
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
-    this.dialogRef.close(this.form.getRawValue() as VehicleFormValue);
+    const value = this.form.getRawValue() as VehicleFormValue;
+
+    if (this.data.onSubmit) {
+      this.submitting.set(true);
+      this.submitError.set(null);
+      const errorMsg = await this.data.onSubmit(value);
+      this.submitting.set(false);
+      if (errorMsg) {
+        this.submitError.set(errorMsg);
+        return;
+      }
+      this.dialogRef.close(value);
+      return;
+    }
+    this.dialogRef.close(value);
   }
 
   protected cancel(): void { this.dialogRef.close(null); }
