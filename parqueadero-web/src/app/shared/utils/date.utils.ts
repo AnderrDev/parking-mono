@@ -41,6 +41,24 @@ export function durationMinutes(from: Date | string, to: Date | string): number 
   return Math.max(0, Math.floor(diff / 60_000));
 }
 
+/**
+ * Devuelve la fecha actual en formato `YYYY-MM-DD` interpretada en zona
+ * America/Bogota (no UTC). Útil para defaults en `<input type="date">`,
+ * que espera el calendario local del usuario.
+ */
+export function todayIsoBogota(): string {
+  return format(toBogota(new Date()), 'yyyy-MM-dd');
+}
+
+/**
+ * Devuelve `today + days` en formato `YYYY-MM-DD` (zona Bogotá).
+ */
+export function isoBogotaPlusDays(days: number): string {
+  const base = toBogota(new Date());
+  base.setDate(base.getDate() + days);
+  return format(base, 'yyyy-MM-dd');
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} m`;
   const days = Math.floor(minutes / 1440);

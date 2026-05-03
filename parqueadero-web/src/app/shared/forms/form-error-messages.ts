@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   invalidColombianPhone: 'Ingresa un celular colombiano válido (ej: 3001234567)',
   notANumber: 'Debe ser un número',
   notPositive: 'Debe ser un número mayor a cero',
+  notMultipleOfCents: 'El valor debe ser múltiplo de $50',
   passwordsDoNotMatch: 'La nueva contraseña y la confirmación no coinciden',
   passwordMustDiffer: 'La nueva contraseña debe ser distinta a la actual',
 };
