@@ -48,7 +48,12 @@ Operador, Admin (en el momento del cobro o a posteriori).
 
 1. **Numeración interna**: la EF asigna `internalNumber` via `nextval_invoices()` (existente). Formato `FAC-YYYY-MM-DD-NNNNNN`. NUNCA del cliente.
 2. **Numeración fiscal**: el `siigoNumber` lo asigna Siigo y aparece en la entidad cuando `siigoStatus = 'Stamped'` (puede no estar en el primer retorno si Siigo todavía está procesando).
-3. **IVA**: 19 % sobre el `subtotal_cents` del payment. La EF aplica `tax_cents = round(subtotal_cents * 0.19)`, `total_cents = subtotal_cents + tax_cents`.
+3. **IVA (precio con IVA incluido — régimen común)**: la EF lee `app_settings.tax_config` y aplica la fórmula canónica de `parqueadero-backend/specs/tax-config.spec.md`:
+   - `total_cents = payment.amount_cents` (lo cobrado en caja, ya incluye IVA).
+   - `base_cents (subtotal) = round(total_cents / (1 + iva_rate))`.
+   - `tax_cents = total_cents - base_cents` (residuo, garantiza `base + iva = total`).
+   - Ejemplo con `iva_rate=0.19` y `payment.amount_cents=5000`: `subtotal=4202`, `tax=798`, `total=5000`.
+   - Si `iva_responsible=false`: `tax_cents=0`, `subtotal_cents=total_cents`.
 4. **Bloqueo plan mensual**: si la sesión cierra contra mensualidad, esta UseCase no se invoca. Si por error se invoca, la EF responde 409 → mapeamos a `BusinessRuleFailure`.
 5. **Idempotencia**: si ya hay invoice no-rechazada para `session_id`, la EF retorna 200 con la existente. El UseCase la propaga como `Right(invoice)` sin nuevo registro.
 6. **Estados intermedios visibles**: la entidad retornada puede tener `siigoStatus = 'pending' | 'InProcess' | 'Sent' | 'Stamped'`. La UI maneja todos como "éxito local — esperar confirmación" salvo `Stamped` que es "listo".

@@ -21,6 +21,7 @@ import {
 import { mapStampStatus } from '../_shared/siigo/poll-mapper.ts';
 import type { SiigoInvoiceResponse, SiigoStatusInternal, CustomerForSiigo } from '../_shared/siigo/types.ts';
 import { SiigoAuthError, SiigoCustomerError } from '../_shared/siigo/errors.ts';
+import { extractInvoiceAmounts, getTaxConfig } from '../_shared/tax/extract.ts';
 
 interface RequestBody {
   session_id: string;
@@ -28,8 +29,17 @@ interface RequestBody {
   notes?: string | null;
 }
 
-const TAX_PERCENT = Number(Deno.env.get('SIIGO_TAX_IVA_PERCENT') ?? '19');
+// IVA: la tasa se carga desde app_settings.tax_config (ver _shared/tax/extract.ts).
+// SIIGO_TAX_IVA_PERCENT (env) queda deprecado; SIIGO_TAX_IVA_ID sigue siendo el id
+// del impuesto en Siigo y se sigue leyendo desde el mapper.
 const SIIGO_BASE_URL = (Deno.env.get('SIIGO_BASE_URL') ?? 'https://api.siigo.com').replace(/\/$/, '');
+
+// Modo mock local: si no hay credenciales Siigo, generar respuesta sintética
+// y NO tocar la red. Pensado para desarrollo y pruebas manuales sin sandbox.
+// Spec: ../../specs/edge-functions/siigo-emit-invoice.spec.md §"Modo mock local".
+const SIIGO_MOCK_MODE =
+  (Deno.env.get('SIIGO_USERNAME') ?? '').trim() === '' ||
+  (Deno.env.get('SIIGO_ACCESS_KEY') ?? '').trim() === '';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -137,35 +147,36 @@ Deno.serve(async (req: Request) => {
     }, 422);
   }
 
-  // ─── Token Siigo ──────────────────────────────────────────────────
-  let token: string;
-  try {
-    token = await getSiigoToken(supabase);
-  } catch (err) {
-    if (err instanceof SiigoAuthError) {
-      return jsonResponse({ error: 'Siigo Auth no disponible', details: err.message }, 503);
+  // ─── Token Siigo + Customer Siigo (skipeados en modo mock) ────────
+  let token = '';
+  let siigoCustomerId = '';
+  if (!SIIGO_MOCK_MODE) {
+    try {
+      token = await getSiigoToken(supabase);
+    } catch (err) {
+      if (err instanceof SiigoAuthError) {
+        return jsonResponse({ error: 'Siigo Auth no disponible', details: err.message }, 503);
+      }
+      throw err;
     }
-    throw err;
-  }
 
-  // ─── Customer en Siigo (auto-create on-demand) ────────────────────
-  let siigoCustomerId: string;
-  try {
-    const result = await ensureSiigoCustomer(
-      supabase,
-      token,
-      SIIGO_BASE_URL,
-      customer as CustomerForSiigo,
-    );
-    siigoCustomerId = result.siigoCustomerId;
-  } catch (err) {
-    if (err instanceof SiigoCustomerError) {
-      return jsonResponse({
-        error: 'Siigo rechazó el alta del cliente',
-        details: err.message,
-      }, 422);
+    try {
+      const result = await ensureSiigoCustomer(
+        supabase,
+        token,
+        SIIGO_BASE_URL,
+        customer as CustomerForSiigo,
+      );
+      siigoCustomerId = result.siigoCustomerId;
+    } catch (err) {
+      if (err instanceof SiigoCustomerError) {
+        return jsonResponse({
+          error: 'Siigo rechazó el alta del cliente',
+          details: err.message,
+        }, 422);
+      }
+      throw err;
     }
-    throw err;
   }
 
   // ─── Numeración interna + INSERT pending ──────────────────────────
@@ -174,9 +185,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Error generando número interno' }, 500);
   }
 
-  const subtotalCents = Number(payment.amount_cents);
-  const taxCents = Math.round(subtotalCents * (TAX_PERCENT / 100));
-  const totalCents = subtotalCents + taxCents;
+  // IVA INCLUIDO en el precio cobrado (régimen común CO, B2C). El cajero
+  // recibe `payment.amount_cents` como TOTAL; extraemos base e IVA de ahí.
+  // Ver specs/tax-config.spec.md.
+  const taxConfig = await getTaxConfig(supabase);
+  const amounts = extractInvoiceAmounts(Number(payment.amount_cents), taxConfig);
+  const subtotalCents = amounts.base_cents;
+  const taxCents = amounts.iva_cents;
+  const totalCents = amounts.total_cents;
   const issuedAt = new Date().toISOString();
 
   const { data: inserted, error: insertErr } = await supabase
@@ -245,6 +261,25 @@ Deno.serve(async (req: Request) => {
   let updatePatch: Record<string, unknown> = {};
   let lastError: string | null = null;
 
+  if (SIIGO_MOCK_MODE) {
+    // Modo mock: respuesta sintética inmediata, sin red.
+    siigoStatus = 'Stamped';
+    const mockUuid = crypto.randomUUID();
+    updatePatch = {
+      siigo_status: 'Stamped',
+      siigo_id: `mock-${mockUuid}`,
+      siigo_number: `MOCK-${internalNumber.split('-').pop()}`,
+      siigo_cufe: `MOCK-CUFE-${mockUuid}`,
+      siigo_cude: null,
+      siigo_pdf_url: null,
+      siigo_xml_url: null,
+      siigo_qr_url: null,
+      siigo_observations: ['Modo mock local — sin proveedor Siigo configurado'],
+      siigo_attempts: 0,
+      siigo_last_attempt_at: new Date().toISOString(),
+      siigo_last_error: null,
+    };
+  } else {
   try {
     const res = await siigoFetch<SiigoInvoiceResponse>(
       supabase,
@@ -300,6 +335,7 @@ Deno.serve(async (req: Request) => {
       siigo_last_attempt_at: new Date().toISOString(),
       siigo_last_error: lastError,
     };
+  }
   }
 
   // ─── UPDATE invoice + vincular payment ────────────────────────────

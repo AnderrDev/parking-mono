@@ -51,7 +51,7 @@ JWT de Supabase (Bearer token). Roles permitidos: `admin`, `operador`, `contador
 2. **Reemisión**: Si `reissue = true`, cargar factura existente por `invoice_id`, mantener el número y llamar de nuevo al servicio DIAN.
 3. **Estado 'accepted' bloqueante**: Si la sesión ya tiene factura `accepted`, retornar 409 Conflict.
 4. **Stub vs real**: Si `DIAN_FE_SERVICE_URL` está vacía o ausente → usar stub. La respuesta del stub tiene exactamente la misma forma que la respuesta real del `dian-fe-service`.
-5. **IVA**: `tax_cents = Math.round(amount_cents * 0.19)`, `total_cents = amount_cents + tax_cents`.
+5. **IVA (precio con IVA incluido — régimen común)**: cargar `app_settings.tax_config` y aplicar la fórmula canónica de `parqueadero-backend/specs/tax-config.spec.md`. `total_cents = payment.amount_cents`; `subtotal_cents = round(total_cents / (1 + iva_rate))`; `tax_cents = total_cents - subtotal_cents`. (Nota: esta EF está deprecada por `siigo-emit-invoice` desde Fase 11; el cambio se mantiene para coherencia si alguna instalación stub sigue activa.)
 6. **Timeout DIAN**: Si el servicio tarda > 28 s → guardar con `dian_status = 'contingency'`, retornar 200 con ese estado.
 
 ## Stub (cuando `DIAN_FE_SERVICE_URL` no está configurado)

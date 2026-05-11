@@ -1,6 +1,15 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// DEPRECATED — Esta Edge Function se elimina en Fase 11 / S9 (cutover Siigo).
+// El frontend ya invoca `siigo-emit-invoice` directamente. Se preserva
+// únicamente para compatibilidad con clientes legacy y se apaga en S9.
+//
+// IMPORTANTE: el cómputo de IVA se alineó con el helper compartido
+// `_shared/tax/extract.ts` (régimen común, IVA INCLUIDO en precio) — antes
+// sumaba IVA encima, lo cual inflaba totales y contradecía
+// `specs/tax-config.spec.md` y la migración 00016.
 
-const TAX_RATE = 0.19;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getTaxConfig, extractInvoiceAmounts } from '../_shared/tax/extract.ts';
+
 const DIAN_TIMEOUT_MS = 28_000;
 
 interface RequestBody {
@@ -193,10 +202,14 @@ Deno.serve(async (req: Request) => {
   }
   const invoiceNumber = buildInvoiceNumber(Number(seqData));
 
-  // 4. Calculate amounts
+  // 4. Calculate amounts — extraer base + IVA del total cobrado.
+  // NO sumar IVA encima: el precio cobrado en caja YA incluye IVA (régimen común).
   const amountCents = Number(payment?.['amount_cents'] ?? 0);
-  const taxCents = Math.round(amountCents * TAX_RATE);
-  const totalCents = amountCents + taxCents;
+  const taxConfig = await getTaxConfig(supabase);
+  const amounts = extractInvoiceAmounts(amountCents, taxConfig);
+  const subtotalCents = amounts.base_cents;
+  const taxCents = amounts.iva_cents;
+  const totalCents = amounts.total_cents;
 
   // 5. Call DIAN service or stub
   const dianUrl = Deno.env.get('DIAN_FE_SERVICE_URL') ?? '';
@@ -207,7 +220,7 @@ Deno.serve(async (req: Request) => {
     customer_email: customer['email'],
     invoice_type: '01',
     invoice_date: new Date().toISOString(),
-    subtotal_cents: amountCents,
+    subtotal_cents: subtotalCents,
     tax_cents: taxCents,
     total_cents: totalCents,
     internal_number: invoiceNumber,
@@ -225,7 +238,7 @@ Deno.serve(async (req: Request) => {
       internal_number: invoiceNumber,
       customer_id,
       session_id,
-      subtotal_cents: amountCents,
+      subtotal_cents: subtotalCents,
       tax_cents: taxCents,
       total_cents: totalCents,
       siigo_status: dianToSiigoStatus(dianResponse.dian_status),
