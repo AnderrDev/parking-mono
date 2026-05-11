@@ -29,6 +29,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "lucide-angular": "^1.0.0",
+    "qrcode": "^1.5.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"
@@ -38,6 +39,7 @@
     "@angular/cli": "^18.2.21",
     "@angular/compiler-cli": "^18.2.0",
     "@types/jasmine": "~5.1.0",
+    "@types/qrcode": "^1.5.5",
     "angular-eslint": "18.4.3",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^10.1.8",
