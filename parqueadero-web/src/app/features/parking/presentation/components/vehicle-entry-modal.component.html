@@ -1,0 +1,57 @@
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
+  <header class="modal__head">
+    <h2 id="entry-modal-title" class="modal__title">Registrar entrada</h2>
+    <button
+      type="button"
+      class="modal__close"
+      aria-label="Cerrar sin registrar"
+      (click)="onCancel()"
+    >
+      ×
+    </button>
+  </header>
+
+  @if (errorBanner()) {
+    <div class="modal__error" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ errorBanner() }}</span>
+    </div>
+  }
+
+  <div class="modal__body">
+    <app-vehicle-entry-form
+      #entryForm
+      [availableTypes]="data.availableTypes"
+      [loading]="submitting()"
+      [hideSubmitButton]="true"
+      (submitted)="onSubmit($event)"
+    />
+  </div>
+
+  <footer class="modal__foot">
+    <button type="button" class="btn btn--ghost" (click)="onCancel()" [disabled]="submitting()">
+      Cancelar
+    </button>
+    <button
+      type="button"
+      class="btn btn--primary"
+      (click)="onConfirmClick()"
+      [disabled]="submitting()"
+    >
+      @if (submitting()) {
+        <span>Registrando…</span>
+      } @else {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <span>Confirmar e imprimir ticket</span>
+      }
+    </button>
+  </footer>
+</div>

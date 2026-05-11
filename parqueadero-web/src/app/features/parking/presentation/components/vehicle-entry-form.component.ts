@@ -42,6 +42,10 @@ export class VehicleEntryFormComponent implements OnInit {
   // (no bloquear durante el load inicial). Si llega con valores, los chips
   // fuera de la lista quedan deshabilitados con tooltip explicativo.
   availableTypes = input<VehicleType[] | null>(null);
+  // Cuando vive dentro de un modal, el padre aporta su propio footer con
+  // "Confirmar"/"Cancelar". El form expone `onSubmit()` público para que
+  // el modal lo invoque vía @ViewChild.
+  hideSubmitButton = input(false);
   submitted = output<VehicleEntryFormValue>();
 
   form!: FormGroup;
