@@ -8,6 +8,8 @@ Nombre: `YYYY-MM-DD-<slug>.md`. Plantilla en `TEMPLATE.md`. Una entrada por sesi
 
 Mantén actualizado el índice cronológico abajo (más reciente arriba):
 
+- [2026-05-09 — Fix CDK Dialog: route injector en todos los modales](./2026-05-09-fix-cdk-dialog-route-injector.md)
+- [2026-05-04 — Tax config + corrección fórmula IVA en facturas](./2026-05-04-tax-iva-spec.md)
 - [2026-05-03 — Auditoría: duplicación, archivos > 400, componentización](./2026-05-03-audit-componentizacion.md)
 - [2026-05-03 — Reports: UX rica (presets, deltas, gráficos, tab contable)](./2026-05-03-reports-ux-rich.md)
 - [2026-05-02 — Siigo (Fase 11): S5 cron polling + pg_cron](./2026-05-02-siigo-fase-11-s5.md)
