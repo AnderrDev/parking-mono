@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, Inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, OnInit, ViewContainerRef, inject, signal,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { CustomerEntity } from '../../domain/entities/customer.entity';
@@ -62,7 +62,12 @@ export class CustomersListPageComponent implements OnInit {
     @Inject(DEACTIVATE_CUSTOMER_TOKEN) private readonly deactivateUC: DeactivateCustomerUseCase,
     private readonly dialog: Dialog,
     private readonly toast: ToastService,
+    /** Anclar overlay del dialog. */
+    private readonly vcr: ViewContainerRef,
   ) {}
+
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   ngOnInit(): void { this.load(); }
 
@@ -109,6 +114,8 @@ export class CustomersListPageComponent implements OnInit {
 
   protected openCreate(): void {
     const ref = this.dialog.open<CustomerFormValue | null>(CustomerEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         customer: null,
         onSubmit: async (value) => {
@@ -139,6 +146,8 @@ export class CustomersListPageComponent implements OnInit {
 
   protected openEdit(customer: CustomerEntity): void {
     const ref = this.dialog.open<CustomerFormValue | null>(CustomerEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         customer,
         onSubmit: async (value) => {
@@ -167,6 +176,8 @@ export class CustomersListPageComponent implements OnInit {
 
   protected confirmDeactivate(customer: CustomerEntity): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Desactivar cliente',
         message: `¿Desactivar a "${customer.name}"? Esta acción aplica soft delete.`,

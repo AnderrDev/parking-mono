@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, Inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, OnInit, ViewContainerRef, inject, signal,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { TariffEntity, TariffUnit } from '../../../parking/domain/entities/tariff.entity';
@@ -68,7 +68,12 @@ export class TariffsListPageComponent implements OnInit {
     @Inject(DEACTIVATE_TARIFF_TOKEN) private readonly deactivateUC: DeactivateTariffUseCase,
     private readonly dialog: Dialog,
     private readonly toast: ToastService,
+    /** Anclar overlay del dialog. */
+    private readonly vcr: ViewContainerRef,
   ) {}
+
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   ngOnInit(): void { this.load(); }
 
@@ -109,6 +114,8 @@ export class TariffsListPageComponent implements OnInit {
 
   protected openCreate(): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         tariff: null,
         onSubmit: async (value) => {
@@ -135,6 +142,8 @@ export class TariffsListPageComponent implements OnInit {
 
   protected openEdit(tariff: TariffEntity): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         tariff,
         onSubmit: async (value) => {
@@ -161,6 +170,8 @@ export class TariffsListPageComponent implements OnInit {
 
   protected confirmDeactivate(tariff: TariffEntity): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Desactivar tarifa',
         message: `¿Desactivar "${tariff.name}"? Las sesiones en curso no se verán afectadas.`,

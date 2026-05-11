@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  EnvironmentInjector,
   Inject,
   OnInit,
+  ViewContainerRef,
   inject,
   signal,
 } from '@angular/core';
@@ -50,6 +52,10 @@ export class UsersListPageComponent implements OnInit {
   private readonly dialog = inject(Dialog);
   private readonly toast = inject(ToastService);
   protected readonly authState = inject(AuthStateService);
+  /** Anclar overlay del dialog. */
+  private readonly vcr = inject(ViewContainerRef);
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   constructor(
     @Inject(LIST_USERS_TOKEN) private readonly listUC: ListUsersUseCase,
@@ -76,7 +82,10 @@ export class UsersListPageComponent implements OnInit {
   }
 
   protected openCreateDialog(): void {
-    const ref = this.dialog.open<UserCreateFormValue | undefined>(UserCreateDialogComponent, {});
+    const ref = this.dialog.open<UserCreateFormValue | undefined>(UserCreateDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
+    });
     ref.closed.subscribe(async (value) => {
       if (!value) return;
       const result = await this.createUC.execute(value);
