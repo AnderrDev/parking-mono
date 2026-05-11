@@ -150,19 +150,46 @@ INDEXES:
 ```
 
 ### 7. `invoices`
+
+**Nota histórica (Fase 11 / S2):** la columna `number` se renombró a
+`internal_number` en `00013_siigo_integration.sql` y se agregaron columnas
+`siigo_*` para la integración Siigo. Los campos `dian_*` y `cufe` se
+preservan como derivados via trigger `sync_dian_from_siigo` (compatibilidad
+con queries históricas).
+
 ```sql
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
-number TEXT UNIQUE NOT NULL
-cufe TEXT UNIQUE
+internal_number TEXT UNIQUE NOT NULL  -- ex `number`. Consecutivo operacional propio (FAC-YYYY-MM-DD-NNNN). NO es el fiscal DIAN.
+cufe TEXT UNIQUE                       -- legacy: derivado via trigger desde siigo_cufe
 tipo_documento TEXT NOT NULL CHECK (tipo_documento IN ('01', '02', '91'))  -- 01: factura, 02: nota crédito, 91: nota débito
 customer_id UUID NOT NULL REFERENCES customers(id)
 subtotal_cents BIGINT NOT NULL DEFAULT 0
 tax_cents BIGINT NOT NULL DEFAULT 0
 total_cents BIGINT NOT NULL DEFAULT 0
 dian_status TEXT NOT NULL DEFAULT 'pending' CHECK (dian_status IN ('pending', 'sent', 'accepted', 'rejected', 'contingency'))
-dian_cufe TEXT
-dian_xml_url TEXT
-dian_pdf_url TEXT
+                                       -- DERIVED: trigger sync_dian_from_siigo lo deriva desde siigo_status. NO escribir directo.
+dian_cufe TEXT                         -- DERIVED desde siigo_cufe
+dian_xml_url TEXT                      -- DERIVED desde siigo_xml_url
+dian_pdf_url TEXT                      -- DERIVED desde siigo_pdf_url
+
+-- === Columnas Siigo (00013) ===
+siigo_id              TEXT UNIQUE       -- ID interno Siigo para GET /v1/invoices/{id}
+siigo_number          TEXT              -- consecutivo fiscal asignado por Siigo
+siigo_status          TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (siigo_status IN (
+                        'pending','InProcess','Sent','Stamped','Rejected',
+                        'queued_offline','error_max_retries'))
+siigo_observations    JSONB
+siigo_pdf_url         TEXT
+siigo_xml_url         TEXT
+siigo_qr_url          TEXT
+siigo_cufe            TEXT              -- CUFE devuelto por Siigo (UNIQUE parcial — ver 00017)
+siigo_cude            TEXT
+siigo_attempts        INTEGER NOT NULL DEFAULT 0
+siigo_last_attempt_at TIMESTAMPTZ
+siigo_last_error      TEXT
+requested_invoice     BOOLEAN NOT NULL DEFAULT FALSE  -- TRUE = cliente pidió FE; FALSE = ticket POS interno
+
 issued_at TIMESTAMPTZ NOT NULL DEFAULT now()
 payment_id UUID REFERENCES payments(id)
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -170,10 +197,18 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 _deleted BOOLEAN NOT NULL DEFAULT FALSE
 
 INDEXES:
-  - UNIQUE(number)
+  - UNIQUE(internal_number)
+  - UNIQUE(cufe)                                              -- legacy
+  - UNIQUE(siigo_id) WHERE siigo_id IS NOT NULL               -- 00013
+  - UNIQUE(siigo_cufe) WHERE siigo_cufe IS NOT NULL           -- 00017 (defensa anti-duplicado fiscal)
   - INDEX(customer_id)
   - INDEX(dian_status)
   - INDEX(issued_at DESC)
+  - INDEX(siigo_status, siigo_attempts) WHERE siigo_status IN ('pending','InProcess','Sent')  -- 00013, hot path del cron poller
+
+REPLICATION:
+  - REPLICA IDENTITY FULL                                     -- 00018
+  - publicada en `supabase_realtime` para refresh in-app de siigo_status
 ```
 
 ### 8. `invoice_lines`

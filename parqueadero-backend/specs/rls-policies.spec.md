@@ -10,15 +10,24 @@ Define exactamente qué puede ver, insertar, actualizar y deletar cada rol de us
 - `contador`: Lectura de reportes y auditoría
 - `anon`: Sin acceso a nada (login requerido)
 
-## Dependencia: JWT custom claim `role`
+## Dependencia: JWT custom claim `user_role`
 
-Las policies usan `auth.jwt() ->> 'role'`. El claim `role` se inyecta vía un `custom_access_token_hook` que se implementa en **Fase 3 (Auth)**. Sin ese hook el JWT solo trae los claims default de Supabase (`role` = `authenticated` o `anon`, no el rol app).
+Las policies usan `auth.jwt() ->> 'user_role'`. El claim se inyecta vía
+`custom_access_token_hook`, **ya implementado** en migration `00005_auth_jwt_hook.sql`
+(Fase 1) y permisos corregidos en `00008_jwt_hook_permissions.sql`.
 
-**En Fase 1** (esta) los tests RLS simulan el claim manualmente:
+> **Nota histórica (2026-04-29):** el claim originalmente se llamaba `role`
+> pero `PostgREST` interpretaba ese nombre como el rol PG y rompía las
+> queries del cliente. La migration `00009_rename_role_claim.sql` lo
+> renombró a `user_role` y actualizó las 12 policies afectadas. Cualquier
+> referencia futura a `role` en context JWT debe leer `user_role`.
+
+Los tests RLS simulan el claim manualmente con:
 ```sql
-SET LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"admin","email":"..."}';
+SET LOCAL request.jwt.claims = '{"sub":"<uuid>","user_role":"admin","email":"..."}';
 ```
-Esto permite validar la matriz de permisos antes de tener el hook real.
+Esto sigue siendo válido para tests SQL aislados; en runtime el hook
+inyecta el claim real durante el handshake de Auth.
 
 ## `audit_log` — doble defensa contra mutación
 
