@@ -6,6 +6,7 @@ import { VehicleEntity } from '../entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
 import { PaymentEntity, PaymentMethod } from '../entities/payment.entity';
 import { TariffEntity } from '../entities/tariff.entity';
+import { VehicleHistoryStats } from '../entities/vehicle-history-stats.entity';
 
 export interface RegisterEntryParams {
   plate: string;
@@ -77,7 +78,13 @@ export abstract class ParkingRepository {
   abstract searchPlateSuggestions(
     query: string,
     limit?: number,
+    onlyActive?: boolean,
   ): Promise<Either<Failure, VehicleEntity[]>>;
+
+  abstract getVehicleHistoryStats(
+    plate: string,
+    recentLimit?: number,
+  ): Promise<Either<Failure, VehicleHistoryStats>>;
 
   abstract getOpenCashierShiftId(
     userId: string,

@@ -17,6 +17,25 @@
       <p class="dashboard__subtitle">Registra entradas y salidas de vehículos.</p>
     </div>
 
+    <div class="dashboard__cta">
+      <button
+        type="button"
+        class="entry-cta"
+        [disabled]="entryDisabled()"
+        [attr.title]="cashRegisterClosed() ? 'Abre la caja para registrar entradas' : null"
+        aria-keyshortcuts="N"
+        (click)="openEntryModal()"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>Registrar entrada</span>
+        <kbd class="entry-cta__kbd" aria-hidden="true">N</kbd>
+      </button>
+    </div>
+
     <div class="metrics" role="group" aria-label="Métricas en vivo">
       <div class="metric">
         <span class="metric__icon metric__icon--primary" aria-hidden="true">
@@ -179,6 +198,14 @@
     } @else if (plateSearchQuery().length >= 3 && plateSearchError()) {
       <p class="search-bar__hint search-bar__hint--error">{{ plateSearchError() }}</p>
     }
+
+    @if (vehicleHistoryLoading() || vehicleHistoryError() || vehicleHistoryStats()) {
+      <app-vehicle-history-panel
+        [loading]="vehicleHistoryLoading()"
+        [error]="vehicleHistoryError()"
+        [stats]="vehicleHistoryStats()"
+      />
+    }
   </section>
 
   <app-receipt-card
@@ -189,52 +216,7 @@
     (resumed)="resumeReceiptDismiss()"
   />
 
-  <div class="dashboard__layout">
-    <section class="panel panel--action" aria-labelledby="entry-heading"
-      [class.panel--locked]="cashRegisterClosed()">
-      <div class="panel__head">
-        <h2 id="entry-heading" class="panel__title">
-          <span class="panel__title-icon" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </span>
-          Registrar entrada
-        </h2>
-        <p class="panel__subtitle">Captura placa, tipo de vehículo y datos opcionales.</p>
-      </div>
-
-      <div class="entry-form-wrap">
-        <app-vehicle-entry-form
-          #entryForm
-          [loading]="entryLoading()"
-          [disabled]="entryDisabled()"
-          [availableTypes]="availableTypesForEntry()"
-          [monthlyPlanWarning]="monthlyPlanWarning()"
-          (submitted)="onEntrySubmit($event)"
-        />
-
-        @if (cashRegisterClosed()) {
-          <div class="entry-overlay" role="region" aria-label="Caja cerrada">
-            <span class="entry-overlay__icon" aria-hidden="true">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </span>
-            <p class="entry-overlay__title">Abre la caja para empezar</p>
-            <p class="entry-overlay__detail">
-              No puedes registrar entradas mientras la caja esté cerrada.
-            </p>
-            <a class="entry-overlay__cta" routerLink="/cashier">Ir a la caja</a>
-          </div>
-        }
-      </div>
-    </section>
-
+  <div class="dashboard__layout dashboard__layout--single">
     <section class="panel" aria-labelledby="sessions-heading">
       <div class="panel__head panel__head--row">
         <div>
@@ -316,3 +298,18 @@
     </section>
   </div>
 </div>
+
+<!-- FAB mobile (<768 px) -->
+<button
+  type="button"
+  class="entry-fab"
+  [disabled]="entryDisabled()"
+  [attr.aria-label]="'Registrar entrada (atajo N)'"
+  (click)="openEntryModal()"
+>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>

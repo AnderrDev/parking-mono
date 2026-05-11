@@ -2,27 +2,28 @@
 
 **ID:** HU-031  
 **Módulo:** Parking — Dashboard Operador  
-**Versión:** 1.0  
-**Fecha:** 2026-04-30
+**Versión:** 1.1  
+**Fecha:** 2026-05-09 (auto-impresión)
 
 ---
 
 ## Descripción
 
-Después de registrar exitosamente la salida de un vehículo, el operador puede imprimir un comprobante físico de pago. El comprobante aparece como una tarjeta descartable en el dashboard y se imprime mediante el diálogo nativo del navegador (`window.print()`).
+Después de registrar exitosamente la salida de un vehículo, el sistema imprime **automáticamente** un comprobante físico de pago — análogo al comportamiento del ticket de entrada (HU-030). La tarjeta `.receipt-card` queda visible en el dashboard como respaldo visual, y el operador puede reimprimir manualmente si la primera impresión falló.
 
 ---
 
 ## Flujo principal
 
 1. El operador registra la salida de un vehículo (HU-007 satisfecho).
-2. Tras el éxito, aparece una tarjeta `.receipt-card` (verde/success) con:
+2. **Tras el éxito, el sistema dispara automáticamente la impresión** del comprobante (`window.open` + `window.print()`).
+3. La ventana popup se autocierra ~1 segundo después de imprimir (mismo patrón que el ticket de entrada).
+4. En paralelo, aparece la tarjeta `.receipt-card` (verde/success) en el dashboard con:
    - Placa del vehículo
    - Monto cobrado (o "Sin cobro" si fue gratuito)
    - Método de pago
-3. El operador hace clic en "Imprimir comprobante".
-4. El sistema abre una nueva ventana con el HTML del recibo y lanza el diálogo de impresión del navegador (`window.print()`).
-5. La tarjeta permanece visible hasta que el operador la descarte o registre una nueva entrada.
+   - Botón "Imprimir comprobante" para **reimprimir** si la impresión automática falló (popup bloqueado, sin impresora, etc.).
+5. La tarjeta permanece visible hasta que el operador la descarte o el auto-dismiss la oculte (12 s).
 
 ---
 
@@ -49,9 +50,11 @@ Después de registrar exitosamente la salida de un vehículo, el operador puede 
 1. El comprobante no requiere numeración secuencial (no es factura electrónica).
 2. Si el monto es 0 (vehículo mensual o cortesía), el comprobante muestra "Sin cobro" y omite los campos de efectivo/cambio.
 3. El cambio solo se calcula si `paymentMethod === 'efectivo'` y `cashReceivedCents > amountCents > 0`.
-4. La tarjeta se descarta automáticamente cuando el operador registra la siguiente entrada (limpieza del formulario).
+4. La tarjeta se descarta automáticamente cuando el operador registra la siguiente entrada (limpieza del formulario) o tras 12 s de auto-dismiss.
 5. El operador puede descartar la tarjeta manualmente con el botón "×".
-6. Si el navegador bloquea `window.open()` (popup blocker), el botón falla silenciosamente — no se muestra error en UI.
+6. **Auto-impresión:** se dispara `window.open()` + `window.print()` justo después del éxito de salida; falla silenciosamente si el popup está bloqueado (un toast informa "Popup bloqueado — usa el botón Imprimir").
+7. **Auto-cierre del popup:** la ventana de impresión se cierra automáticamente ~1 s después de `window.print()` para que no quede colgada — análogo a `TicketRendererService` (entrada).
+8. La tarjeta sigue ofreciendo el botón "Imprimir comprobante" como reimpresión manual.
 
 ---
 
@@ -78,11 +81,13 @@ Después de registrar exitosamente la salida de un vehículo, el operador puede 
 
 ## Verificación
 
-- [ ] Al registrar salida exitosa → aparece tarjeta con placa y monto correcto.
-- [ ] "Imprimir comprobante" abre ventana con el recibo y lanza `window.print()`.
+- [ ] Al registrar salida exitosa → **se dispara automáticamente** la ventana de impresión con el comprobante.
+- [ ] La ventana popup se autocierra ~1 s después de imprimir.
+- [ ] Aparece la tarjeta `.receipt-card` con placa, monto y botón "Imprimir comprobante" para reimpresión manual.
+- [ ] Si el popup está bloqueado, aparece un toast informativo y la tarjeta queda como fallback manual.
 - [ ] Recibo impreso contiene todos los campos requeridos.
 - [ ] Cambio aparece solo cuando aplica.
 - [ ] "Sin cobro" aparece cuando `amountCents === 0`.
 - [ ] Botón "×" descarta la tarjeta.
 - [ ] Registrar nueva entrada descarta la tarjeta automáticamente.
-- [ ] `tsc --noEmit` sin errores.
+- [ ] `ng build` sin errores.

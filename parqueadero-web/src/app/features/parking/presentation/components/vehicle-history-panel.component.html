@@ -1,0 +1,79 @@
+@if (loading) {
+  <div class="history-panel history-panel--loading">
+    <div class="history-panel__skeleton-grid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  </div>
+} @else if (error) {
+  <div class="history-panel history-panel--error">
+    <p>{{ error }}</p>
+  </div>
+} @else if (stats) {
+  @if (stats.totalVisits === 0) {
+    <div class="history-panel history-panel--empty">
+      <p>Sin visitas previas — vehículo nuevo en el sistema.</p>
+    </div>
+  } @else {
+    <div class="history-panel">
+      <h3 class="history-panel__title">Historial del vehículo</h3>
+
+      <div class="history-panel__grid">
+        <div class="metric">
+          <span class="metric__label">Visitas</span>
+          <span class="metric__value">{{ stats.totalVisits }}</span>
+          @if (stats.visitsLast30Days > 0) {
+            <span class="metric__hint">{{ stats.visitsLast30Days }} en 30 días</span>
+          }
+        </div>
+
+        <div class="metric metric--primary">
+          <span class="metric__label">Pagado total</span>
+          <span class="metric__value">{{ formatCOP(stats.totalPaidCents) }}</span>
+          @if (stats.paidLast30DaysCents > 0) {
+            <span class="metric__hint">{{ formatCOP(stats.paidLast30DaysCents) }} en 30 días</span>
+          }
+        </div>
+
+        <div class="metric">
+          <span class="metric__label">Tiempo total</span>
+          <span class="metric__value">{{ formatDuration(stats.totalDurationMinutes) }}</span>
+          <span class="metric__hint">~ {{ formatDuration(stats.averageDurationMinutes) }} por visita</span>
+        </div>
+
+        <div class="metric">
+          <span class="metric__label">Última visita</span>
+          <span class="metric__value">{{ formatRelativeDate(stats.lastVisitAt) }}</span>
+          <span class="metric__hint">~ {{ formatCOP(stats.averagePaidCents) }} por visita</span>
+        </div>
+      </div>
+
+      @if (stats.recentSessions.length > 0) {
+        <table class="history-panel__table">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Entró</th>
+              <th>Salió</th>
+              <th>Duración</th>
+              <th class="num">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of stats.recentSessions; track s.id) {
+              <tr>
+                <td>{{ formatShortDate(s.entryAt) }}</td>
+                <td>{{ formatTimeShort(s.entryAt) }}</td>
+                <td>{{ formatTimeShort(s.exitAt) }}</td>
+                <td>{{ formatDuration(s.durationMinutes) }}</td>
+                <td class="num">{{ formatCOP(s.amountDueCents ?? 0) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+}

@@ -10,6 +10,11 @@ import { VehicleEntity } from '../entities/vehicle.entity';
 export interface SearchPlateSuggestionsParams {
   query: string;
   limit?: number;
+  /**
+   * Si es true, restringe el resultado a placas con sesión actualmente
+   * activa en el parqueadero (uso primario: vista del operador). Default false.
+   */
+  onlyActive?: boolean;
 }
 
 const MIN_QUERY_LENGTH = 2;
@@ -33,6 +38,10 @@ export class SearchPlateSuggestionsUseCase extends UseCase<
     if (normalized.length < MIN_QUERY_LENGTH) {
       return right([]);
     }
-    return this.repo.searchPlateSuggestions(normalized, params.limit ?? DEFAULT_LIMIT);
+    return this.repo.searchPlateSuggestions(
+      normalized,
+      params.limit ?? DEFAULT_LIMIT,
+      params.onlyActive ?? false,
+    );
   }
 }

@@ -427,6 +427,88 @@
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
   }
+
+  // Refactor 2026-05-04: la entrada salió a modal; el dashboard ya no
+  // necesita layout 2-cols. Modifier para single-column con la lista de
+  // sesiones a ancho completo.
+  &--single {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard__cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  @media (max-width: 768px) {
+    display: none; // en mobile usamos el FAB; ocultamos el botón del header
+  }
+}
+
+.entry-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  height: 56px;
+  font-size: var(--text-md, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  background: var(--color-accent, #0ea5e9);
+  color: var(--color-on-accent, #fff);
+  border: 0;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+  transition: background 120ms, transform 80ms;
+
+  &:hover:not(:disabled) {
+    background: var(--color-accent-strong, #0284c7);
+  }
+  &:active:not(:disabled) { transform: scale(0.98); }
+  &:focus-visible {
+    outline: 2px solid var(--color-text-strong, #0f172a);
+    outline-offset: 2px;
+  }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &__kbd {
+    margin-left: var(--space-2);
+    padding: 2px 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    color: inherit;
+  }
+}
+
+.entry-fab {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-accent, #0ea5e9);
+  color: var(--color-on-accent, #fff);
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, transform 100ms;
+
+  &:hover:not(:disabled) { background: var(--color-accent-strong, #0284c7); }
+  &:active:not(:disabled) { transform: scale(0.95); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @media (max-width: 768px) {
+    display: inline-flex;
+  }
 }
 
 .panel {

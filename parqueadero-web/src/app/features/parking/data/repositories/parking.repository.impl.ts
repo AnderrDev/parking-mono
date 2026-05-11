@@ -7,6 +7,7 @@ import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
 import {
   ParkingRepository,
   RegisterEntryParams,
@@ -62,8 +63,16 @@ export class ParkingRepositoryImpl extends ParkingRepository {
   async searchPlateSuggestions(
     query: string,
     limit = 8,
+    onlyActive = false,
   ): Promise<Either<Failure, VehicleEntity[]>> {
-    return this.remoteDs.searchPlateSuggestions(query, limit);
+    return this.remoteDs.searchPlateSuggestions(query, limit, onlyActive);
+  }
+
+  async getVehicleHistoryStats(
+    plate: string,
+    recentLimit = 5,
+  ): Promise<Either<Failure, VehicleHistoryStats>> {
+    return this.remoteDs.getVehicleHistoryStats(plate, recentLimit);
   }
 
   async getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>> {
