@@ -216,6 +216,14 @@
     (resumed)="resumeReceiptDismiss()"
   />
 
+  <app-monthly-plans-panel
+    class="dashboard__monthly"
+    [plans]="monthlyPlans()"
+    [loading]="monthlyPlansLoading()"
+    [error]="monthlyPlansError()"
+    (plateSelected)="onMonthlyPlanPlateSelected($event)"
+  />
+
   <div class="dashboard__layout dashboard__layout--single">
     <section class="panel" aria-labelledby="sessions-heading">
       <div class="panel__head panel__head--row">

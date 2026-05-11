@@ -30,6 +30,7 @@ import {
   REQUEST_INVOICE_TOKEN,
   GET_OPEN_SHIFT_STATUS_TOKEN,
   GET_VEHICLE_HISTORY_STATS_TOKEN,
+  LIST_MONTHLY_PLANS_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -63,6 +64,8 @@ import {
   GetVehicleHistoryStatsUseCase,
 } from '../../domain/usecases/get-vehicle-history-stats.usecase';
 import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
+import { ListMonthlyPlansUseCase } from '../../../monthly-plans/domain/usecases/list-monthly-plans.usecase';
+import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { VehicleSearchResult } from '../../domain/repositories/parking.repository';
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import {
@@ -83,6 +86,7 @@ import { ShiftStatusBannerComponent, ShiftBannerState } from '../components/shif
 import { TariffsBarComponent } from '../components/tariffs-bar.component';
 import { ReceiptCardComponent, ExitReceipt } from '../components/receipt-card.component';
 import { VehicleHistoryPanelComponent } from '../components/vehicle-history-panel.component';
+import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 
@@ -106,6 +110,7 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
     TariffsBarComponent,
     ReceiptCardComponent,
     VehicleHistoryPanelComponent,
+    MonthlyPlansPanelComponent,
   ],
   templateUrl: './operator-dashboard.page.html',
   styleUrl: './operator-dashboard.page.scss',
@@ -174,6 +179,11 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly vehicleHistoryError = signal<string | null>(null);
   private vehicleHistorySeq = 0;
 
+  // HU-047: panel de mensualidades activas (active + expiring).
+  readonly monthlyPlans = signal<MonthlyPlanEntity[]>([]);
+  readonly monthlyPlansLoading = signal(true);
+  readonly monthlyPlansError = signal<string | null>(null);
+
   readonly formatDuration = formatDuration;
   readonly formatCOP = formatCOP;
 
@@ -220,13 +230,82 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     private readonly getOpenShiftStatus: GetOpenShiftStatusUseCase,
     @Inject(GET_VEHICLE_HISTORY_STATS_TOKEN)
     private readonly getVehicleHistoryStats: GetVehicleHistoryStatsUseCase,
+    @Inject(LIST_MONTHLY_PLANS_TOKEN)
+    private readonly listMonthlyPlans: ListMonthlyPlansUseCase,
     private readonly _calculateFee: CalculateParkingFeeUseCase,
     readonly authState: AuthStateService,
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadShiftStatus(), this.loadSessions(), this.loadTariffs()]);
+    await Promise.all([
+      this.loadShiftStatus(),
+      this.loadSessions(),
+      this.loadTariffs(),
+      this.loadMonthlyPlans(),
+    ]);
     this.clockTimer = setInterval(() => this.clockNow.set(this.formatNow()), 1000);
+  }
+
+  /** HU-047: carga mensualidades activas + próximas a vencer. */
+  async loadMonthlyPlans(): Promise<void> {
+    this.monthlyPlansLoading.set(true);
+    this.monthlyPlansError.set(null);
+    const [activeRes, expiringRes] = await Promise.all([
+      this.listMonthlyPlans.execute({
+        status: 'active',
+        pagination: { page: 1, pageSize: 50 },
+      }),
+      this.listMonthlyPlans.execute({
+        status: 'expiring',
+        pagination: { page: 1, pageSize: 50 },
+      }),
+    ]);
+    this.monthlyPlansLoading.set(false);
+
+    if (activeRes.isLeft()) {
+      this.monthlyPlansError.set(
+        activeRes.fold((f) => f.message, () => 'Error desconocido'),
+      );
+      this.monthlyPlans.set([]);
+      return;
+    }
+    const combined: MonthlyPlanEntity[] = [];
+    activeRes.fold(() => null, (r) => combined.push(...r.data));
+    expiringRes.fold(() => null, (r) => combined.push(...r.data));
+    // Deduplicar por id (un plan no debería aparecer dos veces, pero por
+    // si la BD marcó status='active' y la consulta de 'expiring' lo trae
+    // por otra ruta).
+    const seen = new Set<string>();
+    const dedup = combined.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+    this.monthlyPlans.set(dedup);
+  }
+
+  /** Click en una fila del panel de mensualidades → rellenar el buscador. */
+  protected async onMonthlyPlanPlateSelected(plate: string): Promise<void> {
+    this.plateSearchQuery.set(plate);
+    this.plateSuggestionsOpen.set(false);
+    this.plateSuggestions.set([]);
+    this.plateSearchLoading.set(true);
+    this.plateSearchError.set(null);
+
+    void this.loadVehicleHistory(plate);
+
+    const result = await this.searchByPlate.execute({ plate });
+    this.plateSearchLoading.set(false);
+    result.fold(
+      (failure) => {
+        this.plateSearchResult.set(null);
+        this.plateSearchError.set(failure.message);
+      },
+      (data) => {
+        this.plateSearchResult.set(data);
+        this.plateSearchError.set(null);
+      },
+    );
   }
 
   private async loadTariffs(): Promise<void> {

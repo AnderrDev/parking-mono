@@ -1,0 +1,51 @@
+<section class="monthly-panel" aria-labelledby="monthly-panel-title">
+  <header class="monthly-panel__header">
+    <h3 id="monthly-panel-title" class="monthly-panel__title">
+      Mensualidades activas
+      @if (visiblePlans().length > 0) {
+        <span class="monthly-panel__count">{{ visiblePlans().length }}</span>
+      }
+    </h3>
+    <a routerLink="/monthly-plans" class="monthly-panel__see-all">Ver todas →</a>
+  </header>
+
+  @if (loading) {
+    <ul class="monthly-panel__list">
+      @for (i of [0, 1, 2, 3]; track i) {
+        <li class="monthly-panel__skeleton"></li>
+      }
+    </ul>
+  } @else if (error) {
+    <p class="monthly-panel__error">{{ error }}</p>
+  } @else if (visiblePlans().length === 0) {
+    <p class="monthly-panel__empty">Sin mensualidades activas.</p>
+  } @else {
+    <ul class="monthly-panel__list">
+      @for (p of visiblePlans(); track p.id) {
+        @let days = p.daysUntilExpiry;
+        @let tone = urgencyTone(days);
+        <li class="monthly-row" [attr.data-tone]="tone">
+          <button
+            type="button"
+            class="monthly-row__btn"
+            (click)="onPlateClick(p.vehiclePlate)"
+            [attr.aria-label]="'Buscar ' + p.vehiclePlate"
+          >
+            <span class="monthly-row__plate mono">{{ p.vehiclePlate }}</span>
+            <span class="monthly-row__plan">{{ planTypeLabel(p.planType) }}</span>
+            <span class="monthly-row__days monthly-row__days--{{ tone }}">
+              {{ daysLabel(days) }}
+            </span>
+            <span class="monthly-row__date">{{ formatEndDate(p.endDate) }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+    @if (overflowCount() > 0) {
+      <p class="monthly-panel__overflow">
+        + {{ overflowCount() }} más —
+        <a routerLink="/monthly-plans">ver todas</a>
+      </p>
+    }
+  }
+</section>
