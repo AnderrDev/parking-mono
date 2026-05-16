@@ -11,7 +11,10 @@
     "format": "prettier --write \"src/**/*.{ts,html,scss,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,scss,json}\"",
     "analyze": "ng build --stats-json && npx source-map-explorer dist/parqueadero-web/browser/*.js",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed"
   },
   "private": true,
   "dependencies": {
@@ -41,6 +44,7 @@
     "@angular/cli": "^18.2.21",
     "@angular/compiler-cli": "^18.2.0",
     "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.60.0",
     "@types/jasmine": "~5.1.0",
     "@types/qrcode": "^1.5.5",
     "angular-eslint": "18.4.3",

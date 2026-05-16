@@ -32,5 +32,12 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
-  }
+  },
+  "exclude": [
+    "e2e/**/*",
+    "playwright.config.ts",
+    "lhci.config.cjs",
+    ".lighthouserc.json",
+    "karma.conf.js"
+  ]
 }
