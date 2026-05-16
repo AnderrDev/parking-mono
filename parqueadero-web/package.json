@@ -10,7 +10,8 @@
     "lint": "ng lint",
     "format": "prettier --write \"src/**/*.{ts,html,scss,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,scss,json}\"",
-    "analyze": "ng build --stats-json && npx source-map-explorer dist/parqueadero-web/browser/*.js"
+    "analyze": "ng build --stats-json && npx source-map-explorer dist/parqueadero-web/browser/*.js",
+    "lhci": "lhci autorun"
   },
   "private": true,
   "dependencies": {
@@ -39,6 +40,7 @@
     "@angular-devkit/build-angular": "^18.2.21",
     "@angular/cli": "^18.2.21",
     "@angular/compiler-cli": "^18.2.0",
+    "@lhci/cli": "^0.15.1",
     "@types/jasmine": "~5.1.0",
     "@types/qrcode": "^1.5.5",
     "angular-eslint": "18.4.3",
