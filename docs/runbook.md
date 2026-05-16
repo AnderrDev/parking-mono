@@ -106,9 +106,20 @@ WHERE id = '<shift_uuid>'
 
 ---
 
-## 3. Facturación Siigo
+## 3. Facturación Siigo — ❌ DESCARTADA (2026-05-15)
 
-### 3.1 Reintentar una factura `Rejected`
+> **Sección obsoleta.** La integración con Siigo y cualquier facturación
+> electrónica de terceros fue descartada por decisión de producto el
+> 2026-05-15. Las Edge Functions `siigo-emit-invoice` / `siigo-poll-status`,
+> tablas `siigo_*` y migration `00021_drop_siigo.sql` (pendiente de aplicar)
+> se conservan en repo como referencia hasta cleanup definitivo.
+>
+> El sistema opera como POS interno: numeración local de `invoices`,
+> sin emisión a DIAN. Si en el futuro se requiere FE, se replanea desde cero.
+>
+> El contenido siguiente se mantiene únicamente como referencia histórica.
+
+### 3.1 (legacy) Reintentar una factura `Rejected`
 
 ```sql
 -- Resetear para que el cron polling la levante de nuevo:
@@ -420,3 +431,112 @@ FROM audit_log
 WHERE created_at > now() - interval '24 hours'
 ORDER BY created_at DESC LIMIT 50;
 ```
+
+---
+
+## 8. Plan rollback expandido (web + DB)
+
+### 8.1 Rollback web (Vercel)
+
+1. `vercel ls --prod` → identificar deployment anterior estable (típicamente el penúltimo).
+2. `vercel rollback <deployment-url> --prod` → tarda < 10 s.
+3. Verificar smoke: login, listar sesiones activas, crear entrada de prueba.
+4. Notificar al equipo en canal de operación.
+
+### 8.2 Rollback DB (Supabase PITR)
+
+Solo si el incidente corrompió datos. NUNCA aplicar sobre prod en caliente.
+
+1. Identificar timestamp pre-incidente (precisión segundo).
+2. Dashboard Supabase → Database → Backups → PITR → clonar a proyecto efímero.
+3. Validar queries críticas en clone (sesiones, invoices, audit_log).
+4. Si OK: promover clone → swap endpoints en Vercel env vars → redeploy.
+5. Documentar en `sessions/YYYY-MM-DD-incident-pitr.md`.
+
+> Limitación: PITR solo en plan Pro+. Si la cuenta es Free, snapshot diario es la única opción.
+
+### 8.3 Rollback de migration
+
+PostgreSQL no soporta rollback automático. Procedimiento manual:
+
+- Si la migración solo agregó columnas/índices: migration nueva con DROP.
+- Si renombró: migration nueva que revierte.
+- Si modificó/borró datos: restore desde PITR (§8.2).
+- **NUNCA editar la migration original** — historial inmutable.
+
+---
+
+## 9. Comprobaciones diarias (smoke check)
+
+Ejecutar cada día a las 09:00 COT (5 min):
+
+1. Login web prod → cargar `/operator/dashboard` < 3 s.
+2. SQL: `SELECT count(*) FROM parking_sessions WHERE status='active';` razonable (decenas).
+3. SQL: `SELECT count(*) FROM cashier_shifts WHERE status='open';` (esperado: N operadores activos).
+4. SQL: `SELECT count(*) FROM audit_log WHERE created_at > now() - interval '24 hours';` > 0.
+5. Sentry: revisar issues nuevos (TODO: link al dashboard tras 10F).
+6. Vercel: revisar deploys nocturnos automáticos (Dependabot u otros).
+
+Reportar incidencias en canal de operación.
+
+---
+
+## 10. Onboarding de nuevo operador
+
+1. Admin → `/admin/users` → "Crear usuario".
+2. Datos: nombre, email corporativo, role=`operador`, activo=true.
+3. Sistema envía email con link de set-password (TTL 24 h).
+4. Operador entra, cambia contraseña, abre primer turno con `cash_initial=0` (prueba).
+5. Cierra el turno test inmediatamente; admin verifica entrada en `audit_log`.
+6. Entregar tablet/PC + URL prod + acceso wifi del local.
+7. Documentar onboarding en `sessions/YYYY-MM-DD-onboarding-<usuario>.md`.
+
+---
+
+## 11. Procedimiento para añadir tarifa
+
+1. Admin → `/admin/tariffs` → "Nueva tarifa".
+2. Campos: nombre descriptivo, `vehicle_type`, `unit` (hourly | daily | monthly), `rate_cents` (en centavos COP), `valid_from`, `valid_to` (opcional, NULL = sin fecha de fin).
+3. **Solo una tarifa activa por `(vehicle_type, unit)` en cualquier momento** — constraint DB.
+4. Si reemplaza una existente: cerrar la anterior (`valid_to = now()`) ANTES de crear la nueva. Si no, el insert falla por el UNIQUE WHERE.
+5. Verificar cálculo: simular una salida ficticia / inspeccionar `calculate-parking-fee.usecase`.
+6. Confirmar que el banner de PWA cacheada no esté sirviendo la tarifa vieja al operador (refrescar con `Ctrl+Shift+R` si dudas).
+
+---
+
+## 12. Backup verification mensual (primer lunes)
+
+Ritmo: 1er lunes de cada mes, 30 min máximo.
+
+1. Dashboard Supabase → Backups → descargar snapshot más reciente.
+2. Restaurar local:
+   ```bash
+   cd parqueadero-backend
+   supabase db reset
+   psql "$LOCAL_DB_URL" < snapshot.sql
+   ```
+3. Smoke queries:
+   ```sql
+   SELECT count(*) FROM invoices WHERE issued_at > now() - interval '7 days';
+   SELECT count(*) FROM parking_sessions WHERE status='active';
+   SELECT count(*) FROM audit_log;
+   ```
+4. Documentar resultado en `sessions/YYYY-MM-DD-backup-drill.md`.
+5. Si falla: incidente → escalar a Supabase support con número de proyecto.
+
+---
+
+## 13. Convenciones de commits + release
+
+Desde Fase 10 Sprint 10E el repo usa Conventional Commits con `commitlint` + `husky`:
+
+- **Pre-commit**: `npm run lint` + `npx tsc --noEmit` se ejecutan automáticamente.
+- **Commit-msg**: `commitlint` rechaza commits que no sigan `type(scope): subject` (ver `commitlint.config.cjs`).
+- **Tags**: SemVer (`v1.0.0`, `v1.1.0`, ...) firmados con `-s`. Tag oficial productivo viene en 10F.
+- **CHANGELOG**: `docs/CHANGELOG.md` Keep-a-Changelog 1.1.0. Actualizar `[Unreleased]` en cada PR.
+
+Tipos válidos: `feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert`.
+Scopes válidos: `web, backend, docs, infra, e2e, runbook, ci, migrations, deps`.
+
+Pre-commit puede saltarse con `--no-verify` solo en emergencias (debe explicarse en sesión post-incidente).
+

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Pre-commit — Fase 10 Sprint 10E.
+# Bloquea el commit si lint o typecheck del web fallan.
+# Para activar: ver docs/runbook.md §13.
+
+set -e
+
+cd parqueadero-web
+npm run lint
+npx tsc --noEmit -p tsconfig.json

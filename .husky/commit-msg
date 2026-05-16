@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Commit-msg — Fase 10 Sprint 10E.
+# Valida el mensaje con commitlint (Conventional Commits).
+
+npx --no -- commitlint --edit "$1"
