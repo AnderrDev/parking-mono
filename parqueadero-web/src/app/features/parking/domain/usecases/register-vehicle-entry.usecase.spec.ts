@@ -2,6 +2,7 @@ import { RegisterVehicleEntryUseCase, RegisterVehicleEntryParams } from './regis
 import { ParkingRepository } from '../repositories/parking.repository';
 import { ParkingSessionEntity } from '../entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
+import { EMPTY_VEHICLE_HISTORY_STATS } from '../entities/vehicle-history-stats.entity';
 import { left, right } from '../../../../core/either/either';
 import {
   BusinessRuleFailure,
@@ -117,6 +118,8 @@ class MockParkingRepository extends ParkingRepository {
   async cancelSession() {
     return Promise.resolve(right(null as never));
   }
+
+  async getVehicleHistoryStats() { return Promise.resolve(right(EMPTY_VEHICLE_HISTORY_STATS)); }
 }
 
 // ── Base params ───────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { CancelParkingSessionUseCase } from './cancel-session.usecase';
 import { ParkingRepository, CancelSessionParams } from '../repositories/parking.repository';
 import { ParkingSessionEntity } from '../entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
+import { EMPTY_VEHICLE_HISTORY_STATS } from '../entities/vehicle-history-stats.entity';
 import { left, right } from '../../../../core/either/either';
 import { NetworkFailure, ServerFailure, ValidationFailure } from '../../../../core/either/failures';
 
@@ -40,6 +41,7 @@ class MockParkingRepository extends ParkingRepository {
   async registerExit() { return Promise.resolve(right(null as never)); }
   async getActiveTariff() { return Promise.resolve(right(null as never)); }
   async listSessions() { return Promise.resolve(right({ data: [], pagination: emptyPagination })); }
+  async getVehicleHistoryStats() { return Promise.resolve(right(EMPTY_VEHICLE_HISTORY_STATS)); }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -37,13 +37,13 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.json
 
+      - name: Tests (headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadlessCI --code-coverage=false
+        env:
+          TZ: America/Bogota
+
       - name: Build (production)
         run: npm run build -- --configuration=production
-
-      # Tests deshabilitados temporalmente — se habilitan en una PR
-      # dedicada cuando estén verdes en CI headless (karma chrome).
-      # - name: Tests
-      #   run: npm test -- --watch=false --browsers=ChromeHeadlessCI
 
   backend-validate:
     name: parqueadero-backend — supabase db lint + functions check
