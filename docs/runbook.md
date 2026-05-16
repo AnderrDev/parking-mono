@@ -142,6 +142,188 @@ ORDER BY created_at DESC;
 
 `siigo_invoice_attempts` es append-only (RLS service_role) — operadores y admins no pueden modificarla.
 
+### 3.4 Troubleshooting offline (Fase 8)
+
+Esta sección cubre el modo offline operador-only (mirror Dexie + outbox + Realtime).
+Aplica a partir de las migraciones `00019`, `00020`, `00021`. Si esas no están
+aplicadas en el entorno, ver "Migration de producción no aplicada" abajo.
+
+#### Inspeccionar Dexie desde DevTools
+
+1. Abrir DevTools → pestaña **Application** (Chrome/Edge) o **Storage** (Firefox).
+2. Sidebar → **IndexedDB** → `parqueadero-local-db` → expandir.
+3. Stores relevantes:
+   - `outbox` — operaciones pendientes de sincronizar.
+   - `conflicts` — conflictos sin resolver (visibles para el operador).
+   - `_meta` — metadatos (`lastSyncAt`, versión schema, deviceId).
+   - `parking_sessions`, `payments`, `cashier_shifts`, `cash_withdrawals` — mirror mutable.
+   - `tariffs`, `monthly_plans`, `customers`, `vehicles`, `app_settings` — mirror read-only.
+4. Doble-click en una fila para inspeccionar/editar (solo para diagnóstico; **no** editar en producción).
+
+#### Ver outbox pendiente desde consola
+
+```js
+// Pendientes:
+await window.__dexie?.outbox.where('status').equals('pending').toArray()
+
+// Con error o reintentos altos:
+await window.__dexie?.outbox.where('attempts').above(3).toArray()
+
+// Todas (ordenadas por enqueuedAt):
+await window.__dexie?.outbox.orderBy('enqueuedAt').toArray()
+```
+
+> `window.__dexie` solo está expuesto en builds dev. En prod usar DevTools → IndexedDB.
+
+#### Resetear la base local manualmente
+
+```js
+// Opción A — desde consola (limpia TODO sin perder server data):
+await window.__dexie?.delete()
+location.reload()
+
+// Opción B — desde DevTools:
+// Application → IndexedDB → parqueadero-local-db → click derecho → Delete database.
+// Luego recargar.
+```
+
+> El operador pierde el mirror local pero el server-side queda intacto. El siguiente
+> login re-ejecuta `snapshotPull()` y reconstruye el mirror.
+
+#### `pendingCount` queda alto sin avanzar
+
+1. Verificar `_lastSyncAt` en `_meta`: si no avanza en > 1 min con red activa, el
+   orchestrator está bloqueado o la op de cabeza FIFO está fallando.
+2. Revisar `outbox` por filas con `attempts >= 10` y `status = 'error_max_retries'` —
+   son las que bloquean el avance del FIFO (no porque sean head-of-line, sino porque
+   acumulan ruido visual).
+3. Revisar telemetría: `await window.__telemetry?.recent('sync_failed', 20)` muestra
+   los últimos 20 fallos con `errorCode`/`endpoint`.
+4. Si la causa raíz es un bug, escalación a equipo dev con export de telemetría:
+   `JSON.stringify(await window.__telemetry?.all())`.
+
+#### Conflicts no se vacían
+
+- El operador debe abrir el banner rojo → **Resolver conflictos** → elegir estrategia
+  por cada fila (`server-wins`, `retry-now`, `discard-local`, `manual-edit`).
+- Si el dialog no abre: revisar consola por `NullInjectorError` (típico si falta
+  `injector` + `viewContainerRef` en el `dialog.open()` — ver memoria
+  `feedback_cdk_dialog_vcr`).
+- Inspección directa:
+
+  ```js
+  await window.__dexie?.conflicts.toArray()
+  ```
+
+- **No** borrar manualmente de la tabla `conflicts`: si el operador no resuelve,
+  el row queda y el outbox no puede avanzar más allá del head FIFO.
+
+#### Multi-tab: pestañas divergentes
+
+1. Cerrar **todas** las pestañas del dominio.
+2. Reabrir **una sola** pestaña.
+3. Si tras login los contadores siguen inconsistentes (pendingCount ≠ outbox real),
+   ejecutar reset local (sección anterior) y volver a login.
+
+> Nota: un simple `F5` (reload) **no** invoca `localDb.clear()`. El mirror persiste
+> entre recargas — es intencional para que las recargas accidentales no pierdan
+> trabajo offline. Solo `logout` o reset manual limpian.
+
+#### Realtime no conecta
+
+1. DevTools → **Network** → filtrar por `wss://` o `realtime`. Debe haber un
+   WebSocket abierto al endpoint `realtime/v1/websocket`.
+2. Si no hay socket abierto: revisar `_realtimeRetry` (`window.__orchestrator?.realtimeRetryMap`).
+   Cada canal lleva su contador de retries con backoff `1s → 30s`.
+3. Verificar en backend que la publication incluye los 5 catálogos:
+
+   ```sql
+   SELECT schemaname, tablename
+   FROM pg_publication_tables
+   WHERE pubname = 'supabase_realtime'
+   ORDER BY tablename;
+   ```
+
+   Deben aparecer: `tariffs`, `monthly_plans`, `customers`, `vehicles`, `app_settings`
+   (más cualquier tabla previa).
+4. Si los catálogos faltan: migration `00019` no se aplicó. Aplicar y reiniciar el
+   servicio Realtime de Supabase.
+
+#### STALE_WRITE (P0409) recurrente
+
+Síntoma: outbox repite `code: 'P0409'` o `errorMessage` con "stale write".
+
+- Indica que el mismo registro fue modificado en server desde la última lectura del
+  cliente. En operación normal (1 operador = 1 dispositivo) **no** debería ocurrir.
+- Causas más probables:
+  1. El operador tiene la app abierta en 2 dispositivos (laptop + tablet) y trabaja
+     en ambos. Pedirle que use solo uno.
+  2. Un admin editó la misma sesión desde el panel admin. Coordinar.
+  3. Migration `00021` no se aplicó parcialmente. Verificar:
+
+     ```sql
+     SELECT tgname FROM pg_trigger WHERE tgname = 'trg_check_stale_write_parking_sessions';
+     ```
+
+- El conflict aparece en UI y el operador puede `retry-now` (acepta server) o
+  `manual-edit` (re-aplica su cambio sobre el snapshot fresco).
+
+#### Migration de producción no aplicada
+
+**Síntomas:**
+- Errores 404 / "column client_op_id does not exist" en outbox drain → `00020` falta.
+- Realtime no envía deltas para `tariffs`/`monthly_plans`/etc → `00019` falta.
+- No hay protección contra escritura stale; el banner amarillo nunca se torna rojo →
+  `00021` falta.
+
+**Aplicación:**
+
+```bash
+cd parqueadero-backend
+supabase link --project-ref <prod-ref>
+supabase db push --linked
+# Verificar las 3 migrations:
+psql "$DB_URL" -c "SELECT version FROM supabase_migrations.schema_migrations \
+WHERE version IN ('00019','00020','00021') ORDER BY version;"
+```
+
+#### SQL útil para inspeccionar outbox server-side
+
+```sql
+-- Ver últimas 50 ops idempotentes recibidas (parking_sessions):
+SELECT id, vehicle_plate, status, client_op_id, _sync_status, created_at
+FROM parking_sessions
+WHERE client_op_id IS NOT NULL
+ORDER BY created_at DESC
+LIMIT 50;
+
+-- Detectar reintentos idempotentes (mismo client_op_id, inserts duplicados que
+-- el UNIQUE rechazó):
+-- (No quedan rastros en BD por diseño — revisar logs Edge Function o telemetría web.)
+
+-- Sesiones con _sync_status != 'synced' (debería estar siempre 'synced' server-side):
+SELECT id, vehicle_plate, _sync_status, updated_at
+FROM parking_sessions
+WHERE _sync_status <> 'synced'
+LIMIT 20;
+```
+
+#### Limpiar outbox local sin perder server data
+
+Procedimiento recomendado (no destructivo en server):
+
+1. El operador hace **Logout** desde el menú.
+2. Si hay pendientes, aparece confirm-dialog "Hay N operaciones sin sincronizar.
+   Si continúas, se perderán. ¿Continuar?".
+3. **Cancelar** → operador espera reconexión y deja que el drain procese.
+4. **Confirmar** → outbox + conflicts + mirror se borran; redirige a login. El
+   server-side queda intacto: las ops nunca enviadas se pierden definitivamente
+   (riesgo asumido conscientemente por el operador).
+
+> Para un reset técnico sin login: usar `await window.__dexie?.delete()` desde
+> consola, pero documentar la decisión en `sessions/` porque puede implicar pérdida
+> de trabajo offline.
+
 ---
 
 ## 4. Migraciones de BD

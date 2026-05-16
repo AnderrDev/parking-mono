@@ -37,3 +37,56 @@
   from { transform: translateY(-100%); }
   to   { transform: translateY(0); }
 }
+
+// ── Variante "conflict" (rojo). Usa la paleta --color-danger-* del design system.
+.banner[data-state="conflict"] {
+  background: var(--color-danger-soft);
+  border-bottom-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  color: var(--color-danger-strong);
+}
+
+.banner[data-state="conflict"] .banner__icon {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+// ── Variante "syncing" (azul/info). --color-info-strong no existe en tokens.scss,
+// usamos --color-info como fallback para el texto fuerte.
+.banner[data-state="syncing"] {
+  background: var(--color-info-soft);
+  border-bottom-color: color-mix(in srgb, var(--color-info) 35%, transparent);
+  color: var(--color-info);
+}
+
+.banner[data-state="syncing"] .banner__icon {
+  background: color-mix(in srgb, var(--color-info) 18%, transparent);
+  color: var(--color-info);
+}
+
+// ── Botón "Reintentar" en el banner (Sprint 0 dispara drain() stub).
+.banner__action {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm, 4px);
+  font: inherit;
+  cursor: pointer;
+}
+
+.banner__action:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.spin {
+  animation: banner-spin 800ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
+
+@keyframes banner-spin {
+  to { transform: rotate(360deg); }
+}

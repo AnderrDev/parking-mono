@@ -26,38 +26,5 @@
         ]
       }
     }
-  ],
-  "dataGroups": [
-    {
-      "name": "supabase-catalogos",
-      "urls": [
-        "**/rest/v1/tariffs*",
-        "**/rest/v1/monthly_plans*",
-        "**/rest/v1/customers*",
-        "**/rest/v1/vehicles*",
-        "**/rest/v1/app_settings*"
-      ],
-      "cacheConfig": {
-        "maxSize": 200,
-        "maxAge": "1h",
-        "timeout": "5s",
-        "strategy": "performance"
-      }
-    },
-    {
-      "name": "supabase-mutaciones",
-      "urls": [
-        "**/rest/v1/parking_sessions*",
-        "**/rest/v1/payments*",
-        "**/rest/v1/invoices*",
-        "**/rest/v1/cashier_shifts*"
-      ],
-      "cacheConfig": {
-        "maxSize": 100,
-        "maxAge": "5m",
-        "timeout": "10s",
-        "strategy": "freshness"
-      }
-    }
   ]
 }

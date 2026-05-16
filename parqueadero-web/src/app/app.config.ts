@@ -49,6 +49,7 @@ import { InvoicingRepositoryImpl } from './features/invoicing/data/repositories/
 import { RequestInvoiceUseCase } from './features/invoicing/domain/usecases/request-invoice.usecase';
 import { ReissueInvoiceUseCase } from './features/invoicing/domain/usecases/reissue-invoice.usecase';
 import { ListInvoicesUseCase } from './features/invoicing/domain/usecases/list-invoices.usecase';
+import { SyncOrchestrator } from './core/services/sync-orchestrator.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -94,6 +95,19 @@ export const appConfig: ApplicationConfig = {
       useFactory: () => {
         const authRepo = inject<AuthRepository>(AUTH_REPOSITORY_TOKEN);
         return () => authRepo.getCurrentUser();
+      },
+    },
+    // Fase 8 — Sprint 1: arranca el orquestador offline al boot.
+    // Debe correr DESPUÉS de getCurrentUser() porque snapshotPull necesita
+    // un AuthStateService.currentUser() no-null. El multi:true de Angular
+    // ejecuta los initializers en orden de registro, así que basta con
+    // colocarlo aquí.
+    {
+      provide: APP_INITIALIZER,
+      multi: true,
+      useFactory: () => {
+        const sync = inject(SyncOrchestrator);
+        return () => sync.initialize();
       },
     },
   ],

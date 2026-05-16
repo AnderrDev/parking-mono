@@ -1,0 +1,109 @@
+<div
+  class="conflicts"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="conflicts-title"
+  aria-describedby="conflicts-subtitle"
+>
+  <header class="conflicts__header">
+    <div>
+      <h2 id="conflicts-title" class="conflicts__title">
+        Conflictos de sincronización
+      </h2>
+      <p id="conflicts-subtitle" class="conflicts__subtitle">
+        @if (count() === 1) {
+          1 operación requiere tu atención.
+        } @else {
+          {{ count() }} operaciones requieren tu atención.
+        }
+      </p>
+    </div>
+    <button
+      type="button"
+      class="conflicts__close"
+      (click)="close()"
+      aria-label="Cerrar"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </header>
+
+  @if (!loaded()) {
+    <div class="conflicts__empty">Cargando conflictos…</div>
+  } @else if (count() === 0) {
+    <div class="conflicts__empty">No hay conflictos pendientes.</div>
+  } @else {
+    <ul class="conflicts__list" role="list">
+      @for (c of conflicts(); track c.opId) {
+        <li class="conflict-card" [class.conflict-card--expanded]="isExpanded(c.opId)">
+          <div class="conflict-card__head">
+            <div class="conflict-card__meta">
+              <span class="conflict-card__table">{{ tableLabel(c.table) }}</span>
+              <span class="conflict-card__when" [title]="(c.detectedAt | date:'medium') ?? ''">
+                {{ c.detectedAt | date:'short' }}
+              </span>
+            </div>
+            <p class="conflict-card__reason">{{ reasonLabel(c.reason) }}</p>
+            <div class="conflict-card__actions">
+              <button
+                type="button"
+                class="conflict-card__btn"
+                (click)="toggle(c.opId)"
+                [attr.aria-expanded]="isExpanded(c.opId)"
+              >
+                {{ isExpanded(c.opId) ? 'Ocultar detalle' : 'Ver detalle' }}
+              </button>
+              <button
+                type="button"
+                class="conflict-card__btn conflict-card__btn--danger"
+                (click)="onResolve(c.opId, 'discard')"
+                [disabled]="isProcessing(c.opId)"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                class="conflict-card__btn conflict-card__btn--primary"
+                (click)="onResolve(c.opId, 'retry')"
+                [disabled]="isProcessing(c.opId)"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+
+          @if (isExpanded(c.opId)) {
+            <div class="conflict-card__detail">
+              <div class="conflict-card__col">
+                <h3 class="conflict-card__col-title">Tu cambio (local)</h3>
+                <pre class="conflict-card__pre">{{ pretty(c.localPayload) }}</pre>
+              </div>
+              <div class="conflict-card__col">
+                <h3 class="conflict-card__col-title">Estado en servidor</h3>
+                @if (c.serverPayload) {
+                  <pre class="conflict-card__pre">{{ pretty(c.serverPayload) }}</pre>
+                } @else {
+                  <p class="conflict-card__empty">
+                    No tenemos snapshot del servidor para este conflicto.
+                    Reintenta para refrescarlo.
+                  </p>
+                }
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <footer class="conflicts__footer">
+    <button type="button" class="conflicts__footer-btn" (click)="close()">
+      Cerrar
+    </button>
+  </footer>
+</div>
