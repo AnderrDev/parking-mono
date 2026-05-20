@@ -37,23 +37,47 @@ export class VehicleEntryFormComponent implements OnInit {
   loading = input(false);
   disabled = input(false);
   monthlyPlanWarning = input<string | null>(null);
-  // Tipos para los que el catálogo tiene tarifa activa configurada. Si la
-  // lista llega vacía, se asume "todavía no cargado" y se permiten todos
-  // (no bloquear durante el load inicial). Si llega con valores, los chips
-  // fuera de la lista quedan deshabilitados con tooltip explicativo.
+  // Semántica:
+  //   null  → tarifas todavía cargando (chips en skeleton, submit bloqueado).
+  //   []    → cargado y sin tarifas pagadas (banner global, submit bloqueado).
+  //   [...] → tipos con tarifa pagada activa. Los chips fuera de la lista
+  //           quedan disabled con tooltip y bloquean el submit.
   availableTypes = input<VehicleType[] | null>(null);
+  // Si el usuario actual puede crear tarifas (admin), el banner muestra un
+  // link de acción que navega al admin de tarifas. Para otros roles, mensaje
+  // pasivo: "pide al administrador que configure…".
+  canCreateTariffs = input(false);
   // Cuando vive dentro de un modal, el padre aporta su propio footer con
   // "Confirmar"/"Cancelar". El form expone `onSubmit()` público para que
   // el modal lo invoque vía @ViewChild.
   hideSubmitButton = input(false);
   submitted = output<VehicleEntryFormValue>();
+  // Emitido cuando el usuario admin pide crear una tarifa. El valor es el
+  // tipo a prefill (o null si está pidiendo "crear cualquiera" desde el
+  // banner sin tarifas).
+  createTariffRequested = output<VehicleType | null>();
 
   form!: FormGroup;
 
+  protected isLoadingTariffs(): boolean {
+    return this.availableTypes() === null;
+  }
+
+  protected hasNoTariffs(): boolean {
+    return this.availableTypes()?.length === 0;
+  }
+
   protected isTypeAvailable(t: VehicleType): boolean {
     const allowed = this.availableTypes();
-    if (allowed === null || allowed.length === 0) return true;
+    if (allowed === null) return false; // cargando: nada disponible
     return allowed.includes(t);
+  }
+
+  protected selectedVehicleTypeUnavailable(): boolean {
+    if (!this.form) return false;
+    const selected = this.form.value.vehicleType as VehicleType | undefined;
+    if (!selected) return false;
+    return !this.isTypeAvailable(selected);
   }
 
   protected readonly vehicleTypeOptions: VehicleTypeOption[] = [
@@ -94,6 +118,12 @@ export class VehicleEntryFormComponent implements OnInit {
 
   onSubmit(): void {
     if (this.disabled()) return;
+    // Defensa en profundidad: aunque el botón esté disabled visualmente,
+    // bloqueamos también acá si no hay tarifa para el tipo elegido.
+    if (this.isLoadingTariffs() || this.hasNoTariffs() || this.selectedVehicleTypeUnavailable()) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 
@@ -104,6 +134,15 @@ export class VehicleEntryFormComponent implements OnInit {
       color: raw.color || null,
       brand: raw.brand || null,
     });
+  }
+
+  protected requestCreateTariff(vehicleType: VehicleType | null): void {
+    if (!this.canCreateTariffs()) return;
+    this.createTariffRequested.emit(vehicleType);
+  }
+
+  protected typeLabel(vt: VehicleType): string {
+    return this.vehicleTypeOptions.find((o) => o.value === vt)?.label ?? vt;
   }
 
   showError(field: string): boolean {

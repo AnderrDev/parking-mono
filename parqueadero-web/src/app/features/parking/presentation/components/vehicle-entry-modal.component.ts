@@ -18,6 +18,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { Router } from '@angular/router';
 import {
   REGISTER_VEHICLE_ENTRY_TOKEN,
 } from '../../../../core/di/injection-tokens';
@@ -44,6 +45,8 @@ import {
 export interface VehicleEntryModalData {
   availableTypes: VehicleType[] | null;
   tariffByType: Map<VehicleType, TariffEntity>;
+  // Si true, el banner de "sin tarifa" muestra el link a crear (admin).
+  isAdmin: boolean;
 }
 
 export interface VehicleEntryModalResult {
@@ -67,6 +70,7 @@ export class VehicleEntryModalComponent {
 
   private readonly authState = inject(AuthStateService);
   private readonly printTicket = inject(PrintEntryTicketUseCase);
+  private readonly router = inject(Router);
 
   constructor(
     @Inject(DIALOG_DATA) public readonly data: VehicleEntryModalData,
@@ -135,6 +139,17 @@ export class VehicleEntryModalComponent {
       if (!ok) return;
     }
     this.dialogRef.close(undefined);
+  }
+
+  /**
+   * Cierra el modal y navega al admin de tarifas con prefill del tipo
+   * solicitado. Si no hay tipo (banner global sin ninguna tarifa), navega
+   * sin prefill y el admin abre el dialog de creación desde cero.
+   */
+  protected onCreateTariffRequested(vehicleType: VehicleType | null): void {
+    this.dialogRef.close(undefined);
+    const queryParams = vehicleType ? { prefill: vehicleType } : {};
+    this.router.navigate(['/tariffs'], { queryParams });
   }
 
   private hasUnsavedData(): boolean {

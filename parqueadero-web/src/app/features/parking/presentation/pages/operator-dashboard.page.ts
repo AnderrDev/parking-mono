@@ -155,8 +155,12 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   // Se cargan en paralelo al ngOnInit.
   readonly visibleTariffTypes: VehicleType[] = ['carro', 'moto', 'bicicleta', 'otro'];
   readonly activeTariffs = signal<Map<VehicleType, TariffEntity>>(new Map());
-  readonly availableTypesForEntry = computed<VehicleType[]>(() =>
-    Array.from(this.activeTariffs().keys()),
+  // null mientras se carga la primera vez; tras el primer load queda como
+  // array (vacío si no hay ninguna tarifa). Distinguir "cargando" de "cargado
+  // vacío" permite al form de entrada mostrar skeleton vs banner "sin tarifas".
+  readonly tariffsLoaded = signal(false);
+  readonly availableTypesForEntry = computed<VehicleType[] | null>(() =>
+    this.tariffsLoaded() ? Array.from(this.activeTariffs().keys()) : null,
   );
 
   private receiptDismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -309,19 +313,23 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   private async loadTariffs(): Promise<void> {
-    const results = await Promise.all(
-      this.visibleTariffTypes.map((t) =>
-        this.getActiveTariff.execute(t).then((r) => [t, r] as const),
-      ),
-    );
-    const map = new Map<VehicleType, TariffEntity>();
-    for (const [type, result] of results) {
-      result.fold(
-        () => { /* sin tarifa configurada para ese tipo: no mostrar */ },
-        (tariff) => map.set(type, tariff),
+    try {
+      const results = await Promise.all(
+        this.visibleTariffTypes.map((t) =>
+          this.getActiveTariff.execute(t).then((r) => [t, r] as const),
+        ),
       );
+      const map = new Map<VehicleType, TariffEntity>();
+      for (const [type, result] of results) {
+        result.fold(
+          () => { /* sin tarifa configurada para ese tipo: no mostrar */ },
+          (tariff) => map.set(type, tariff),
+        );
+      }
+      this.activeTariffs.set(map);
+    } finally {
+      this.tariffsLoaded.set(true);
     }
-    this.activeTariffs.set(map);
   }
 
   protected tariffPerHourCents(t: TariffEntity): number {
@@ -783,6 +791,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
         data: {
           availableTypes: this.availableTypesForEntry(),
           tariffByType: this.activeTariffs(),
+          isAdmin: this.authState.hasRole('admin'),
         },
         ariaLabelledBy: 'entry-modal-title',
         autoFocus: 'first-tabbable',

@@ -27,9 +27,11 @@
     <app-vehicle-entry-form
       #entryForm
       [availableTypes]="data.availableTypes"
+      [canCreateTariffs]="data.isAdmin"
       [loading]="submitting()"
       [hideSubmitButton]="true"
       (submitted)="onSubmit($event)"
+      (createTariffRequested)="onCreateTariffRequested($event)"
     />
   </div>
 
