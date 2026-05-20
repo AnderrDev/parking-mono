@@ -10,19 +10,47 @@ Smart Page (orquesta UseCases de parking + lectura de estado de caja).
 Vista principal que usa el operador durante su turno. Tres responsabilidades:
 
 1. Mostrar el **estado de la caja** (abierta / cerrada) de forma inequívoca.
-2. Permitir **registrar entrada** cuando hay turno abierto.
+2. Permitir **registrar entrada** desde un modal (botón primario + atajo + FAB).
 3. Mostrar **vehículos en parqueadero** y permitir registrar la salida de cada uno.
 
-Adicional: buscador por placa, comprobante post-salida, métricas en vivo.
+Adicional: buscador por placa, comprobante post-salida, tarifas vigentes, métricas en vivo del turno.
 
 ## Audiencia objetivo (drives diseño)
 Operadores adultos mayores, poca familiaridad con software. Implica:
 
-- Texto base ≥ 16 px, números/placas ≥ 24 px (donde caben).
+- Texto base ≥ 16 px, números/placas ≥ 24 px.
 - Áreas de toque para acciones primarias ≥ 48 px de alto.
-- Copy en español plano, sin jerga técnica.
-- Estado del sistema siempre visible (nada implícito).
-- Color nunca como único indicador (siempre + ícono + texto).
+- Copy en español plano.
+- Estado del sistema siempre visible.
+- Color nunca como único indicador.
+
+## Refactor 2026-05-04 — qué cambia y por qué
+
+El **formulario de entrada inline** (panel izquierdo del layout 2-cols anterior) **se mueve a un modal**. Razón: la entrada pasa a ser una acción discreta (no un panel siempre presente) y la lista de vehículos en parqueadero recupera el ancho completo, lo que mejora la lectura cuando hay muchas sesiones.
+
+Esto **revierte parcialmente** la decisión previa "densidad alta sin flujo lineal" (`feedback_dashboard_density.md`): la consulta y la lista de salidas siguen siendo densas (multi-info por fila), pero el ingreso pasa a flow modal. Se reverte por petición explícita del usuario (2026-05-04) que prefiere botón → modal → ticket impreso.
+
+## Layout post-refactor
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [CINTA DE ESTADO DE CAJA — sticky top]                      │
+├─────────────────────────────────────────────────────────────┤
+│ Saludo · 3 chips métricas vivo │ [+ Registrar entrada] (CTA)│
+├─────────────────────────────────────────────────────────────┤
+│ Quick-stats turno (4 chips: entradas · salidas · recaudo · cortesías) │
+├─────────────────────────────────────────────────────────────┤
+│ Tarifas vigentes (chips Carro/Moto/Bici)                    │
+├─────────────────────────────────────────────────────────────┤
+│ Buscador por placa (autocomplete, sección inline)           │
+├─────────────────────────────────────────────────────────────┤
+│ [Comprobante último — auto-dismiss 12 s]                    │
+├─────────────────────────────────────────────────────────────┤
+│ Vehículos en parqueadero (full-width, búsqueda + filtro)    │
+│  [contador grande · agrupable carro/moto · más densidad]    │
+└─────────────────────────────────────────────────────────────┘
+                           [+ FAB] (mobile, bottom-right)
+```
 
 ## Estados de la página
 
@@ -30,147 +58,83 @@ Operadores adultos mayores, poca familiaridad con software. Implica:
 Redirect del guard a `/auth/login`. No aplica diseño aquí.
 
 ### B. Caja CERRADA (no hay turno abierto del usuario)
-- Cinta superior **ámbar** que dice: "Caja cerrada · No puedes registrar entradas".
-  Botón primario "Abrir caja" → navega a `/cashier`.
-- Panel "Registrar entrada" visualmente bloqueado (opacidad 0.45, no interactivo).
-  Mensaje grande: "Abre la caja para empezar el turno." + botón secundario
-  "Ir a la caja".
-- El resto (buscador, vehículos en parqueadero) **sí** sigue siendo legible,
-  pero sin botones de acción habilitados sobre sesiones (Salida queda disabled).
-  Razón: ver y consultar es seguro; modificar no.
+- Cinta superior **ámbar**: "Caja cerrada · No puedes registrar entradas". CTA "Abrir caja" → `/cashier`.
+- **Botón "Registrar entrada" del header**: disabled, tooltip "Abre la caja en /cashier".
+- **FAB (mobile)**: oculto.
+- **Atajo `N`**: ignorado.
+- Resto (buscador, lista de vehículos) sigue legible. Botones "Salida" en cada session-card quedan disabled.
 
 ### C. Caja ABIERTA (turno activo del usuario)
 - Cinta superior **verde** discreta: "Caja abierta desde HH:MM · Saldo apertura $X".
-- Todos los flujos habilitados: entrada, salida, búsqueda, comprobante.
-- Métricas en vivo activas (en parqueadero, plan mensual, hora local).
+- Todos los flujos habilitados: botón header, atajo `N`, FAB en mobile, salida por sesión.
+- Quick-stats del turno se cargan en paralelo y se refrescan tras cada entrada/salida exitosa.
 
 ### D. Cargando estado de caja
-Cinta neutra: "Verificando estado de caja…" (spinner pequeño). Form de entrada
-deshabilitado por seguridad hasta resolver. Duración esperada < 500 ms (1 query).
+Cinta neutra: "Verificando estado de caja…". Botón header disabled. Duración esperada < 500 ms.
 
 ### E. Error al consultar estado de caja
-Cinta roja con mensaje del `Failure` y botón "Reintentar". Form de entrada
-deshabilitado.
+Cinta roja con mensaje del `Failure` y botón "Reintentar". Botón header disabled.
 
-## Componentes en pantalla
+## Botón primario "Registrar entrada"
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ [CINTA DE ESTADO DE CAJA]                                   │
-├─────────────────────────────────────────────────────────────┤
-│ Saludo · métricas en vivo (3 chips)                         │
-├─────────────────────────────────────────────────────────────┤
-│ Tarifas vigentes (chips: Carro $X/h · $Y/min, Moto…, Bici…) │
-├─────────────────────────────────────────────────────────────┤
-│ Buscador por placa (autocomplete, sección inline)           │
-├─────────────────────────────────────────────────────────────┤
-│ [Comprobante último · auto-dismiss 12 s · hover pausa]      │
-├─────────────────────────────────────────────────────────────┤
-│ Registrar entrada       │  Vehículos en parqueadero         │
-│ (form bloqueado si       │  (lista; botón Salida por item)  │
-│  caja cerrada)           │                                  │
-└─────────────────────────────────────────────────────────────┘
-```
+| Aspecto | Detalle |
+|---|---|
+| Ubicación desktop | Header, lado derecho del título. Botón primario sólido, alto 56 px, ícono `+`. |
+| Ubicación mobile (<768 px) | FAB flotante bottom-right, círculo 64 px, icono `+`. |
+| Atajo de teclado | `N` (case-insensitive). Ignorado si el foco está en `<input>`/`<textarea>` o el modal ya está abierto. |
+| Disabled si | `cashRegisterClosed() === true` o `shiftBannerState() === 'loading'`. |
+| Acción | Abre `<app-vehicle-entry-modal>` (CDK Dialog). |
+| A11y | `aria-keyshortcuts="N"` en el botón header; tooltip visible para screen readers. |
 
-### Panel "Tarifas vigentes"
-Carga en paralelo (al `ngOnInit`) las tarifas activas de carro, moto y
-bicicleta (`GetActiveTariffUseCase` × 3). Si un tipo no tiene tarifa
-configurada, se omite silenciosamente (no se muestra fila vacía).
+## Quick-stats del turno (chips nuevos)
 
-Cada chip muestra:
-- Tipo de vehículo (label).
-- Precio/hora destacado (`tariffPerHourCents`).
-- Precio/minuto en color secundario (`tariffPerMinuteCents`).
+Cuatro chips compactos debajo del header (solo visible si caja abierta):
 
-Conversiones según `tariff.unit`:
-| unit       | /hora                | /minuto              |
-|------------|----------------------|----------------------|
-| `minuto`   | `valueCents × 60`    | `valueCents`         |
-| `hora`     | `valueCents`         | `valueCents / 60`    |
-| `fraccion` | `valueCents × 2`     | `valueCents / 30`    |
-| `dia`      | `valueCents / 24`    | `valueCents / 1440`  |
+| Chip | Valor | Origen |
+|---|---|---|
+| Entradas hoy | `count(parking_sessions WHERE entry_user_id=me AND DATE(entry_at)=hoy)` | repo método `getShiftEntryCount` |
+| Salidas hoy | `count(parking_sessions WHERE exit_user_id=me AND DATE(exit_at)=hoy AND status='completed')` | repo método `getShiftExitCount` |
+| Recaudo turno | `sum(payments.amount_cents)` del `cashier_shift_id` actual, métodos no libres | reusa cálculo existente del cashier |
+| Cortesías | `count(payments WHERE method='cortesia' AND cashier_shift_id=actual)` | reusa cálculo |
 
-Sirve como referencia visible para el operador (no tiene que ir a
-admin a consultar) y para el cliente que pregunta el precio.
+Refresh: tras `RegisterVehicleEntryUseCase` éxito o `RegisterVehicleExitUseCase` éxito, re-consulta los 4 valores. Si la consulta falla, el chip muestra `—` sin romper la página.
 
-**Decisión de diseño:** se mantiene el layout multi-columna denso (todo al
-alcance, sin scroll) por preferencia explícita del usuario. Un intento de
-rediseño "v2" 1-columna con buscador en overlay (2026-05-02) se revirtió
-porque el operador prefiere el modelo dashboard. Ver
-`feedback_dashboard_density.md` en memory.
+## Cinta de estado de caja
 
-## Cinta de estado de caja — detalle
-
-Componente inline (no se extrae a shared todavía; si reusable, se promueve).
-
-| Estado     | Color de fondo            | Ícono       | Texto                                                | CTA                       |
-|------------|---------------------------|-------------|------------------------------------------------------|---------------------------|
-| Abierta    | `--color-success-soft`    | check       | "Caja abierta · saldo apertura $X · desde HH:MM"     | (none)                    |
-| Cerrada    | `--color-warning-soft`    | alert       | "Caja cerrada — no puedes registrar entradas."       | "Abrir caja" → `/cashier` |
-| Cargando   | `--color-bg-subtle`       | spinner     | "Verificando estado de caja…"                        | (none)                    |
-| Error      | `--color-danger-soft`     | error       | mensaje del failure                                  | "Reintentar"              |
-
-- A11y: `role="status"` para abierta/cargando, `role="alert"` para cerrada/error.
-- Color **no** es el único indicador: siempre lleva ícono + texto.
-
-## Bloqueo del formulario de entrada cuando caja cerrada
-
-- El componente `<app-vehicle-entry-form>` recibe input nuevo `disabled`.
-- Cuando `disabled=true`:
-  - Inputs y selector de tipo deshabilitados (`pointer-events: none`, opacidad 0.45).
-  - Botón submit deshabilitado.
-  - Por encima del form se renderiza un overlay con copy:
-    "Abre la caja para empezar el turno." + botón secundario "Ir a la caja".
-- Razón: la entrada ya fallaría server-side (`BusinessRuleFailure`), pero el
-  bloqueo previo elimina el viaje fallido y la frustración.
-
-## Mejoras UX para usuarios mayores (concretas)
-
-| Elemento                              | Original           | Aplicado                           |
-|---------------------------------------|--------------------|------------------------------------|
-| Tamaño de placa en cards              | `--text-md` (16)   | `--text-lg` (18) bold              |
-| Tamaño de placa en buscador (input)   | `--text-md` (16)   | `--text-lg` (18) bold, alto 56 px  |
-| Alto botón "Salida" / "Registrar"     | 40 px              | 52 px                              |
-| Alto botón "Abrir caja"               | n/a                | 56 px                              |
-| Subtítulos de panel                   | `--text-sm` (14)   | `--text-md` (16)                   |
-| Etiqueta hora local                   | "Hora local"       | "Hora actual"                      |
-| Mensaje vacío parqueadero             | "Parqueadero vacío"| "Aún no hay vehículos. Cuando registres una entrada aparecerá aquí." |
-| Saludo                                | "Buen turno, X"    | "Hola, X" (más directo)            |
-| Comprobante post-salida               | persistente        | auto-dismiss 12 s, pausa en hover  |
-| Tooltip de ícono solo                 | (varía)            | Siempre visible o aria-label       |
-
-Mantener: tipografía actual (Inter), paleta, espaciado base 8 px.
-
-## NO hace (restricciones explícitas)
-
-- NO crea ni cierra turno (eso vive en `/cashier`). Solo lee y enlaza.
-- NO duplica la validación server-side de "turno requerido para entrada".
-- NO promueve la cinta a `app.component` global todavía.
-- NO toca el `vehicle-exit-dialog` (es otro spec).
-- NO agrega telemetría / tracking.
-
-## Dependencias técnicas
-
-- `ParkingRepository.getOpenCashierShiftId(userId)` — ya existe.
-- Nuevo UseCase delgado: `GetOpenShiftStatusUseCase` →
-  `Either<Failure, { isOpen: boolean; shiftId: string | null; openedAt: Date | null; openingBalanceCents: number | null }>`.
-  - Para los datos opcionales (`openedAt`, `openingBalance`) habrá que extender
-    el método del repo o agregar un segundo método `getOpenShiftSummary(userId)`.
-  - **Decisión simple**: agregar `getOpenShiftSummary(userId)` al
-    `ParkingRepository` y al datasource remoto. Nombre evita ambigüedad con
-    el método existente.
-- DI: `GET_OPEN_SHIFT_STATUS_TOKEN` en `injection-tokens.ts`.
+Sin cambios respecto a versión anterior — ver tabla original.
 
 ## Comportamiento al cargar
 
-1. `ngOnInit` → `loadShiftStatus()` y `loadSessions()` en paralelo.
-2. Mientras shiftStatus no resuelve: cinta "Verificando…" + form disabled.
+1. `ngOnInit` → `loadShiftStatus()`, `loadSessions()`, `loadTariffs()`, `loadShiftStats()` en paralelo.
+2. Mientras shiftStatus no resuelve: cinta "Verificando…" + botón disabled.
 3. Al resolver: render del estado correcto.
-4. Refresco: tras navegar de vuelta de `/cashier`, recargar shiftStatus.
-   Implementación simple: re-ejecutar en `ngOnInit` (ya pasa al re-montar la
-   page por estar lazy-loaded). Si el usuario cierra/abre la caja sin salir
-   de `/parking` (no es flujo soportado hoy), no hay refresh automático;
-   se documenta como limitación aceptada.
+4. Refresco tras navegar de vuelta de `/cashier`: re-ejecuta en `ngOnInit` (page lazy-loaded).
+
+## NO hace (restricciones explícitas)
+
+- NO crea ni cierra turno (eso vive en `/cashier`).
+- NO duplica validación server-side de "turno requerido".
+- NO incluye el form de entrada inline en su HTML (vive solo en el modal).
+- NO maneja la impresión del ticket de entrada (la maneja el modal — ver `print-entry-ticket.spec.md`).
+- NO toca el `vehicle-exit-dialog`.
+
+## Dependencias técnicas
+
+- `ParkingRepository.getShiftEntryCount(shiftId)` — nuevo, retorna number.
+- `ParkingRepository.getShiftExitCount(shiftId)` — nuevo.
+- `CashierRepository.getShiftRevenue(shiftId)` — ya existe (reusa).
+- `CashierRepository.getShiftCourtesyCount(shiftId)` — nuevo o derivado del existente.
+- `<app-vehicle-entry-modal>` (nuevo, ver spec dedicada).
+
+## Mejoras UX previas (se mantienen)
+
+| Elemento | Aplicado |
+|---|---|
+| Tamaño de placa en cards | `--text-lg` (18) bold |
+| Tamaño de placa en buscador | `--text-lg` (18) bold, alto 56 px |
+| Alto botón "Salida" / "Registrar entrada" | 52-56 px |
+| Subtítulos | `--text-md` (16) |
+| Comprobante post-salida | auto-dismiss 12 s, pausa en hover |
 
 ---
-Status: Implementado (2026-05-02) — ver `sessions/2026-05-02-operator-dashboard-ux.md`
+Status: Refactor especificado 2026-05-04 — implementación pendiente.

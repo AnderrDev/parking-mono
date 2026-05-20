@@ -53,3 +53,10 @@ venv/
 *.pem
 *.p12
 .serverless/
+
+# Claude Code scratch
+.claude/worktrees/
+
+# Local auditorias (no commiteables, conservar en disco)
+AUDIT-*.md
+AUDIT-*.html

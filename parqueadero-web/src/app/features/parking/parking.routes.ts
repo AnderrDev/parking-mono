@@ -14,9 +14,15 @@ import {
   LIST_SESSIONS_TOKEN,
   CANCEL_SESSION_TOKEN,
   GET_OPEN_SHIFT_STATUS_TOKEN,
+  GET_VEHICLE_HISTORY_STATS_TOKEN,
+  TICKET_RENDERER_TOKEN,
+  MONTHLY_PLAN_REPOSITORY_TOKEN,
+  MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN,
+  LIST_MONTHLY_PLANS_TOKEN,
 } from '../../core/di/injection-tokens';
 import { ParkingRemoteDataSource } from './data/datasources/parking-remote.datasource';
 import { ParkingRepositoryImpl } from './data/repositories/parking.repository.impl';
+import { TicketRendererService } from './data/services/ticket-renderer.service';
 import { RegisterVehicleEntryUseCase } from './domain/usecases/register-vehicle-entry.usecase';
 import { RegisterVehicleExitUseCase } from './domain/usecases/register-vehicle-exit.usecase';
 import { GetActiveSessionsUseCase } from './domain/usecases/get-active-sessions.usecase';
@@ -27,6 +33,11 @@ import { ListSessionsUseCase } from './domain/usecases/list-sessions.usecase';
 import { CancelParkingSessionUseCase } from './domain/usecases/cancel-session.usecase';
 import { GetActiveTariffUseCase } from './domain/usecases/get-active-tariff.usecase';
 import { GetOpenShiftStatusUseCase } from './domain/usecases/get-open-shift-status.usecase';
+import { GetVehicleHistoryStatsUseCase } from './domain/usecases/get-vehicle-history-stats.usecase';
+import { PrintEntryTicketUseCase } from './domain/usecases/print-entry-ticket.usecase';
+import { MonthlyPlanRemoteDataSource } from '../monthly-plans/data/datasources/monthly-plan-remote.datasource';
+import { MonthlyPlanRepositoryImpl } from '../monthly-plans/data/repositories/monthly-plan.repository.impl';
+import { ListMonthlyPlansUseCase } from '../monthly-plans/domain/usecases/list-monthly-plans.usecase';
 
 const parkingProviders = [
   { provide: PARKING_REMOTE_DATASOURCE_TOKEN, useClass: ParkingRemoteDataSource },
@@ -41,6 +52,14 @@ const parkingProviders = [
   { provide: CANCEL_SESSION_TOKEN, useClass: CancelParkingSessionUseCase },
   { provide: GET_ACTIVE_TARIFF_TOKEN, useClass: GetActiveTariffUseCase },
   { provide: GET_OPEN_SHIFT_STATUS_TOKEN, useClass: GetOpenShiftStatusUseCase },
+  { provide: GET_VEHICLE_HISTORY_STATS_TOKEN, useClass: GetVehicleHistoryStatsUseCase },
+  { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
+  // Use case route-scoped porque depende de TICKET_RENDERER_TOKEN.
+  PrintEntryTicketUseCase,
+  // HU-047: monthly plans panel en la vista del operador.
+  { provide: MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN, useClass: MonthlyPlanRemoteDataSource },
+  { provide: MONTHLY_PLAN_REPOSITORY_TOKEN, useClass: MonthlyPlanRepositoryImpl },
+  { provide: LIST_MONTHLY_PLANS_TOKEN, useClass: ListMonthlyPlansUseCase },
 ];
 
 export const parkingRoutes: Routes = [

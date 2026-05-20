@@ -6,6 +6,7 @@ import { VehicleEntity } from '../entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
 import { PaymentEntity, PaymentMethod } from '../entities/payment.entity';
 import { TariffEntity } from '../entities/tariff.entity';
+import { VehicleHistoryStats } from '../entities/vehicle-history-stats.entity';
 
 export interface RegisterEntryParams {
   plate: string;
@@ -77,7 +78,13 @@ export abstract class ParkingRepository {
   abstract searchPlateSuggestions(
     query: string,
     limit?: number,
+    onlyActive?: boolean,
   ): Promise<Either<Failure, VehicleEntity[]>>;
+
+  abstract getVehicleHistoryStats(
+    plate: string,
+    recentLimit?: number,
+  ): Promise<Either<Failure, VehicleHistoryStats>>;
 
   abstract getOpenCashierShiftId(
     userId: string,
@@ -127,6 +134,13 @@ export interface CancelSessionParams {
   sessionId: string;
   reason: string;
   userId: string;
+  /**
+   * Si la cancelación corresponde a una sesión ya cerrada con pago, el
+   * caller puede pasar el id del pago para que el datasource local lo
+   * marque como `refunded` y encole el refund. El path remoto ignora
+   * este campo (el server resuelve el refund inline). Sprint 3.
+   */
+  paymentId?: string;
 }
 
 export interface OpenShiftSummary {

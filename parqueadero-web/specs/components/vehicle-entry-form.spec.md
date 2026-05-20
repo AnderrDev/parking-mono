@@ -1,13 +1,21 @@
 # Spec: Vehicle Entry Form Component
 
 ## Tipo
-Smart Component (orquesta el UseCase, pero presenta como dumb hacia sus hijos)
+Dumb Component (form puro — emite outputs, no invoca UseCases). El padre (hoy `<app-vehicle-entry-modal>`, antes `operator-dashboard.page`) es quien orquesta `RegisterVehicleEntryUseCase`.
 
 ## Selector
 `app-vehicle-entry-form`
 
 ## Propósito
-Formulario reactivo para registrar la entrada de un vehículo. Captura placa, tipo de vehículo, color y marca. Pre-llena datos si existe búsqueda previa.
+Formulario reactivo para capturar los datos de entrada de un vehículo: placa, tipo, color y marca. Pre-llena datos si existe búsqueda previa por placa. Reutilizable dentro de cualquier contenedor (modal hoy, posible inline en el futuro).
+
+## Cambio 2026-05-04 (refactor a modal)
+
+Antes vivía inline en `operator-dashboard.page`. Tras el refactor del 2026-05-04 vive **dentro de `<app-vehicle-entry-modal>`**. El componente sigue siendo el mismo — no cambian inputs/outputs/validaciones. Lo único que cambia es el padre (que pasa a ser el modal) y que el botón "Registrar entrada" del propio form **se oculta** cuando vive en modal (el modal aporta su propio footer con "Confirmar" / "Cancelar"). Para soportarlo:
+
+| Input nuevo | Tipo | Default | Descripción |
+|---|---|---|---|
+| `hideSubmitButton` | boolean | false | Si `true`, el form no renderiza su propio submit; el padre llama `submit()` programáticamente (vía `@ViewChild`). |
 
 ## Inputs
 

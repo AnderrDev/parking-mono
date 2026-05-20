@@ -13,6 +13,10 @@ export interface TariffDialogData {
    * error y muestra el mensaje retornado inline. Ver
    * `feedback_dialog_inline_errors.md` en memory. */
   onSubmit?: (value: TariffFormValue) => Promise<string | null>;
+  /** Prellena el form al crear (no aplica en edit). Útil al venir desde
+   * el dashboard de operación cuando se intenta ingresar un vehículo sin
+   * tarifa configurada. */
+  prefillVehicleType?: string | null;
 }
 
 export interface TariffFormValue {
@@ -53,6 +57,9 @@ export class TariffEditDialogComponent implements OnInit {
 
   ngOnInit(): void {
     const t = this.data.tariff;
+    const createDefaults = this.data.prefillVehicleType
+      ? { vehicleType: this.data.prefillVehicleType }
+      : undefined;
     this.form = this.tariffForms.createTariffForm(t ? {
       name: t.name,
       vehicleType: t.vehicleType,
@@ -63,7 +70,7 @@ export class TariffEditDialogComponent implements OnInit {
       ...(t.validFrom ? { validFrom: t.validFrom.toISOString().slice(0, 10) } : {}),
       ...(t.validTo ? { validTo: t.validTo.toISOString().slice(0, 10) } : {}),
       isActive: t.isActive,
-    } : undefined);
+    } : createDefaults);
 
     if (this.isEdit) {
       this.form.get('vehicleType')?.disable();

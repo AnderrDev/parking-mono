@@ -1,13 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  EnvironmentInjector,
+  HostListener,
   Inject,
   OnDestroy,
   OnInit,
+  ViewContainerRef,
   computed,
   inject,
   signal,
-  viewChild,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { RouterLink } from '@angular/router';
@@ -27,6 +29,8 @@ import {
   SEARCH_PLATE_SUGGESTIONS_TOKEN,
   REQUEST_INVOICE_TOKEN,
   GET_OPEN_SHIFT_STATUS_TOKEN,
+  GET_VEHICLE_HISTORY_STATS_TOKEN,
+  LIST_MONTHLY_PLANS_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -56,6 +60,12 @@ import {
   GetOpenShiftStatusUseCase,
   OpenShiftStatus,
 } from '../../domain/usecases/get-open-shift-status.usecase';
+import {
+  GetVehicleHistoryStatsUseCase,
+} from '../../domain/usecases/get-vehicle-history-stats.usecase';
+import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
+import { ListMonthlyPlansUseCase } from '../../../monthly-plans/domain/usecases/list-monthly-plans.usecase';
+import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { VehicleSearchResult } from '../../domain/repositories/parking.repository';
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import {
@@ -63,9 +73,10 @@ import {
 } from '../../domain/usecases/calculate-parking-fee.usecase';
 import { RequestInvoiceUseCase } from '../../../invoicing/domain/usecases/request-invoice.usecase';
 import {
-  VehicleEntryFormComponent,
-  VehicleEntryFormValue,
-} from '../components/vehicle-entry-form.component';
+  VehicleEntryModalComponent,
+  VehicleEntryModalData,
+  VehicleEntryModalResult,
+} from '../components/vehicle-entry-modal.component';
 import {
   VehicleExitDialogComponent,
   VehicleExitDialogData,
@@ -74,6 +85,8 @@ import {
 import { ShiftStatusBannerComponent, ShiftBannerState } from '../components/shift-status-banner.component';
 import { TariffsBarComponent } from '../components/tariffs-bar.component';
 import { ReceiptCardComponent, ExitReceipt } from '../components/receipt-card.component';
+import { VehicleHistoryPanelComponent } from '../components/vehicle-history-panel.component';
+import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 
@@ -91,18 +104,18 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    VehicleEntryFormComponent,
     LoadingSpinnerComponent,
     RouterLink,
     ShiftStatusBannerComponent,
     TariffsBarComponent,
     ReceiptCardComponent,
+    VehicleHistoryPanelComponent,
+    MonthlyPlansPanelComponent,
   ],
   templateUrl: './operator-dashboard.page.html',
   styleUrl: './operator-dashboard.page.scss',
 })
 export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
-  readonly entryLoading = signal(false);
   readonly sessionsLoading = signal(false);
   readonly activeSessions = signal<ParkingSessionEntity[]>([]);
   readonly monthlyPlanWarning = signal<string | null>(null);
@@ -142,8 +155,12 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   // Se cargan en paralelo al ngOnInit.
   readonly visibleTariffTypes: VehicleType[] = ['carro', 'moto', 'bicicleta', 'otro'];
   readonly activeTariffs = signal<Map<VehicleType, TariffEntity>>(new Map());
-  readonly availableTypesForEntry = computed<VehicleType[]>(() =>
-    Array.from(this.activeTariffs().keys()),
+  // null mientras se carga la primera vez; tras el primer load queda como
+  // array (vacío si no hay ninguna tarifa). Distinguir "cargando" de "cargado
+  // vacío" permite al form de entrada mostrar skeleton vs banner "sin tarifas".
+  readonly tariffsLoaded = signal(false);
+  readonly availableTypesForEntry = computed<VehicleType[] | null>(() =>
+    this.tariffsLoaded() ? Array.from(this.activeTariffs().keys()) : null,
   );
 
   private receiptDismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -160,15 +177,43 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   private plateSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private plateSearchSeq = 0;
 
+  // HU-046: dossier histórico del vehículo seleccionado.
+  readonly vehicleHistoryStats = signal<VehicleHistoryStats | null>(null);
+  readonly vehicleHistoryLoading = signal(false);
+  readonly vehicleHistoryError = signal<string | null>(null);
+  private vehicleHistorySeq = 0;
+
+  // HU-047: panel de mensualidades activas (active + expiring).
+  readonly monthlyPlans = signal<MonthlyPlanEntity[]>([]);
+  readonly monthlyPlansLoading = signal(true);
+  readonly monthlyPlansError = signal<string | null>(null);
+
   readonly formatDuration = formatDuration;
   readonly formatCOP = formatCOP;
 
-  protected readonly entryFormCmp = viewChild<VehicleEntryFormComponent>('entryForm');
+  // El modal de ingreso reemplaza al form inline. Tracking del modal abierto
+  // para evitar dobles aperturas con el atajo de teclado. Tipo aproximado
+  // (DialogRef es genérico y depende del componente abierto).
+  private entryModalRef: { close: () => void } | null = null;
 
   private clockTimer: ReturnType<typeof setInterval> | null = null;
 
   private readonly dialog = inject(Dialog);
   private readonly toast = inject(ToastService);
+  /**
+   * Para anclar el overlay del dialog en el árbol de vistas correcto.
+   */
+  private readonly vcr = inject(ViewContainerRef);
+  /**
+   * Crítico: CDK Dialog (`dialog.mjs:594`) construye el injector del
+   * componente abierto a partir de `config.injector || vcr.injector`.
+   * `vcr.injector` es el ElementInjector — NO traversa al EnvironmentInjector
+   * del route, así que tokens como REGISTER_VEHICLE_ENTRY_TOKEN o
+   * TICKET_RENDERER_TOKEN (provistos en parking.routes.ts) quedan invisibles
+   * y revientan con NullInjectorError. Inyectar EnvironmentInjector aquí
+   * sí entrega el del route (con sus providers); pasarlo explícito.
+   */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   constructor(
     @Inject(REGISTER_VEHICLE_ENTRY_TOKEN)
@@ -187,29 +232,104 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     private readonly requestInvoice: RequestInvoiceUseCase,
     @Inject(GET_OPEN_SHIFT_STATUS_TOKEN)
     private readonly getOpenShiftStatus: GetOpenShiftStatusUseCase,
+    @Inject(GET_VEHICLE_HISTORY_STATS_TOKEN)
+    private readonly getVehicleHistoryStats: GetVehicleHistoryStatsUseCase,
+    @Inject(LIST_MONTHLY_PLANS_TOKEN)
+    private readonly listMonthlyPlans: ListMonthlyPlansUseCase,
     private readonly _calculateFee: CalculateParkingFeeUseCase,
     readonly authState: AuthStateService,
   ) {}
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadShiftStatus(), this.loadSessions(), this.loadTariffs()]);
+    await Promise.all([
+      this.loadShiftStatus(),
+      this.loadSessions(),
+      this.loadTariffs(),
+      this.loadMonthlyPlans(),
+    ]);
     this.clockTimer = setInterval(() => this.clockNow.set(this.formatNow()), 1000);
   }
 
-  private async loadTariffs(): Promise<void> {
-    const results = await Promise.all(
-      this.visibleTariffTypes.map((t) =>
-        this.getActiveTariff.execute(t).then((r) => [t, r] as const),
-      ),
-    );
-    const map = new Map<VehicleType, TariffEntity>();
-    for (const [type, result] of results) {
-      result.fold(
-        () => { /* sin tarifa configurada para ese tipo: no mostrar */ },
-        (tariff) => map.set(type, tariff),
+  /** HU-047: carga mensualidades activas + próximas a vencer. */
+  async loadMonthlyPlans(): Promise<void> {
+    this.monthlyPlansLoading.set(true);
+    this.monthlyPlansError.set(null);
+    const [activeRes, expiringRes] = await Promise.all([
+      this.listMonthlyPlans.execute({
+        status: 'active',
+        pagination: { page: 1, pageSize: 50 },
+      }),
+      this.listMonthlyPlans.execute({
+        status: 'expiring',
+        pagination: { page: 1, pageSize: 50 },
+      }),
+    ]);
+    this.monthlyPlansLoading.set(false);
+
+    if (activeRes.isLeft()) {
+      this.monthlyPlansError.set(
+        activeRes.fold((f) => f.message, () => 'Error desconocido'),
       );
+      this.monthlyPlans.set([]);
+      return;
     }
-    this.activeTariffs.set(map);
+    const combined: MonthlyPlanEntity[] = [];
+    activeRes.fold(() => null, (r) => combined.push(...r.data));
+    expiringRes.fold(() => null, (r) => combined.push(...r.data));
+    // Deduplicar por id (un plan no debería aparecer dos veces, pero por
+    // si la BD marcó status='active' y la consulta de 'expiring' lo trae
+    // por otra ruta).
+    const seen = new Set<string>();
+    const dedup = combined.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+    this.monthlyPlans.set(dedup);
+  }
+
+  /** Click en una fila del panel de mensualidades → rellenar el buscador. */
+  protected async onMonthlyPlanPlateSelected(plate: string): Promise<void> {
+    this.plateSearchQuery.set(plate);
+    this.plateSuggestionsOpen.set(false);
+    this.plateSuggestions.set([]);
+    this.plateSearchLoading.set(true);
+    this.plateSearchError.set(null);
+
+    void this.loadVehicleHistory(plate);
+
+    const result = await this.searchByPlate.execute({ plate });
+    this.plateSearchLoading.set(false);
+    result.fold(
+      (failure) => {
+        this.plateSearchResult.set(null);
+        this.plateSearchError.set(failure.message);
+      },
+      (data) => {
+        this.plateSearchResult.set(data);
+        this.plateSearchError.set(null);
+      },
+    );
+  }
+
+  private async loadTariffs(): Promise<void> {
+    try {
+      const results = await Promise.all(
+        this.visibleTariffTypes.map((t) =>
+          this.getActiveTariff.execute(t).then((r) => [t, r] as const),
+        ),
+      );
+      const map = new Map<VehicleType, TariffEntity>();
+      for (const [type, result] of results) {
+        result.fold(
+          () => { /* sin tarifa configurada para ese tipo: no mostrar */ },
+          (tariff) => map.set(type, tariff),
+        );
+      }
+      this.activeTariffs.set(map);
+    } finally {
+      this.tariffsLoaded.set(true);
+    }
   }
 
   protected tariffPerHourCents(t: TariffEntity): number {
@@ -316,7 +436,12 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     this.plateSuggestionsOpen.set(true);
 
     this.plateSearchTimer = setTimeout(async () => {
-      const result = await this.searchPlateSuggestions.execute({ query: value });
+      // En la vista del operador solo nos interesan placas que estén
+      // actualmente DENTRO del parqueadero — no históricas.
+      const result = await this.searchPlateSuggestions.execute({
+        query: value,
+        onlyActive: true,
+      });
       if (seq !== this.plateSearchSeq) return;
       this.plateSuggestionsLoading.set(false);
       result.fold(
@@ -339,6 +464,10 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     this.plateSearchLoading.set(true);
     this.plateSearchError.set(null);
 
+    // HU-046: arrancar la carga del dossier en paralelo. Si la búsqueda
+    // principal aún no terminó, el panel ya está mostrando las stats.
+    void this.loadVehicleHistory(vehicle.plate);
+
     const result = await this.searchByPlate.execute({ plate: vehicle.plate });
     this.plateSearchLoading.set(false);
     result.fold(
@@ -349,6 +478,29 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       (data) => {
         this.plateSearchResult.set(data);
         this.plateSearchError.set(null);
+      },
+    );
+  }
+
+  /** HU-046: carga las métricas históricas para la placa seleccionada. */
+  private async loadVehicleHistory(plate: string): Promise<void> {
+    const seq = ++this.vehicleHistorySeq;
+    this.vehicleHistoryLoading.set(true);
+    this.vehicleHistoryError.set(null);
+    this.vehicleHistoryStats.set(null);
+
+    const result = await this.getVehicleHistoryStats.execute({ plate });
+    if (seq !== this.vehicleHistorySeq) return; // descartado por nueva selección
+
+    this.vehicleHistoryLoading.set(false);
+    result.fold(
+      (failure) => {
+        this.vehicleHistoryStats.set(null);
+        this.vehicleHistoryError.set(failure.message);
+      },
+      (stats) => {
+        this.vehicleHistoryStats.set(stats);
+        this.vehicleHistoryError.set(null);
       },
     );
   }
@@ -372,11 +524,15 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   protected clearPlateSearch(): void {
     if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
     this.plateSearchSeq++;
+    this.vehicleHistorySeq++;
     this.plateSearchQuery.set('');
     this.plateSearchResult.set(null);
     this.plateSearchError.set(null);
     this.plateSuggestions.set([]);
     this.plateSuggestionsOpen.set(false);
+    this.vehicleHistoryStats.set(null);
+    this.vehicleHistoryError.set(null);
+    this.vehicleHistoryLoading.set(false);
   }
 
   protected formatDateShort(d: Date): string {
@@ -431,6 +587,8 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     const ref = this.dialog.open<ExitFormValue | undefined, VehicleExitDialogData>(
       VehicleExitDialogComponent,
       {
+        injector: this.envInjector,
+        viewContainerRef: this.vcr,
         data: { session, tariff, feeResult },
         ariaLabelledBy: 'exit-dialog-title',
         autoFocus: 'first-tabbable',
@@ -486,7 +644,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
         }
         this.toast.success(`Vehículo ${closedSession.vehiclePlate} salió${amountStr}${changeStr}`);
 
-        this.lastReceipt.set({
+        const receipt: ExitReceipt = {
           plate: closedSession.vehiclePlate,
           vehicleType: closedSession.vehicleType,
           entryAt: closedSession.entryAt,
@@ -495,8 +653,19 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           amountCents: amount,
           paymentMethod: value.paymentMethod,
           cashReceivedCents: value.cashReceivedCents,
-        });
+        };
+        this.lastReceipt.set(receipt);
         this.scheduleReceiptDismiss();
+
+        // HU-031 v1.1: auto-impresión del comprobante. Si el popup está
+        // bloqueado, queda el botón manual en `<app-receipt-card>` como
+        // fallback — informamos con un toast no-bloqueante.
+        const printed = this.printReceipt(receipt);
+        if (!printed) {
+          this.toast.warning(
+            'Popup bloqueado. Usa el botón "Imprimir comprobante" para reimprimir.',
+          );
+        }
 
         // HU-040: emitir factura electrónica si el operador la pidió.
         if (value.emitInvoice && value.customerId) {
@@ -523,13 +692,31 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     this.lastReceipt.set(null);
   }
 
-  protected printReceipt(r: ExitReceipt): void {
+  /**
+   * Imprime el comprobante de salida en una ventana popup.
+   * Retorna true si la ventana se abrió, false si el popup fue bloqueado
+   * (para que el llamador decida cómo notificar). Auto-cierra el popup
+   * 1s después de imprimir (mismo patrón que el ticket de entrada).
+   */
+  protected printReceipt(r: ExitReceipt): boolean {
     const w = window.open('', '_blank', 'width=420,height=620');
-    if (!w) return;
+    if (!w) return false;
     w.document.write(this.buildReceiptHtml(r));
     w.document.close();
     w.focus();
-    w.print();
+    try {
+      w.print();
+    } catch {
+      // Algunos navegadores cierran solos al print(); ignoramos.
+    }
+    setTimeout(() => {
+      try {
+        w.close();
+      } catch {
+        /* noop */
+      }
+    }, 1000);
+    return true;
   }
 
   private buildReceiptHtml(r: ExitReceipt): string {
@@ -591,47 +778,69 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
 </html>`;
   }
 
-  async onEntrySubmit(value: VehicleEntryFormValue): Promise<void> {
-    const user = this.authState.currentUser();
-    if (!user) return;
+  /** Abre el modal de ingreso. Disparado por botón header, FAB o atajo `N`. */
+  openEntryModal(): void {
+    if (this.entryDisabled()) return;
+    if (this.entryModalRef) return; // ya hay uno abierto
 
-    this.entryLoading.set(true);
-    this.monthlyPlanWarning.set(null);
-
-    const result = await this.registerEntry.execute({
-      plate: value.plate,
-      vehicleType: value.vehicleType,
-      color: value.color,
-      brand: value.brand,
-      userId: user.id,
-    });
-
-    this.entryLoading.set(false);
-
-    result.fold(
-      (failure) => {
-        if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
-          this.toast.error(failure.message);
-        } else if (failure instanceof NetworkFailure) {
-          this.toast.warning('Sin conexión. La entrada se guardará cuando haya red.');
-        } else if (failure instanceof ServerFailure) {
-          this.toast.error(`Error al registrar entrada: ${failure.message}`);
-        } else {
-          this.toast.error('Error inesperado. Intenta de nuevo.');
-        }
-      },
-      ({ session, monthlyPlanWarning }) => {
-        this.lastReceipt.set(null);
-        this.activeSessions.update((prev) => [session, ...prev]);
-        this.toast.success(
-          `Vehículo ${session.vehiclePlate} registrado a las ${session.entryAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`,
-        );
-        if (monthlyPlanWarning) {
-          this.monthlyPlanWarning.set(monthlyPlanWarning);
-        }
-        this.entryFormCmp()?.resetForm();
+    const ref = this.dialog.open<VehicleEntryModalResult, VehicleEntryModalData>(
+      VehicleEntryModalComponent,
+      {
+        injector: this.envInjector,
+        viewContainerRef: this.vcr,
+        data: {
+          availableTypes: this.availableTypesForEntry(),
+          tariffByType: this.activeTariffs(),
+          isAdmin: this.authState.hasRole('admin'),
+        },
+        ariaLabelledBy: 'entry-modal-title',
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        hasBackdrop: true,
+        disableClose: true, // backdrop NO cierra; cancelar/Esc piden confirm
       },
     );
+    this.entryModalRef = { close: () => ref.close() };
+
+    ref.closed.subscribe((result) => {
+      this.entryModalRef = null;
+      if (!result) return;
+      this.handleEntryRegistered(result);
+    });
+  }
+
+  private handleEntryRegistered(result: VehicleEntryModalResult): void {
+    const { session, monthlyPlanWarning, ticketPrinted } = result;
+    this.lastReceipt.set(null);
+    this.activeSessions.update((prev) => [session, ...prev]);
+    this.toast.success(
+      `Vehículo ${session.vehiclePlate} registrado a las ${session.entryAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`,
+    );
+    if (monthlyPlanWarning) {
+      this.monthlyPlanWarning.set(monthlyPlanWarning);
+    }
+    if (!ticketPrinted) {
+      // No interrumpe — log silencioso. El ticket se puede reimprimir más
+      // tarde desde la lista de sesiones (follow-up).
+      console.warn('[entry] Ticket no imprimido (popup bloqueado o sin impresora).');
+    }
+  }
+
+  /** Atajo de teclado `N` para abrir el modal de entrada. */
+  @HostListener('window:keydown', ['$event'])
+  protected onGlobalKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'n' && event.key !== 'N') return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (
+      target.tagName === 'INPUT'
+      || target.tagName === 'TEXTAREA'
+      || target.isContentEditable
+    )) return;
+    if (this.entryModalRef) return;
+    if (this.entryDisabled()) return;
+    event.preventDefault();
+    this.openEntryModal();
   }
 
   private async loadSessions(): Promise<void> {

@@ -1,8 +1,19 @@
 # CLAUDE.md — Microservicio DIAN: Facturación Electrónica
 
-**Versión:** 1.0  
-**Repo:** dian-fe-service  
+**Versión:** 1.0
+**Repo:** dian-fe-service
 **Stack:** Python 3.12 + FastAPI
+
+> ## 🧊 ESTADO: CONGELADO desde 2026-04-29
+>
+> La **Fase 11** del plan principal reemplazó el camino DIAN directo por una
+> integración con **Siigo** (Edge Function `siigo-emit-invoice` en
+> `parqueadero-backend`). Este subproyecto NO recibe cambios funcionales
+> nuevos. Ver [`FROZEN.md`](./FROZEN.md) para detalles, condiciones de
+> descongelación y reglas mientras esté congelado.
+>
+> **Si vienes a este repo a cambiar código, detente y verifica primero
+> con el usuario.**
 
 ---
 

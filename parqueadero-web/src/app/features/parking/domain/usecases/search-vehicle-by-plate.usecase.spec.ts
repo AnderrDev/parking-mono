@@ -2,6 +2,7 @@ import { SearchVehicleByPlateUseCase } from './search-vehicle-by-plate.usecase';
 import { ParkingRepository, VehicleSearchResult } from '../repositories/parking.repository';
 import { ParkingSessionEntity } from '../entities/parking-session.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
+import { EMPTY_VEHICLE_HISTORY_STATS } from '../entities/vehicle-history-stats.entity';
 import { left, right } from '../../../../core/either/either';
 import { NetworkFailure, ValidationFailure } from '../../../../core/either/failures';
 
@@ -39,6 +40,7 @@ class MockParkingRepository extends ParkingRepository {
   async getActiveTariff() { return Promise.resolve(right(null as never)); }
   async listSessions() { return Promise.resolve(right({ data: [], pagination: emptyPagination })); }
   async cancelSession() { return Promise.resolve(right(null as never)); }
+  async getVehicleHistoryStats() { return Promise.resolve(right(EMPTY_VEHICLE_HISTORY_STATS)); }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -1,8 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  EnvironmentInjector,
   Inject,
   OnInit,
+  ViewContainerRef,
+  inject,
   signal,
   computed,
 } from '@angular/core';
@@ -113,7 +116,12 @@ export class CashierShiftPageComponent implements OnInit {
     @Inject(REGISTER_WITHDRAWAL_TOKEN) private readonly registerWithdrawalUC: RegisterCashWithdrawalUseCase,
     private readonly toast: ToastService,
     private readonly dialog: Dialog,
+    /** Anclar overlay del dialog. */
+    private readonly vcr: ViewContainerRef,
   ) {}
+
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   ngOnInit(): void {
     this.openForm = this.cashierForms.createOpenShiftForm();
@@ -222,7 +230,10 @@ export class CashierShiftPageComponent implements OnInit {
     const userId = this.auth.currentUser()?.id;
     if (!shift || !userId) return;
 
-    const ref = this.dialog.open<WithdrawalFormValue | undefined>(CashWithdrawalDialogComponent, {});
+    const ref = this.dialog.open<WithdrawalFormValue | undefined>(CashWithdrawalDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
+    });
     ref.closed.subscribe(async (value) => {
       if (!value) return;
       const result = await this.registerWithdrawalUC.execute({

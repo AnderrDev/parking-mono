@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, Inject, OnInit, ViewContainerRef, signal,
+  ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, OnInit, ViewContainerRef, inject, signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Dialog } from '@angular/cdk/dialog';
@@ -83,13 +83,19 @@ export class MonthlyPlansListPageComponent implements OnInit {
     private readonly toast: ToastService,
     private readonly auth: AuthStateService,
     /**
-     * Necesario para que los dialogs hereden los providers del route
-     * (TARIFF_REPOSITORY, GET_ACTIVE_MONTHLY_TARIFF, etc.). Pasar
-     * `viewContainerRef` en `dialog.open` es la forma más fiable; con
-     * `injector: this.injector` no siempre traversa al EnvironmentInjector.
+     * Anclar overlay del dialog en el árbol de vistas (junto con
+     * `injector: this.envInjector` para tokens route-scoped).
      */
     private readonly vcr: ViewContainerRef,
   ) {}
+
+  /**
+   * EnvironmentInjector del route. CDK Dialog lo necesita explícito para que
+   * el componente abierto vea providers route-scoped — `viewContainerRef`
+   * solo entrega un ElementInjector que NO traversa al EnvironmentInjector
+   * del route. Ver operator-dashboard.page.ts.
+   */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   ngOnInit(): void { this.load(); }
 
@@ -144,6 +150,7 @@ export class MonthlyPlansListPageComponent implements OnInit {
       return;
     }
     const ref = this.dialog.open<MonthlyPlanFormValue | null>(MonthlyPlanEditDialogComponent, {
+      injector: this.envInjector,
       viewContainerRef: this.vcr,
       data: {
         plan: null,
@@ -178,6 +185,8 @@ export class MonthlyPlansListPageComponent implements OnInit {
   /** Pregunta si imprimir comprobante de mensualidad. Si sí, abre print window. */
   private askPrintReceipt(value: MonthlyPlanFormValue): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Comprobante de mensualidad',
         message: `¿Imprimir comprobante para ${value.vehiclePlate}?`,
@@ -248,6 +257,7 @@ export class MonthlyPlansListPageComponent implements OnInit {
 
   protected openEdit(plan: MonthlyPlanEntity): void {
     const ref = this.dialog.open<MonthlyPlanFormValue | null>(MonthlyPlanEditDialogComponent, {
+      injector: this.envInjector,
       viewContainerRef: this.vcr,
       data: {
         plan,
@@ -281,6 +291,8 @@ export class MonthlyPlansListPageComponent implements OnInit {
 
   protected confirmCancel(plan: MonthlyPlanEntity): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Cancelar plan mensual',
         message: `¿Cancelar el plan de placa ${plan.vehiclePlate}? Las sesiones en curso no se verán afectadas.`,

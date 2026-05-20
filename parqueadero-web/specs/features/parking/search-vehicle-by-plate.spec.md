@@ -89,6 +89,12 @@ Operario, Admin
   - Enter o botón buscar → invoca use case
   - Debounce: 300ms
 
+### Filtro contextual: "solo activas en parqueadero"
+
+Desde el dashboard del operador (vista `/parking`), el autocomplete de sugerencias debe filtrar **solo placas con sesión activa actualmente en el parqueadero** — el operador no necesita ver vehículos históricos cuando está consultando lo que está adentro. En otras vistas (admin de vehículos, historial) las sugerencias mantienen el comportamiento general (todas las placas registradas).
+
+Implementación: `SearchPlateSuggestionsUseCase` acepta un parámetro opcional `onlyActive: boolean` (default `false`). Cuando es `true`, el repositorio consulta `parking_sessions` con `status='active'` y deriva la información del vehículo de la propia sesión (placa, tipo, color, marca) en lugar de pegar contra la tabla `vehicles`. Esto evita una sub-consulta JOIN y aprovecha que la regla de negocio garantiza máximo una sesión activa por placa.
+
 - **Resultados**: Modal o side-panel con:
   - Info del vehículo: placa, tipo, color, marca
   - "Sesión activa" (si existe): duración actual, tarifa

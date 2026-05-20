@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, Inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, OnInit, ViewContainerRef, inject, signal,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { VehicleEntity } from '../../../parking/domain/entities/vehicle.entity';
@@ -63,7 +63,12 @@ export class VehiclesListPageComponent implements OnInit {
     @Inject(DEACTIVATE_VEHICLE_TOKEN) private readonly deactivateUC: DeactivateVehicleUseCase,
     private readonly dialog: Dialog,
     private readonly toast: ToastService,
+    /** Anclar overlay del dialog. */
+    private readonly vcr: ViewContainerRef,
   ) {}
+
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   ngOnInit(): void { this.load(); }
 
@@ -118,6 +123,8 @@ export class VehiclesListPageComponent implements OnInit {
 
   protected openCreate(): void {
     const ref = this.dialog.open<VehicleFormValue | null>(VehicleEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         vehicle: null,
         onSubmit: async (value) => {
@@ -141,6 +148,8 @@ export class VehiclesListPageComponent implements OnInit {
 
   protected openEdit(vehicle: VehicleEntity): void {
     const ref = this.dialog.open<VehicleFormValue | null>(VehicleEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         vehicle,
         onSubmit: async (value) => {
@@ -163,6 +172,8 @@ export class VehiclesListPageComponent implements OnInit {
 
   protected confirmDeactivate(vehicle: VehicleEntity): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Desactivar vehículo',
         message: `¿Desactivar el vehículo con placa ${vehicle.plate}?`,

@@ -5,6 +5,7 @@ import { ParkingSessionEntity } from '../entities/parking-session.entity';
 import { TariffEntity } from '../entities/tariff.entity';
 import { PaymentEntity } from '../entities/payment.entity';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
+import { EMPTY_VEHICLE_HISTORY_STATS } from '../entities/vehicle-history-stats.entity';
 import { left, right } from '../../../../core/either/either';
 import {
   BusinessRuleFailure,
@@ -125,6 +126,7 @@ class MockParkingRepository extends ParkingRepository {
     return Promise.resolve(right({ data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }));
   }
   async cancelSession() { return Promise.resolve(right(null as never)); }
+  async getVehicleHistoryStats() { return Promise.resolve(right(EMPTY_VEHICLE_HISTORY_STATS)); }
 }
 
 // ── Base params ───────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
 import {
   RegisterEntryParams,
   RegisterExitParams,
@@ -49,7 +50,13 @@ export abstract class ParkingDataSource {
   abstract searchPlateSuggestions(
     query: string,
     limit: number,
+    onlyActive: boolean,
   ): Promise<Either<Failure, VehicleEntity[]>>;
+
+  abstract getVehicleHistoryStats(
+    plate: string,
+    recentLimit: number,
+  ): Promise<Either<Failure, VehicleHistoryStats>>;
 
   abstract getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>>;
 

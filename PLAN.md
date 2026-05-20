@@ -25,14 +25,16 @@ Ver `CLAUDE.md` raíz — protocolo lazy, reglas absolutas y skills disponibles 
 | 5 | Catálogos (tarifas · vehículos · clientes · planes) | ambos | `angular-architect`, `supabase-expert`, `ui-ux-parqueadero` |
 | 6 | Cierre de caja + payments | ambos | `angular-architect`, `supabase-expert` |
 | 7 | Reportes operativos y financieros | ambos | `supabase-expert`, `angular-architect` |
-| 8 | Offline hardening (PowerSync, conflictos) | ambos | `angular-architect`, `frontend-quality` |
+| 8 | Offline hardening (Dexie + outbox, conflictos) | ambos | `angular-architect`, `frontend-quality` |
 | 9 | Invoicing UI + Edge Function `request-invoice` con **stub DIAN** | ambos | `supabase-expert`, `angular-architect` |
 | 10 | QA, hardening, deploy productivo | ambos | `frontend-quality`, `supabase-expert` |
-| 11 | Facturación electrónica con **Siigo** (reemplaza stub/dian-fe-service) | ambos | `supabase-expert`, `angular-architect` |
+| ~~11~~ | ~~Facturación electrónica con Siigo~~ — **DESCARTADA** (decisión 2026-05-15) | — | — |
 
-**Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial). La Fase 11 (Siigo) puede arrancar en paralelo a Fase 8 si hay capacidad — son independientes.
+**Camino crítico:** 0 → 1 → 2 → 3 → 4 → 6 → 9 → 10. Las Fases 5, 7, 8 pueden trabajarse en sesiones paralelas si el usuario abre dos chats al mismo tiempo (no es lo común; default = secuencial).
 
-**Fase actual:** ✅ Fase 9 cerrada — siguiente: ⏳ Fase 8 (Offline hardening / PowerSync) o Fase 11 (Siigo) según prioridad.
+**Fase 11 — DESCARTADA (2026-05-15):** Sin facturación electrónica de terceros (Siigo / proveedores externos). El stub interno y la numeración local de `invoices` se mantienen para registro de venta interno. Si en el futuro se requiere FE DIAN, se replanea desde cero.
+
+**Fase actual:** ✅ Fase 8 cerrada (2026-05-15). Siguiente: ⏳ Fase 10 (QA + Deploy productivo).
 
 ---
 
@@ -343,35 +345,15 @@ Subdivide en 3 sub-fases. Cada una es **una sesión separada** con su entrada en
 
 ---
 
-## Fase 8 — Offline hardening (PowerSync)
+## Fase 8 — Offline hardening (Dexie + outbox) — ✅ Completada (2026-05-15)
 
-🎯 **Goal:** App funciona offline para flujo crítico (entrada/salida/ver activas). Sync transparente al volver red.
+Sprints 0–3 entregaron operación crítica offline para operadores (entrada/salida/pago/turno):
+- Dexie como mirror local + outbox FIFO con backoff y idempotencia por `client_op_id`.
+- Realtime mantiene mirror fresco (publication extendida a 9 tablas).
+- Conflict resolution UI + `BroadcastChannel` multi-tab + stale-write protection (`P0409`).
+- Migrations: `00019`, `00020`, `00021`.
 
-🛠️ **Skills:** `angular-architect`, `frontend-quality`.
-
-📐 **Specs:**
-- `parqueadero-web/specs/infrastructure/offline-sync.spec.md` — actualizar con política de conflictos definida.
-- Specs de features afectadas: añadir sección "Comportamiento offline" donde aplique.
-
-📋 **Tareas:**
-- [ ] Configurar PowerSync: schema mirror, sync rules (operador sincroniza solo sus sesiones del día y catálogos).
-- [ ] `core/services/powersync.service.ts` — wrapper sobre `@journeyapps/powersync-sdk`.
-- [ ] Reescribir `*-local.datasource.ts` con queries SQLite reales (reemplazar placeholders).
-- [ ] Política de conflictos:
-  - Catálogos (tarifas, planes): **server-wins** silencioso.
-  - Sesiones operativas: **client-wins** + entrada en `audit_log`.
-  - Documentar en spec.
-- [ ] `repository.impl.ts`: si online → write-through (remote → mirror local); si offline → local + queue.
-- [ ] `SyncStatusService`: signal `pendingSync()`, banner muestra "N operaciones pendientes".
-- [ ] E2E: 1 hora offline simulado, 30 ops → online → verificar que todas suben sin pérdida ni duplicado.
-
-✅ **DoD:**
-- Test e2e offline → online sin pérdida.
-- Conflicto provocado (tarifa cambiada server-side mientras operador offline) → server-wins, operador ve cambio al sincronizar.
-- Sync de orden correcto: entrada offline + salida offline → al sincronizar llegan en orden temporal.
-
-🔁 **Prompt de handoff:**
-> Offline robusto. Próxima sesión: **Fase 9 — Invoicing + DIAN stub**. CRÍTICO: el contrato JSON del stub debe ser idéntico al que tendrá `dian-fe-service` real. Antes de codear, REVISA `dian-fe-service/specs/emit-invoice.spec.md` para alinear el shape de respuesta.
+Ver sesión: `sessions/2026-05-15-fase-8-offline.md`.
 
 ---
 
@@ -608,14 +590,14 @@ La integración de facturación electrónica vive ahora en la Fase 11 (Siigo) �
 - [x] **Fase 5** — Catálogos (tarifas, vehículos, clientes, planes) *(cerrada 2026-04-29)*
 - [x] **Fase 6** — Cierre de caja & payments *(cerrada 2026-04-29)*
 - [x] **Fase 7** — Reportes *(cerrada 2026-04-29)*
-- [ ] **Fase 8** — Offline hardening (PowerSync) — ⏳ pendiente
+- [x] **Fase 8** — Offline hardening (Dexie + outbox) *(cerrada 2026-05-15)*
 - [x] **Fase 9** — Invoicing + DIAN stub *(cerrada 2026-04-29)*
 - [ ] **Fase 10** — QA + deploy
-- [ ] **Fase 11** — Facturación electrónica con Siigo — ⏳ en curso (S1 Specs)
+- ❌ **Fase 11** — Facturación electrónica de terceros — **DESCARTADA (2026-05-15)** por decisión del usuario. Trabajo previo (S1–S5) queda en repo pero no se completa.
 
-**Fase actual:** ⏳ Fase 11 (Siigo) en sub-fase S1 (Specs). Plan aprobado en `~/.claude/plans/vamos-a-hacer-una-purring-meadow.md`.
+**Fase actual:** ✅ Fase 8 cerrada (2026-05-15). Siguiente: ⏳ Fase 10 (QA + Deploy productivo).
 
 **Próxima acción del agente:**
-1. Crear specs de la Fase 11 (ver lista bajo "📐 Specs" arriba).
-2. Solicitar credenciales sandbox Siigo a `soporteapi@siigo.com` (manual).
-3. Tras aprobación de specs → arrancar S2 con migration `00013_siigo_integration.sql`.
+1. Avanzar Fase 10 (Deploy productivo): E2E Playwright, Lighthouse, runbook completo, Sentry, deploy a hosting + Supabase prod.
+2. Aplicar migrations `00019`, `00020`, `00021` al backend productivo (parte de Fase 10).
+3. Coordinar QA manual offline (ver `parqueadero-web/specs/infrastructure/qa-manual-fase-8.md`).

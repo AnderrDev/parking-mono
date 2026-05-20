@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  EnvironmentInjector,
   Inject,
   OnInit,
+  ViewContainerRef,
   inject,
   signal,
 } from '@angular/core';
@@ -59,6 +61,10 @@ export class SessionHistoryPageComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(Dialog);
   private readonly authState = inject(AuthStateService);
+  /** Anclar overlay del dialog en el árbol de vistas. */
+  private readonly vcr = inject(ViewContainerRef);
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
 
   constructor(
     @Inject(LIST_SESSIONS_TOKEN) private readonly listSessionsUC: ListSessionsUseCase,
@@ -114,7 +120,11 @@ export class SessionHistoryPageComponent implements OnInit {
   protected confirmCancel(session: ParkingSessionEntity): void {
     const ref = this.dialog.open<{ reason: string } | undefined>(
       CancelSessionDialogComponent,
-      { data: { plate: session.vehiclePlate } },
+      {
+        injector: this.envInjector,
+        viewContainerRef: this.vcr,
+        data: { plate: session.vehiclePlate },
+      },
     );
     ref.closed.subscribe(async (result) => {
       if (!result) return;

@@ -1,6 +1,7 @@
 import {
-  ChangeDetectionStrategy, Component, Inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, OnInit, ViewContainerRef, inject, signal,
 } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Dialog } from '@angular/cdk/dialog';
 import { TariffEntity, TariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
@@ -68,9 +69,31 @@ export class TariffsListPageComponent implements OnInit {
     @Inject(DEACTIVATE_TARIFF_TOKEN) private readonly deactivateUC: DeactivateTariffUseCase,
     private readonly dialog: Dialog,
     private readonly toast: ToastService,
+    /** Anclar overlay del dialog. */
+    private readonly vcr: ViewContainerRef,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
   ) {}
 
-  ngOnInit(): void { this.load(); }
+  /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
+  private readonly envInjector = inject(EnvironmentInjector);
+
+  ngOnInit(): void {
+    this.load();
+    // Deep link desde el operador cuando intenta ingresar un vehículo sin
+    // tarifa. Acepta `?prefill=<vehicle_type>` (carro|moto|bicicleta|otro).
+    const prefill = this.route.snapshot.queryParamMap.get('prefill');
+    if (prefill && ['carro', 'moto', 'bicicleta', 'otro'].includes(prefill)) {
+      // Consumir el query param para que un refresh no re-abra el dialog.
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { prefill: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+      this.openCreate(prefill as VehicleType);
+    }
+  }
 
   protected vehicleLabel(vt: string): string { return VEHICLE_LABEL[vt] ?? vt; }
   protected unitLabel(u: string): string { return UNIT_LABEL[u] ?? u; }
@@ -107,10 +130,13 @@ export class TariffsListPageComponent implements OnInit {
   protected onSort(s: SortParams): void { this.sort.set(s); this.currentPage = 1; this.load(); }
   protected onPage(page: number): void { this.currentPage = page; this.load(); }
 
-  protected openCreate(): void {
+  protected openCreate(prefillVehicleType: VehicleType | null = null): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         tariff: null,
+        prefillVehicleType,
         onSubmit: async (value) => {
           const result = await this.createUC.execute({
             name: value.name,
@@ -135,6 +161,8 @@ export class TariffsListPageComponent implements OnInit {
 
   protected openEdit(tariff: TariffEntity): void {
     const ref = this.dialog.open<TariffFormValue | null>(TariffEditDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         tariff,
         onSubmit: async (value) => {
@@ -161,6 +189,8 @@ export class TariffsListPageComponent implements OnInit {
 
   protected confirmDeactivate(tariff: TariffEntity): void {
     const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
       data: {
         title: 'Desactivar tarifa',
         message: `¿Desactivar "${tariff.name}"? Las sesiones en curso no se verán afectadas.`,

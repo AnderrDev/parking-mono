@@ -78,7 +78,12 @@ Si ya existe invoice no-rechazada para el `session_id` → retorna la existente 
 3. **Numeración interna**: `internal_number` se asigna via `nextval_invoices()` y se persiste antes de llamar a Siigo. Formato `FAC-YYYY-MM-DD-NNNNNN` (igual que hoy). NUNCA se asigna client-side.
 4. **Numeración Siigo**: `siigo_number` viene del response de Siigo (`response.number` o `response.name` según API); se persiste tal cual lo devuelve Siigo. No se manipula.
 5. **Cliente fiscal en Siigo**: antes de emitir, llamar a `ensureSiigoCustomer(customer)` (helper en `_shared/siigo/customer.ts`). Si `customers.siigo_customer_id` está vacío, hace `POST /v1/customers` y persiste el id retornado. Si Siigo responde 409 "ya existe" para el documento, hacer `GET /v1/customers?identification=<doc_number>` y guardar el id existente.
-6. **IVA**: `tax_cents = Math.round(subtotal_cents * 0.19)`, `total_cents = subtotal_cents + tax_cents`. La tasa es configurable via env `SIIGO_TAX_IVA_ID` (id del impuesto en Siigo) y `SIIGO_TAX_IVA_PERCENT` (default 19).
+6. **IVA (precio con IVA incluido)**: cargar `app_settings.tax_config` antes de calcular. Aplicar `extractInvoiceAmounts(payment.amount_cents, taxConfig)` del helper `_shared/tax/extract.ts`. Ver fórmula canónica en `parqueadero-backend/specs/tax-config.spec.md`.
+   - `total_cents = payment.amount_cents` (lo cobrado en caja).
+   - `subtotal_cents = round(total_cents / (1 + iva_rate))`.
+   - `tax_cents = total_cents - subtotal_cents`.
+   - Si `iva_responsible=false`: `tax_cents=0`, `subtotal_cents=total_cents`, y NO incluir línea de impuesto en el payload Siigo.
+   - El `id` de impuesto IVA en Siigo sigue venido por env `SIIGO_TAX_IVA_ID`. La tasa numérica se toma de `tax_config.iva_rate` (no de env), para que UI admin pueda cambiarla sin redeploy.
 7. **Mapping a payload Siigo**: ver spec `_shared-siigo-client.spec.md` §`mapper.ts`.
 8. **Stamp inmediato**: el payload incluye `stamp.send: true` y `mail.send: true` para que Siigo intente estampar y enviar al correo del cliente sin pasos extra.
 9. **Persistencia ANTES de llamar a Siigo**: la invoice se inserta con `siigo_status='pending'` antes del `POST /v1/invoices` para que, si la EF cae mid-call, el polling (S5) la encuentre y termine el ciclo.
@@ -86,6 +91,18 @@ Si ya existe invoice no-rechazada para el `session_id` → retorna la existente 
 11. **Si Siigo responde 5xx, 429, timeout o network error**: invoice queda en `siigo_status='pending'` con `siigo_attempts=1`. El cron polling (S5) reintenta. La EF retorna 201 con la invoice en `pending`.
 12. **Auditoría**: cada llamada HTTP (auth, customer upsert, emit) registra una fila en `siigo_invoice_attempts` con `request_body`, `response_body` (con `Authorization: Bearer <redacted>`), `http_status`, `latency_ms`. Ver spec `_shared-siigo-client.spec.md`.
 13. **Vincular pago**: tras inserción exitosa, `UPDATE payments SET invoice_id = invoice.id WHERE session_id = ?` (manteniendo el comportamiento actual de `request-invoice`).
+14. **Modo mock local**: si las variables `SIIGO_USERNAME` o `SIIGO_ACCESS_KEY` están vacías, la EF entra en **modo mock**:
+    - **NO** llama a `getSiigoToken()` ni a `ensureSiigoCustomer()`.
+    - **NO** hace ningún HTTP a `api.siigo.com`.
+    - **NO** registra filas en `siigo_invoice_attempts` (no hay llamadas que auditar).
+    - Después del INSERT inicial, hace UPDATE inmediato simulando respuesta exitosa:
+      `siigo_status='Stamped'`, `siigo_id='mock-<uuid>'`, `siigo_number='MOCK-<seq>'`,
+      `siigo_cufe='MOCK-CUFE-<uuid>'`, `siigo_cude=null`, `siigo_pdf_url=null`,
+      `siigo_xml_url=null`, `siigo_qr_url=null`, `siigo_observations=['Modo mock local — sin proveedor configurado']`,
+      `siigo_attempts=0`, `siigo_last_attempt_at=now()`, `siigo_last_error=null`.
+    - El trigger `sync_dian_from_siigo` deriva `dian_status='accepted'` por el `Stamped`.
+    - Útil para desarrollo/QA local sin sandbox Siigo y para pruebas de UI offline.
+    - **Producción debe tener las dos variables pobladas**, de lo contrario emitirá facturas con CUFE falso. Documentar esto en runbook.
 
 ## Flujo
 
@@ -104,7 +121,7 @@ Si ya existe invoice no-rechazada para el `session_id` → retorna la existente 
      siigo_status='pending', requested_invoice=true, payment_id, ...
    }
 10. payload = toSiigoInvoicePayload(invoice, customer, payment)
-11. siigoFetch('/v1/invoices', { method:'POST', body: payload })
+11. siigoFetch('/v1/invoices', { method:'POST', body: payload })  // SI no es mock mode
     ↳ 201 + stamp.status='Stamped'
        UPDATE invoice SET siigo_id, siigo_number, siigo_cufe, siigo_pdf_url, siigo_status='Stamped'
     ↳ 201 + stamp.status='InProcess'/'Sent'
@@ -114,6 +131,13 @@ Si ya existe invoice no-rechazada para el `session_id` → retorna la existente 
     ↳ 5xx / 429 / timeout / network
        UPDATE invoice SET siigo_attempts=1, siigo_last_error=<msg>
        (siigo_status sigue en 'pending'; cron reintenta)
+
+11b. SI mock mode (SIIGO_USERNAME/ACCESS_KEY vacíos):
+       UPDATE invoice SET siigo_status='Stamped',
+                          siigo_id='mock-<uuid>', siigo_number='MOCK-<seq>',
+                          siigo_cufe='MOCK-CUFE-<uuid>',
+                          siigo_observations=['Modo mock local — sin proveedor configurado']
+       (sin HTTP, sin auditar siigo_invoice_attempts)
 12. UPDATE payments SET invoice_id WHERE session_id=?
 13. SELECT invoice (estado actual) → return 201
 ```

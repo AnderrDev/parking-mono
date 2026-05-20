@@ -2,6 +2,7 @@ import { CheckMonthlyPlanUseCase } from './check-monthly-plan.usecase';
 import { ParkingRepository } from '../repositories/parking.repository';
 import { MonthlyPlanEntity } from '../entities/monthly-plan.entity';
 import { ParkingSessionEntity } from '../entities/parking-session.entity';
+import { EMPTY_VEHICLE_HISTORY_STATS } from '../entities/vehicle-history-stats.entity';
 import { left, right } from '../../../../core/either/either';
 import { NetworkFailure } from '../../../../core/either/failures';
 
@@ -55,6 +56,7 @@ class MockParkingRepository extends ParkingRepository {
     return Promise.resolve(right({ data: [], pagination: { page: 1, pageSize: 25, total: 0, totalPages: 0 } }));
   }
   async cancelSession() { return Promise.resolve(right(null as never)); }
+  async getVehicleHistoryStats() { return Promise.resolve(right(EMPTY_VEHICLE_HISTORY_STATS)); }
 }
 
 // ── Suite ─────────────────────────────────────────────────────────────────────

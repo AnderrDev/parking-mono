@@ -20,6 +20,7 @@ import {
 } from '../../domain/repositories/parking.repository';
 import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-session.model';
 import { VehicleMapper, VehicleModel } from '../models/vehicle.model';
+import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
 import { MonthlyPlanMapper, MonthlyPlanModel } from '../models/monthly-plan.model';
 import { TariffMapper, TariffModel } from '../models/tariff.model';
 import { PaymentMapper, PaymentModel } from '../models/payment.model';
@@ -436,8 +437,48 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
   async searchPlateSuggestions(
     query: string,
     limit: number,
+    onlyActive: boolean,
   ): Promise<Either<Failure, VehicleEntity[]>> {
     try {
+      // Cuando se restringe a "solo activas en parqueadero", consultamos
+      // directamente parking_sessions y derivamos un VehicleEntity sintético
+      // de cada sesión activa. La regla de negocio garantiza máximo una
+      // sesión activa por placa, así que no hay duplicados.
+      if (onlyActive) {
+        const { data, error } = await this.supabase.client
+          .from('parking_sessions')
+          .select('id, vehicle_plate, vehicle_type, color, brand, entry_at, updated_at')
+          .ilike('vehicle_plate', `%${query}%`)
+          .eq('status', 'active')
+          .eq('_deleted', false)
+          .order('entry_at', { ascending: false })
+          .limit(limit);
+
+        if (error) return left(new ServerFailure(error.message));
+        type ActiveRow = {
+          id: string;
+          vehicle_plate: string;
+          vehicle_type: string;
+          color: string | null;
+          brand: string | null;
+          entry_at: string;
+          updated_at: string;
+        };
+        return right((data ?? []).map((r: ActiveRow) =>
+          new VehicleEntity(
+            r.id,
+            new Date(r.entry_at),
+            new Date(r.updated_at),
+            r.vehicle_plate,
+            r.vehicle_type as VehicleType,
+            r.color,
+            r.brand,
+            null,
+            false,
+          ),
+        ));
+      }
+
       const { data, error } = await this.supabase.client
         .from('vehicles')
         .select()
@@ -449,6 +490,83 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
       if (error) return left(new ServerFailure(error.message));
       return right((data ?? []).map(VehicleMapper.toEntity));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async getVehicleHistoryStats(
+    plate: string,
+    recentLimit: number,
+  ): Promise<Either<Failure, VehicleHistoryStats>> {
+    try {
+      // Implementación cliente-side: traemos las sesiones cerradas de la
+      // placa y agregamos en JS. Aceptable hasta volúmenes reales por placa
+      // (cientos de sesiones/año). Si crece, mover a RPC en migration aparte.
+      const { data, error } = await this.supabase.client
+        .from('parking_sessions')
+        .select()
+        .eq('vehicle_plate', plate)
+        .eq('status', 'completed')
+        .eq('_deleted', false)
+        .order('exit_at', { ascending: false })
+        .returns<ParkingSessionModel[]>();
+
+      if (error) return left(new ServerFailure(error.message));
+
+      const sessions = (data ?? []).map(ParkingSessionMapper.toEntity);
+
+      if (sessions.length === 0) {
+        return right({
+          totalVisits: 0,
+          totalPaidCents: 0,
+          totalDurationMinutes: 0,
+          averagePaidCents: 0,
+          averageDurationMinutes: 0,
+          firstVisitAt: null,
+          lastVisitAt: null,
+          visitsLast30Days: 0,
+          paidLast30DaysCents: 0,
+          recentSessions: [],
+        });
+      }
+
+      const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      let totalPaid = 0;
+      let totalDuration = 0;
+      let firstVisitMs = Infinity;
+      let lastVisitMs = -Infinity;
+      let visits30 = 0;
+      let paid30 = 0;
+
+      for (const s of sessions) {
+        const paid = s.amountDueCents ?? 0;
+        totalPaid += paid;
+        totalDuration += s.durationMinutes;
+        const entryMs = s.entryAt.getTime();
+        const exitMs = s.exitAt ? s.exitAt.getTime() : entryMs;
+        if (entryMs < firstVisitMs) firstVisitMs = entryMs;
+        if (exitMs > lastVisitMs) lastVisitMs = exitMs;
+        if (exitMs >= cutoff30) {
+          visits30 += 1;
+          paid30 += paid;
+        }
+      }
+
+      const totalVisits = sessions.length;
+
+      return right({
+        totalVisits,
+        totalPaidCents: totalPaid,
+        totalDurationMinutes: totalDuration,
+        averagePaidCents: Math.round(totalPaid / totalVisits),
+        averageDurationMinutes: Math.round(totalDuration / totalVisits),
+        firstVisitAt: firstVisitMs === Infinity ? null : new Date(firstVisitMs),
+        lastVisitAt: lastVisitMs === -Infinity ? null : new Date(lastVisitMs),
+        visitsLast30Days: visits30,
+        paidLast30DaysCents: paid30,
+        recentSessions: sessions.slice(0, recentLimit),
+      });
     } catch {
       return left(new NetworkFailure());
     }

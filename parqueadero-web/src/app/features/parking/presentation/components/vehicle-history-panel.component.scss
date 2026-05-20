@@ -1,0 +1,122 @@
+.history-panel {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border-radius: 0.625rem;
+  background: var(--surface-1, #fff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+
+  &--loading,
+  &--empty,
+  &--error {
+    color: var(--text-secondary, #555);
+    font-size: 0.875rem;
+  }
+
+  &--error {
+    background: var(--danger-subtle, #fef2f2);
+    border-color: var(--danger, #ef4444);
+    color: var(--danger, #b91c1c);
+  }
+
+  &__title {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.5rem;
+  }
+
+  &__skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+  }
+
+  &__table {
+    width: 100%;
+    margin-top: 0.85rem;
+    font-size: 0.78rem;
+    border-collapse: collapse;
+
+    th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+    }
+
+    td {
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px dashed var(--border-subtle, #f1f1f1);
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+  }
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.5rem;
+  background: var(--surface-2, #f9fafb);
+  border: 1px solid var(--border-subtle, #f1f1f1);
+
+  &--primary {
+    background: var(--primary-subtle, #eef2ff);
+    border-color: var(--primary, #6366f1);
+  }
+
+  &__label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  &__value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__hint {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #6b7280);
+  }
+}
+
+.skeleton-card {
+  height: 64px;
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2, #f3f4f6) 25%,
+    var(--surface-3, #e5e7eb) 50%,
+    var(--surface-2, #f3f4f6) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

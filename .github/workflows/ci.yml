@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancelar runs anteriores del mismo branch al recibir push nuevo.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-lint-typecheck-build:
+    name: parqueadero-web — lint + tsc + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parqueadero-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: parqueadero-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Tests (headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadlessCI --code-coverage=false
+        env:
+          TZ: America/Bogota
+
+      - name: Build (production)
+        run: npm run build -- --configuration=production
+
+      - name: Lighthouse CI
+        run: npm run lhci
+        continue-on-error: true
+
+  backend-validate:
+    name: parqueadero-backend — supabase db lint + functions check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parqueadero-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate migration SQL syntax
+        run: |
+          # supabase db lint requiere DB; aquí solo validamos sintaxis básica.
+          for f in supabase/migrations/*.sql; do
+            echo "Checking $f"
+            # Validación sintáctica simple: que termine en ';' y no tenga BOM.
+            if ! tail -c 100 "$f" | grep -q ';'; then
+              echo "::error file=$f::archivo no termina en ';' — verifica"
+              exit 1
+            fi
+          done
+
+      - name: Setup Deno (para typecheck de Edge Functions)
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Type-check Edge Functions
+        run: |
+          for fn_dir in supabase/functions/*/; do
+            if [ -f "$fn_dir/index.ts" ]; then
+              echo "::group::deno check $fn_dir"
+              deno check --no-config "$fn_dir/index.ts" || exit 1
+              echo "::endgroup::"
+            fi
+          done
+
+  # dian-fe-service queda excluido — está congelado (ver dian-fe-service/FROZEN.md).
