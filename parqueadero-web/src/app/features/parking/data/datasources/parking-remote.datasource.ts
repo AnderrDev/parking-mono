@@ -54,6 +54,27 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
       if (vehicleError) return left(new ServerFailure(vehicleError.message));
 
+      // Snapshot inmutable de la tarifa activa al momento del ingreso. Tanto
+      // el ID (referencia mutable) como los valores (snapshot inmutable) se
+      // persisten — los valores blindan el historial contra edits posteriores
+      // a la tarifa. Solo aplica a rotación — las mensualidades quedan null.
+      let tariffId: string | null = null;
+      let tariffSnapshotName: string | null = null;
+      let tariffSnapshotPerMinute: number | null = null;
+      let tariffSnapshotPerHour: number | null = null;
+      let tariffSnapshotPlena: number | null = null;
+      if (!params.monthlyPlanId) {
+        const tariffResult = await this.getActiveTariff(params.vehicleType);
+        if (tariffResult.isRight()) {
+          const t = tariffResult.value;
+          tariffId = t.id;
+          tariffSnapshotName = t.name;
+          tariffSnapshotPerMinute = t.perMinuteCents;
+          tariffSnapshotPerHour = t.perHourCents;
+          tariffSnapshotPlena = t.plenaCents;
+        }
+      }
+
       // Nota: parking_sessions NO tiene cashier_shift_id. El turno se registra en
       // `payments` al momento del cobro (una sesión puede abrirse en un turno y
       // cerrarse en otro). El cashierShiftId del usecase se usa sólo en exit.
@@ -64,6 +85,11 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
           vehicle_type: params.vehicleType,
           entry_user_id: params.userId,
           monthly_plan_id: params.monthlyPlanId,
+          tariff_id: tariffId,
+          tariff_snapshot_name: tariffSnapshotName,
+          tariff_snapshot_per_minute_cents: tariffSnapshotPerMinute,
+          tariff_snapshot_per_hour_cents: tariffSnapshotPerHour,
+          tariff_snapshot_plena_cents: tariffSnapshotPlena,
           entry_at: new Date().toISOString(),
           status: 'active',
           _sync_status: 'synced',

@@ -13,13 +13,11 @@ import {
   GET_REVENUE_BY_PERIOD_TOKEN,
   GET_SESSIONS_BY_TYPE_TOKEN,
   LIST_MONTHLY_PLANS_TOKEN,
-  LIST_INVOICES_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { GetActiveSessionsUseCase } from '../../../parking/domain/usecases/get-active-sessions.usecase';
 import { GetRevenueByPeriodUseCase } from '../../../reports/domain/usecases/get-revenue-by-period.usecase';
 import { GetSessionsByTypeUseCase } from '../../../reports/domain/usecases/get-sessions-by-type.usecase';
 import { ListMonthlyPlansUseCase } from '../../../monthly-plans/domain/usecases/list-monthly-plans.usecase';
-import { ListInvoicesUseCase } from '../../../invoicing/domain/usecases/list-invoices.usecase';
 import { NoParams } from '../../../../core/base/usecase';
 import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
@@ -55,7 +53,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
   protected readonly revenueMonth = signal(0);
   protected readonly activeSessionsCount = signal(0);
   protected readonly activeMonthliesCount = signal(0);
-  protected readonly pendingInvoicesCount = signal(0);
   protected readonly expiringMonthliesCount = signal(0);
 
   protected readonly revenueByDay = signal<BarPoint[]>([]);
@@ -85,11 +82,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
         : 'Todas vigentes',
       variant: this.expiringMonthliesCount() > 0 ? 'warning' : undefined,
     },
-    {
-      label: 'Facturas pendientes',
-      value: String(this.pendingInvoicesCount()),
-      variant: this.pendingInvoicesCount() > 0 ? 'danger' : 'success',
-    },
   ]);
 
   protected readonly maxRevenueBar = computed(() =>
@@ -107,8 +99,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
     private readonly sessionsByTypeUC: GetSessionsByTypeUseCase,
     @Inject(LIST_MONTHLY_PLANS_TOKEN)
     private readonly listPlansUC: ListMonthlyPlansUseCase,
-    @Inject(LIST_INVOICES_TOKEN)
-    private readonly listInvoicesUC: ListInvoicesUseCase,
   ) {}
 
   ngOnInit(): void {
@@ -144,7 +134,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
       typesRes,
       plansRes,
       expiringRes,
-      invoicesRes,
     ] = await Promise.all([
       this.getActiveSessions.execute(new NoParams()),
       this.revenueUC.execute({ dateFrom: startOfDay, dateTo: now, groupBy: 'day' }),
@@ -159,7 +148,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
         status: 'expiring',
         pagination: { page: 1, pageSize: 1 },
       }),
-      this.listInvoicesUC.execute({ page: 1, pageSize: 100 }),
     ]);
 
     activeRes.fold(
@@ -203,16 +191,6 @@ export class ExecutiveDashboardPageComponent implements OnInit {
     expiringRes.fold(
       () => this.expiringMonthliesCount.set(0),
       ({ pagination }) => this.expiringMonthliesCount.set(pagination.total),
-    );
-
-    invoicesRes.fold(
-      () => this.pendingInvoicesCount.set(0),
-      ({ data }) => {
-        const pending = data.filter(
-          (i) => i.dianStatus !== 'accepted' && i.dianStatus !== 'sent',
-        ).length;
-        this.pendingInvoicesCount.set(pending);
-      },
     );
 
     this.loading.set(false);

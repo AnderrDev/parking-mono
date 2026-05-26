@@ -102,8 +102,8 @@ INSERT INTO app_settings (key, value, description) VALUES
   ),
   (
     'invoicing_config',
-    '{"prefix": "FAC", "resolution": "", "technical_key": "", "contingency_prefix": "FC", "software_id": "", "software_pin": ""}'::jsonb,
-    'Parámetros de facturación electrónica DIAN (HU-067) — campos sensibles deberían cifrarse'
+    '{"prefix": "FAC"}'::jsonb,
+    'Prefijo de numeración interna de tickets POS'
   ),
   (
     'operational_config',

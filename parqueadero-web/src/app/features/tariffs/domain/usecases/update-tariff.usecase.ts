@@ -34,6 +34,15 @@ export class UpdateTariffUseCase extends UseCase<UpdateTariffUseCaseParams, Tari
     if (fields.dailyCapCents !== undefined && (!Number.isInteger(fields.dailyCapCents) || fields.dailyCapCents <= 0)) {
       return left(new ValidationFailure('El tope diario debe ser un entero mayor a 0', 'dailyCapCents'));
     }
+    if (fields.perMinuteCents !== undefined && fields.perMinuteCents !== null && (!Number.isInteger(fields.perMinuteCents) || fields.perMinuteCents <= 0)) {
+      return left(new ValidationFailure('Valor por minuto debe ser entero > 0', 'perMinuteCents'));
+    }
+    if (fields.perHourCents !== undefined && fields.perHourCents !== null && (!Number.isInteger(fields.perHourCents) || fields.perHourCents <= 0)) {
+      return left(new ValidationFailure('Valor por hora debe ser entero > 0', 'perHourCents'));
+    }
+    if (fields.plenaCents !== undefined && fields.plenaCents !== null && (!Number.isInteger(fields.plenaCents) || fields.plenaCents <= 0)) {
+      return left(new ValidationFailure('Plena debe ser entero > 0', 'plenaCents'));
+    }
     if (fields.validFrom && fields.validTo && fields.validTo <= fields.validFrom) {
       return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio', 'validTo'));
     }
@@ -56,7 +65,19 @@ export class UpdateTariffUseCase extends UseCase<UpdateTariffUseCaseParams, Tari
     const valueCents = fields.valueCents ?? tariff.valueCents;
     const dailyCapCents = fields.dailyCapCents ?? tariff.dailyCapCents;
     const isMonthly = tariff.unit === 'mensualidad';
-    if (!isMonthly && dailyCapCents <= valueCents) {
+
+    if (!isMonthly) {
+      // Constraints cliente-friendly C5/C6 sobre el estado resultante:
+      const perMinute = fields.perMinuteCents ?? tariff.perMinuteCents;
+      const perHour   = fields.perHourCents   ?? tariff.perHourCents;
+      const plena     = fields.plenaCents     ?? tariff.plenaCents;
+      if (perMinute != null && perHour != null && perHour > perMinute * 60) {
+        return left(new ValidationFailure('La hora no puede ser más cara que 60 min sueltos', 'perHourCents'));
+      }
+      if (perHour != null && plena != null && plena > perHour * 24) {
+        return left(new ValidationFailure('La plena no puede superar 24 h de la tarifa hora', 'plenaCents'));
+      }
+    } else if (dailyCapCents <= valueCents) {
       return left(new ValidationFailure('El tope diario debe ser mayor al valor por unidad', 'dailyCapCents'));
     }
 

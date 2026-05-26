@@ -46,6 +46,9 @@ const makeTariff = (overrides: Partial<{
   valueCents: number;
   graceMinutes: number;
   dailyCapCents: number;
+  perMinuteCents: number;
+  perHourCents: number;
+  plenaCents: number;
 }> = {}): TariffEntity =>
   new TariffEntity(
     'tariff-id-1',
@@ -58,6 +61,12 @@ const makeTariff = (overrides: Partial<{
     overrides.graceMinutes ?? 5,
     overrides.dailyCapCents ?? 30_000_000,
     true,
+    undefined, null, null,
+    // Tiered fields (S3+ calc los requiere). Defaults equivalentes a $5.000/h
+    // proporcional, igual al cobro del path legacy viejo.
+    overrides.perMinuteCents ?? 8333,    // $83 ≈ 500000/60
+    overrides.perHourCents   ?? 500_000,
+    overrides.plenaCents     ?? 30_000_000,
   );
 
 const makePayment = (): PaymentEntity =>

@@ -68,15 +68,29 @@ export class TariffRemoteDataSource extends TariffDataSource {
 
   async create(params: CreateTariffParams): Promise<Either<Failure, TariffEntity>> {
     try {
+      // Para parking enviamos los 3 fields nuevos. Las columnas legacy
+      // value_cents/daily_cap_cents siguen siendo NOT NULL en el DB hasta
+      // una migration futura: las derivamos de los nuevos para no romper.
+      const isMonthly = params.unit === 'mensualidad';
+      const legacyValueCents = isMonthly
+        ? params.valueCents
+        : (params.perHourCents ?? params.valueCents);
+      const legacyDailyCapCents = isMonthly
+        ? params.dailyCapCents
+        : (params.plenaCents ?? params.dailyCapCents);
+
       const { data, error } = await this.supabase.client
         .from('tariffs')
         .insert({
           name: params.name,
           vehicle_type: params.vehicleType,
           unit: params.unit,
-          value_cents: params.valueCents,
+          value_cents: legacyValueCents,
           grace_minutes: params.graceMinutes,
-          daily_cap_cents: params.dailyCapCents,
+          daily_cap_cents: legacyDailyCapCents,
+          per_minute_cents: isMonthly ? null : (params.perMinuteCents ?? null),
+          per_hour_cents:   isMonthly ? null : (params.perHourCents   ?? null),
+          plena_cents:      isMonthly ? null : (params.plenaCents     ?? null),
           schedule_json: params.scheduleJson ?? { todos: '00:00-23:59' },
           valid_from: params.validFrom?.toISOString().slice(0, 10) ?? null,
           valid_to: params.validTo?.toISOString().slice(0, 10) ?? null,
@@ -97,6 +111,18 @@ export class TariffRemoteDataSource extends TariffDataSource {
       if (params.valueCents !== undefined) patch['value_cents'] = params.valueCents;
       if (params.graceMinutes !== undefined) patch['grace_minutes'] = params.graceMinutes;
       if (params.dailyCapCents !== undefined) patch['daily_cap_cents'] = params.dailyCapCents;
+      if (params.perMinuteCents !== undefined) patch['per_minute_cents'] = params.perMinuteCents;
+      if (params.perHourCents   !== undefined) patch['per_hour_cents']   = params.perHourCents;
+      if (params.plenaCents     !== undefined) patch['plena_cents']      = params.plenaCents;
+      // Si la UI actualiza perHourCents/plenaCents, mantenemos value_cents/daily_cap_cents
+      // sincronizados (legacy back-compat: el query viejo de getActiveTariff y
+      // otros lectores siguen viendo valores coherentes).
+      if (params.perHourCents !== undefined && params.perHourCents !== null && params.valueCents === undefined) {
+        patch['value_cents'] = params.perHourCents;
+      }
+      if (params.plenaCents !== undefined && params.plenaCents !== null && params.dailyCapCents === undefined) {
+        patch['daily_cap_cents'] = params.plenaCents;
+      }
       if (params.scheduleJson !== undefined) patch['schedule_json'] = params.scheduleJson;
       if (params.validFrom !== undefined) patch['valid_from'] = params.validFrom?.toISOString().slice(0, 10) ?? null;
       if (params.validTo !== undefined) patch['valid_to'] = params.validTo?.toISOString().slice(0, 10) ?? null;

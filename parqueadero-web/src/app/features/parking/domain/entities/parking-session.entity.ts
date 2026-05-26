@@ -20,6 +20,12 @@ export class ParkingSessionEntity extends BaseEntity {
     public readonly exitUserId: string | null,
     public readonly amountDueCents: number | null,
     public readonly syncStatus: SyncStatus,
+    /** Snapshot inmutable de la tarifa al momento del ingreso. NULL para
+     *  sesiones legacy pre-2026-05-25 y para mensualidades. */
+    public readonly tariffSnapshotName: string | null = null,
+    public readonly tariffSnapshotPerMinuteCents: number | null = null,
+    public readonly tariffSnapshotPerHourCents: number | null = null,
+    public readonly tariffSnapshotPlenaCents: number | null = null,
   ) {
     super(id, createdAt, updatedAt);
   }

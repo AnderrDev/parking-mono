@@ -25,8 +25,18 @@ import {
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { SupabaseService } from '../../../../core/services/supabase.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { CancelSessionDialogComponent } from '../components/cancel-session-dialog.component';
+
+/** Subset mínimo de la tabla tariffs para calcular cobro proyectado. */
+interface TariffRow {
+  id: string;
+  vehicle_type: VehicleType;
+  per_minute_cents: number | null;
+  per_hour_cents: number | null;
+  plena_cents: number | null;
+}
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -53,14 +63,24 @@ export class SessionHistoryPageComponent implements OnInit {
   protected readonly sessions = signal<ParkingSessionEntity[]>([]);
   protected readonly loading = signal(false);
   protected readonly pagination = signal<PaginationMeta | null>(null);
+  /** Map tariff_id → tarifa, para calcular el cobro proyectado de sesiones
+   *  activas (sin payment todavía). Cargado una sola vez en ngOnInit. */
+  protected readonly tariffsById = signal<Map<string, TariffRow>>(new Map());
+  /** Fallback por vehicle_type cuando la sesión no persistió tariff_id
+   *  (bug legacy pre-2026-05-25). */
+  protected readonly tariffsByType = signal<Map<VehicleType, TariffRow>>(new Map());
+  /** Tick que refresca la duración mostrada de sesiones activas cada minuto. */
+  private readonly clockTick = signal(0);
 
   filterForm!: FormGroup;
   protected currentPage = 1;
+  private clockInterval: ReturnType<typeof setInterval> | null = null;
 
   private readonly parkingForms = inject(ParkingForms);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(Dialog);
   private readonly authState = inject(AuthStateService);
+  private readonly supabase = inject(SupabaseService);
   /** Anclar overlay del dialog en el árbol de vistas. */
   private readonly vcr = inject(ViewContainerRef);
   /** EnvironmentInjector del route para que el dialog vea providers route-scoped (ver operator-dashboard.page.ts). */
@@ -78,7 +98,32 @@ export class SessionHistoryPageComponent implements OnInit {
       dateFrom: weekAgo,
       dateTo: today,
     });
+    void this.loadTariffs();
     this.load();
+    // Refresca duración y cobro proyectado cada minuto para activas.
+    this.clockInterval = setInterval(() => this.clockTick.update((v) => v + 1), 60_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.clockInterval) clearInterval(this.clockInterval);
+  }
+
+  private async loadTariffs(): Promise<void> {
+    const { data } = await this.supabase.client
+      .from('tariffs')
+      .select('id, vehicle_type, per_minute_cents, per_hour_cents, plena_cents')
+      .eq('is_active', true)
+      .eq('_deleted', false)
+      .neq('unit', 'mensualidad');
+    if (!data) return;
+    const byId = new Map<string, TariffRow>();
+    const byType = new Map<VehicleType, TariffRow>();
+    for (const row of data as TariffRow[]) {
+      byId.set(row.id, row);
+      byType.set(row.vehicle_type, row);
+    }
+    this.tariffsById.set(byId);
+    this.tariffsByType.set(byType);
   }
 
   protected vehicleLabel(t: VehicleType): string {
@@ -94,14 +139,58 @@ export class SessionHistoryPageComponent implements OnInit {
   }
 
   protected formatDuration(session: ParkingSessionEntity): string {
-    if (!session.exitAt) return '—';
-    const minutes = Math.ceil(
-      (session.exitAt.getTime() - session.entryAt.getTime()) / 60_000,
-    );
+    // Para sesiones activas, durationMinutes usa now() y refresca con el
+    // clockTick cada minuto (consumido en el template).
+    this.clockTick(); // dependencia reactiva para activas
+    const minutes = session.status === 'cancelled' ? 0 : session.durationMinutes;
+    if (minutes <= 0) return '—';
     if (minutes < 60) return `${minutes} min`;
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    return `${h}h ${m}min`;
+    return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  }
+
+  /**
+   * Cobro mostrado en la columna. Para sesiones completadas usa el
+   * amount_due_cents persistido (lo que efectivamente se cobró). Para
+   * activas, proyecta el cobro con la fórmula aditiva + tope plena usando
+   * la tarifa snapshot y la duración actual.
+   *
+   * Importante: `amount_due_cents` tiene DEFAULT 0 en BD, así que activas
+   * llegan con 0 (no null). El status es el discriminador correcto.
+   */
+  protected displayAmount(s: ParkingSessionEntity): string {
+    this.clockTick();
+    if (s.status === 'cancelled') return '—';
+    if (s.isMonthly) return '$ 0';
+    if (s.status === 'completed') {
+      return this.formatCents(s.amountDueCents ?? 0);
+    }
+    // status === 'active': proyectar con el snapshot inmutable o, si no
+    // existe (sesión legacy), con la tarifa por vehicle_type.
+    const tById = s.tariffId ? this.tariffsById().get(s.tariffId) ?? null : null;
+    const tByType = this.tariffsByType().get(s.vehicleType) ?? null;
+    const perMin = s.tariffSnapshotPerMinuteCents ?? tById?.per_minute_cents ?? tByType?.per_minute_cents ?? null;
+    const perHour = s.tariffSnapshotPerHourCents ?? tById?.per_hour_cents ?? tByType?.per_hour_cents ?? null;
+    const plena = s.tariffSnapshotPlenaCents ?? tById?.plena_cents ?? tByType?.plena_cents ?? null;
+    if (perMin == null || perHour == null || plena == null) return '—';
+    const tariff = { per_minute_cents: perMin, per_hour_cents: perHour, plena_cents: plena };
+    const dur = s.durationMinutes;
+    if (dur <= 0) return this.formatCents(0);
+    const hours = Math.floor(dur / 60);
+    const rest = dur % 60;
+    const subtotal = hours * tariff.per_hour_cents + rest * tariff.per_minute_cents;
+    const amount = Math.min(subtotal, tariff.plena_cents);
+    return this.formatCents(amount);
+  }
+
+  /** Indica al template si el monto de la fila es proyección (activa). */
+  protected isProjected(s: ParkingSessionEntity): boolean {
+    return s.status === 'active' && !s.isMonthly;
+  }
+
+  private formatCents(cents: number): string {
+    return '$ ' + Math.round(cents / 100).toLocaleString('es-CO');
   }
 
   protected onApplyFilters(): void {

@@ -13,6 +13,7 @@ import {
   RegisterExitParams,
   RegisterExitResult,
 } from '../repositories/parking.repository';
+import { normalizePlate } from '../../../../shared/utils/plate.utils';
 import { PaymentMethod, FREE_PAYMENT_METHODS } from '../entities/payment.entity';
 import { TariffEntity } from '../entities/tariff.entity';
 import { CalculateParkingFeeUseCase, CalculateParkingFeeResult } from './calculate-parking-fee.usecase';
@@ -35,7 +36,7 @@ export class RegisterVehicleExitUseCase extends UseCase<RegisterVehicleExitParam
   }
 
   async execute(params: RegisterVehicleExitParams): Promise<Either<Failure, RegisterExitResult>> {
-    const plate = params.plate?.trim().toUpperCase() ?? '';
+    const plate = normalizePlate(params.plate ?? '');
     if (!plate) {
       return left(new ValidationFailure('La placa es obligatoria', 'plate'));
     }

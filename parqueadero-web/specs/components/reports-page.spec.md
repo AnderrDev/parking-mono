@@ -70,15 +70,14 @@ Rango actual = "Últimos 30 días" → anterior = "30 días previos a esos".
 
 KPIs principales con delta:
 - **Total cobrado** (suma de `payments.amount_cents` en el período).
-- **Total facturado** (suma de `invoices.total_cents` aceptadas DIAN).
+- **Total tickets** (suma de `invoices.total_cents` emitidos en el período).
 - **Ticket promedio** (cobrado / sesiones).
 - **Día más fuerte** (label + monto).
 
 Gráficos:
 - Stack horizontal "Por método de pago": efectivo / tarjeta / transferencia /
   gratis con % y monto absoluto.
-- Estado DIAN (cuando hay facturas en período):
-  donut/stack con: aceptadas, pendientes, rechazadas/contingencia.
+<!-- Sección "Estado DIAN" eliminada el 2026-05-20: facturación electrónica descartada del alcance. -->
 
 Si no hay role admin → tab oculto.
 
@@ -162,7 +161,7 @@ Reglas visuales del delta:
 Cada KPI tiene un ícono `?` (o `aria-describedby`) con explicación corta:
 
 - **Total cobrado**: "Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia)."
-- **Total facturado**: "Suma del total de las facturas electrónicas emitidas y aceptadas por la DIAN."
+- **Total tickets**: "Suma del total de los tickets POS emitidos en el período."
 - **Ticket promedio**: "Promedio de plata recaudada por sesión cerrada."
 - **Día más fuerte**: "Día con mayor recaudo dentro del período."
 - **Diferencia caja**: "Suma de faltantes y sobrantes reportados al cerrar turno (en valor absoluto)."

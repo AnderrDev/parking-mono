@@ -7,8 +7,6 @@
 Define la **fuente de verdad** del régimen tributario del parqueadero y la fórmula correcta para calcular base gravable e IVA a partir de un total cobrado en caja. Reemplaza los literales `0.19` y `19.00` regados por specs y código.
 
 Esta spec es referenciada por:
-- `parqueadero-backend/specs/edge-functions/siigo-emit-invoice.spec.md` (regla "IVA")
-- `parqueadero-backend/specs/edge-functions/request-invoice.spec.md` (regla "IVA" — stub legado)
 - `parqueadero-web/specs/features/invoicing/request-invoice.spec.md` (sección "IVA")
 - Specs de reportes contables (a crear: `tax-report.spec.md`, `ica-report.spec.md`)
 
@@ -75,7 +73,7 @@ base_cents  = total_cents = payment.amount_cents
 iva_cents   = 0
 ```
 
-La factura NO discrimina IVA (queda en `tax_cents=0`, `tax_percent=0`). Edge function debe omitir la línea de impuesto en el payload a Siigo.
+La factura NO discrimina IVA (queda en `tax_cents=0`, `tax_percent=0`).
 
 ### Helper a implementar
 
@@ -158,8 +156,6 @@ Y opcionalmente: `ALTER TABLE invoice_lines ALTER COLUMN tax_percent DROP DEFAUL
 | Archivo | Cambio |
 |---|---|
 | `parqueadero-web/specs/features/invoicing/request-invoice.spec.md` §"IVA" | Reemplazar fórmula por la canónica (`total = payment.amount`, `base = round(total/(1+rate))`, `iva = total - base`) |
-| `parqueadero-backend/specs/edge-functions/siigo-emit-invoice.spec.md` regla 6 | Idem + cargar `tax_config` antes del `INSERT invoices` |
-| `parqueadero-backend/specs/edge-functions/request-invoice.spec.md` regla 5 (legacy) | Idem |
 | `parqueadero-web/specs/features/settings/tax-config.spec.md` (nuevo) | UI admin para editar `tax_config` (Fase 5/Settings) |
 | `parqueadero-web/specs/features/reports/tax-report.spec.md` (nuevo) | Reporte IVA bimestral basado en `invoice_lines` |
 | `parqueadero-web/specs/features/reports/ica-report.spec.md` (nuevo) | Reporte ingresos brutos por mes para declaración municipal |

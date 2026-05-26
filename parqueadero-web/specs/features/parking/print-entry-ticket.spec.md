@@ -1,10 +1,31 @@
 # Spec: Imprimir ticket de entrada (térmico POS + QR)
 
+**Versión:** 2.1 (2026-05-20) — sin consecutivo numérico
+
 ## Identificador
 `parking/print-entry-ticket`
 
 ## Descripción
 UseCase que genera y dispara la impresión automática del ticket de entrada en una impresora térmica POS dedicada (80 mm), apenas se confirma el registro de un nuevo vehículo. Incluye un código QR con el `session.id` para acelerar la búsqueda en la salida.
+
+### Cambios v2 (2026-05-20)
+
+A pedido del cliente, el ticket adopta el branding del recibo BSNR usado tradicionalmente en parqueaderos colombianos:
+
+- **Tipo de parqueadero** (`PARQUEADERO PÚBLICO` / `PRIVADO`) en banner negro arriba del nombre.
+- **Resolución** legal (parqueadero público) y **NIT-DV** en el header.
+- **Tabla completa de tarifas activas** (todos los `vehicle_type`, no solo el actual).
+- **Banner `✓ CLIENTE MENSUAL`** si la sesión tiene `monthlyPlanId`.
+- **Horario de cierre** ("Hasta las 18:00") destacado con bordes superior/inferior.
+- **Dirección + teléfono** en footer con prefijo ☎.
+- Se cambió la tipografía del cuerpo de Courier (monospace) a Helvetica Neue (sans-serif) excepto datos numéricos (placa, valores) que mantienen monospace para legibilidad térmica.
+
+### Cambio v2.1 (2026-05-20)
+
+Se eliminó el bloque del consecutivo numérico en rojo a pedido del cliente: el ticket no necesita un consecutivo visible — el QR ya identifica la sesión de forma única. Esto implica:
+- No se aplica la migration `00022_ticket_number_sequence.sql` (eliminada del repo).
+- Se quita el campo `ticketNumber` de `ParkingSessionEntity`, `ParkingSessionModel` y `ExitReceipt`.
+- El bloque `.ticket-number` y los helpers `formatTicketNumber()` salen del renderer.
 
 ## Estrategia de impresión
 
@@ -26,12 +47,15 @@ Sistema (invocado por `vehicle-entry-modal` tras éxito de `RegisterVehicleEntry
 interface PrintEntryTicketParams {
   session: ParkingSessionEntity;
   tariffSnapshot: TariffEntity | null;  // tarifa vigente del tipo de vehículo
-  parkingInfo?: {                        // se carga del app_settings.parking_info
+  parkingInfo?: {                        // se carga del app_settings.parking_info (v2)
     name: string;
     nit: string;
     dv: string;
     address: string;
     phone: string;
+    parkingType: 'publico' | 'privado' | '';
+    resolutionNumber: string;
+    closingTime: string;     // formato libre "18:00" o "6:00 P.M."
   };
 }
 ```
@@ -51,7 +75,7 @@ NO retorna `Left` por "el usuario canceló el diálogo de impresión" — eso es
 1. **No bloquea**: si el ticket falla, el dashboard NO muestra error. La sesión está creada; el ticket es accesorio.
 2. **QR contiene SOLO el `session.id`** (UUID, ~36 chars). No incluye placa, monto, ni payload firmado — la salida hace lookup contra BD para todo lo demás.
 3. **Tarifa snapshot opcional**: si no hay tarifa cargada, el ticket omite la línea "Tarifa vigente" (no falla).
-4. **Sin numeración secuencial**: el ticket NO es factura, no requiere consecutivo. El `session.id` cumple el rol de identificador único.
+4. **Sin numeración secuencial** (v2.1): el ticket NO es factura, no requiere consecutivo. El QR + `session.id` cumplen el rol de identificador único.
 5. **Idempotencia**: si la EF se invoca dos veces seguidas con el mismo session, imprime dos veces — es responsabilidad del caller no invocarlo doble.
 6. **Hora local Bogotá**: `entryAt` se formatea con `toBogotaDateTime()` del `date.utils.ts`.
 
@@ -67,7 +91,49 @@ NO retorna `Left` por "el usuario canceló el diálogo de impresión" — eso es
 8. `printWindow.close()` 1 segundo después (para evitar cerrar antes de que termine la cola de impresión).
 9. Retornar `Right({ printedAt: new Date() })`.
 
-## Plantilla HTML (80 mm)
+## Layout v2
+
+```
+┌──────────────────────────────┐
+│   PARQUEADERO PÚBLICO        │  ← banner negro (si parkingType)
+│                              │
+│        COCOPARKING           │  ← nombre del negocio (h1)
+│   NIT 52.210.596-8           │  ← biz-meta
+│   Resolución 18764107780828  │
+│                              │
+│ PLACA                        │  ← section-label
+│ ┌──────────────────────────┐ │
+│ │       ABC123             │ │  ← plate-box
+│ └──────────────────────────┘ │
+│                              │
+│ Tipo      Carro              │  ← data-grid 2 cols
+│ Fecha     20/05/2026         │
+│ Entrada   14:23              │
+│                              │
+│ [✓ CLIENTE MENSUAL]          │  ← solo si isMonthly
+│ Tu tarifa: $100 / minuto     │  ← solo si NO mensual
+│                              │
+│ TARIFAS                      │
+│ Carro    $ 100 / minuto      │
+│ Moto     $  60 / minuto      │
+│                              │
+│        [QR 130x130]          │
+│ Conserve este ticket         │
+│ para registrar la salida     │
+│                              │
+│ - - - - - - - - - - - - - -  │
+│ Carrera 17 # 19A - 06        │
+│ ☎ 311 5922330                │
+│                              │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│   Hasta las 18:00            │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                              │
+│ session: 8c8a90f-...         │
+└──────────────────────────────┘
+```
+
+## Plantilla HTML (80 mm — v2)
 
 ```html
 <!doctype html>
@@ -148,12 +214,15 @@ NO retorna `Left` por "el usuario canceló el diálogo de impresión" — eso es
 </html>
 ```
 
-`tariffLine` ejemplo: `"Carro $200/min · $12.000/h · gracia 10 min"`.
+`tariffLine` ejemplo: `"Carro $100/min · $3.600/h · plena $12.000 · gracia 10 min"`.
+
+**Formato unificado tras la feature de tarifa tiered** (ver `parqueadero-backend/specs/tariffs-pricing.spec.md`):
+`$<perMinuteCents>/min · $<perHourCents>/h · plena $<plenaCents>[ · gracia <graceMinutes> min]`. Los tres rates se muestran porque cada uno gana en distintos rangos de duración (MIN de los tres). Si la tarifa cargada es legacy (sin los 3 campos nuevos), el ticket cae al formato viejo `$<valueCents>/<unit>` para back-compat.
 
 ## Dependencias
 
 - npm `qrcode` (^1.5.x) — generación de QR a data URL. Vanilla, ~25 KB gzipped.
-- `app_settings.parking_info` (ya existe en migration 00010).
+- `app_settings.parking_info` extendido con `parkingType`, `resolutionNumber`, `closingTime` (poblar desde la página `/settings` → Datos del ticket impreso). No requiere migration (JSONB es schemaless); los campos viejos se preservan.
 - Helpers existentes: `formatCOP`, `toBogotaDateTime`, `vehicleTypeLabel`.
 
 ## DI / Estructura
@@ -197,4 +266,4 @@ Se especifica aparte (`scan-entry-qr.spec.md`, futuro). Resumen del flow esperad
 - NO escribe en BD (solo lee `app_settings.parking_info`).
 
 ---
-Status: Especificado 2026-05-04 — implementación pendiente.
+Status: Especificado 2026-05-04 — v1 implementado. v2 (datos legales + rediseño) implementado 2026-05-20. v2.1 (sin consecutivo, sin migration 00022) misma fecha.

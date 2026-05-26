@@ -7,15 +7,10 @@ export interface ParkingInfoValue {
   departamento: string;
   phone: string;
   email: string;
-}
-
-export interface InvoicingConfigValue {
-  prefix: string;
-  resolution: string;
-  technical_key: string;
-  contingency_prefix: string;
-  software_id: string;
-  software_pin: string;
+  // Campos agregados 2026-05-20 para el ticket impreso (HU-030 v2)
+  parkingType: 'publico' | 'privado' | '';
+  resolutionNumber: string;
+  closingTime: string;
 }
 
 export interface OperationalConfigValue {
@@ -24,13 +19,14 @@ export interface OperationalConfigValue {
   max_courtesies_per_shift: number;
   admin_email: string;
   enabled_payment_methods: string[];
+  diff_threshold_cents?: number;
+  max_report_range_days?: number;
 }
 
-export type AppSettingKey = 'parking_info' | 'invoicing_config' | 'operational_config';
+export type AppSettingKey = 'parking_info' | 'operational_config';
 
 export type AppSettingValue =
   | ParkingInfoValue
-  | InvoicingConfigValue
   | OperationalConfigValue
   | Record<string, unknown>;
 

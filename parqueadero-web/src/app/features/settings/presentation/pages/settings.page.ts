@@ -17,13 +17,12 @@ import { CurrencyInputDirective } from '../../../../shared/directives/currency-i
 import { GetSettingUseCase } from '../../domain/usecases/get-setting.usecase';
 import { UpdateSettingUseCase } from '../../domain/usecases/update-setting.usecase';
 import {
-  InvoicingConfigValue,
   OperationalConfigValue,
   ParkingInfoValue,
 } from '../../domain/entities/app-setting.entity';
 import { ToastService } from '../../../../core/services/toast.service';
 
-type Tab = 'parking' | 'invoicing' | 'operational';
+type Tab = 'parking' | 'operational';
 
 const PAYMENT_METHODS = PM;
 
@@ -43,7 +42,6 @@ export class SettingsPageComponent implements OnInit {
   protected readonly paymentMethods = PAYMENT_METHODS;
 
   parkingForm!: FormGroup;
-  invoicingForm!: FormGroup;
   operationalForm!: FormGroup;
 
   private readonly settingsForms = inject(SettingsForms);
@@ -56,7 +54,6 @@ export class SettingsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.parkingForm = this.settingsForms.createParkingInfoForm();
-    this.invoicingForm = this.settingsForms.createInvoicingConfigForm();
     this.operationalForm = this.settingsForms.createOperationalConfigForm();
     void this.loadAll();
   }
@@ -97,20 +94,6 @@ export class SettingsPageComponent implements OnInit {
     );
   }
 
-  async saveInvoicing(): Promise<void> {
-    if (this.invoicingForm.invalid) return;
-    this.saving.set(true);
-    const result = await this.updateSettingUC.execute({
-      key: 'invoicing_config',
-      value: this.invoicingForm.value as InvoicingConfigValue,
-    });
-    this.saving.set(false);
-    result.fold(
-      (f) => this.toast.error(`Error al guardar: ${f.message}`),
-      () => this.toast.success('Configuración de facturación actualizada'),
-    );
-  }
-
   async saveOperational(): Promise<void> {
     if (this.operationalForm.invalid) return;
     this.saving.set(true);
@@ -133,9 +116,8 @@ export class SettingsPageComponent implements OnInit {
 
   private async loadAll(): Promise<void> {
     this.loading.set(true);
-    const [pi, inv, op] = await Promise.all([
+    const [pi, op] = await Promise.all([
       this.getSettingUC.execute({ key: 'parking_info' }),
-      this.getSettingUC.execute({ key: 'invoicing_config' }),
       this.getSettingUC.execute({ key: 'operational_config' }),
     ]);
 
@@ -143,12 +125,6 @@ export class SettingsPageComponent implements OnInit {
       (f) => this.toast.error(`Error parking_info: ${f.message}`),
       (s) => {
         if (s) this.parkingForm.patchValue(s.value as ParkingInfoValue);
-      },
-    );
-    inv.fold(
-      (f) => this.toast.error(`Error invoicing_config: ${f.message}`),
-      (s) => {
-        if (s) this.invoicingForm.patchValue(s.value as InvoicingConfigValue);
       },
     );
     op.fold(

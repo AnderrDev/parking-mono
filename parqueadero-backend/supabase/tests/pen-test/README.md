@@ -39,7 +39,6 @@ Exit 0 si todo PASS, 1 si algún case FAIL.
 | 04 | operador-write-tariffs | operador con role correcto intenta UPDATE en `tariffs` (admin-only) | 403 |
 | 05 | stale-write-bypass | UPDATE sin client_op_id en una tabla mutable | 403/400 |
 | 06 | audit-log-immutable | intento UPDATE/DELETE en `audit_log` | 403 |
-| 07 | siigo-tables-deprecated | (SI `00021_drop_siigo` aplicada) confirmar que tablas siigo_* ya no existen | NOT EXISTS |
 
 ## Seguridad
 

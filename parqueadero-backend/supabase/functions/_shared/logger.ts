@@ -6,9 +6,9 @@
 // — el call-site no cambia.
 //
 // Uso:
-//   const log = createLogger({ fn: 'siigo-emit-invoice', request_id });
+//   const log = createLogger({ fn: 'request-invoice', request_id });
 //   log.info('attempt_started', { session_id, invoice_id });
-//   log.error('siigo_4xx', { http_status: 422, body });
+//   log.error('insert_failed', { http_status: 422, body });
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

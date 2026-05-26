@@ -30,9 +30,7 @@ export const paymentsRoutes: Routes = [
     providers: paymentsProviders,
     canActivate: [authGuard],
     loadComponent: () =>
-      import('../../shared/components/placeholder-page/placeholder-page.component').then(
-        (m) => m.PlaceholderPageComponent,
-      ),
-    data: { title: 'Pagos', description: 'Historial de pagos — próximamente' },
+      import('./presentation/pages/payments-history.page').then((m) => m.PaymentsHistoryPageComponent),
+    data: { title: 'Historial de cobros' },
   },
 ];

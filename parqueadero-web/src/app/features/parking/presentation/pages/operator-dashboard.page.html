@@ -211,7 +211,7 @@
   <app-receipt-card
     [receipt]="lastReceipt()"
     (dismissed)="dismissReceipt()"
-    (printRequested)="lastReceipt() && printReceipt(lastReceipt()!)"
+    (printRequested)="reprintReceipt()"
     (paused)="pauseReceiptDismiss()"
     (resumed)="resumeReceiptDismiss()"
   />

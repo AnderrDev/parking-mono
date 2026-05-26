@@ -24,7 +24,7 @@ Admin.
 | address | string \| null | No | max 200 chars |
 | municipio | string \| null | No | max 100 chars |
 | departamento | string \| null | No | max 100 chars |
-| responsabilidadesFiscales | string[] | No | Códigos DIAN |
+| responsabilidadesFiscales | string[] | No | Códigos tributarios (legado; sin uso activo desde 2026-05-20) |
 
 ## Output (Result)
 

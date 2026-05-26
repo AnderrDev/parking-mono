@@ -1,6 +1,5 @@
 -- Test 02: assign_invoice_number genera internal_number únicos y secuenciales
 -- Spec: specs/database-schema.spec.md §"Secuencias"
---       specs/database-schema-siigo-delta.spec.md §"Renombre number → internal_number"
 
 \set ON_ERROR_STOP on
 \echo '=== TEST 02: invoice_number_seq (internal_number) ==='

@@ -3,6 +3,7 @@ import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { INVOICING_REMOTE_DATASOURCE_TOKEN } from '../../../../core/di/injection-tokens';
 import { InvoiceEntity } from '../../domain/entities/invoice.entity';
+import { InvoiceDetailEntity } from '../../domain/entities/invoice-detail.entity';
 import {
   InvoicingRepository,
   RequestInvoiceParams,
@@ -22,12 +23,12 @@ export class InvoicingRepositoryImpl extends InvoicingRepository {
     return this.remote.requestInvoice(params);
   }
 
-  reissueInvoice(invoiceId: string): Promise<Either<Failure, InvoiceEntity>> {
-    return this.remote.reissueInvoice(invoiceId);
-  }
-
   getById(invoiceId: string): Promise<Either<Failure, InvoiceEntity | null>> {
     return this.remote.getById(invoiceId);
+  }
+
+  getDetailById(invoiceId: string): Promise<Either<Failure, InvoiceDetailEntity | null>> {
+    return this.remote.getDetailById(invoiceId);
   }
 
   list(params: ListInvoicesParams): Promise<Either<Failure, ListInvoicesResult>> {

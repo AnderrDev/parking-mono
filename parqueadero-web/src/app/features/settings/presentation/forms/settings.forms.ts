@@ -20,17 +20,9 @@ export class SettingsForms {
       departamento: ['', Validators.maxLength(100)],
       phone: ['', colombianPhoneValidator()],
       email: ['', Validators.email],
-    });
-  }
-
-  createInvoicingConfigForm(): FormGroup {
-    return this.fb.group({
-      prefix: ['FAC', [Validators.required, Validators.maxLength(10)]],
-      resolution: ['', Validators.maxLength(200)],
-      technical_key: ['', Validators.maxLength(200)],
-      contingency_prefix: ['FC', Validators.maxLength(10)],
-      software_id: ['', Validators.maxLength(100)],
-      software_pin: ['', Validators.maxLength(100)],
+      parkingType: ['', Validators.maxLength(20)],
+      resolutionNumber: ['', Validators.maxLength(40)],
+      closingTime: ['', Validators.maxLength(10)],
     });
   }
 

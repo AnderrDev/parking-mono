@@ -28,10 +28,30 @@ export class CreateTariffUseCase extends UseCase<CreateTariffParams, TariffEntit
     if (!Number.isInteger(params.dailyCapCents) || params.dailyCapCents <= 0) {
       return left(new ValidationFailure('El tope diario debe ser un entero mayor a 0', 'dailyCapCents'));
     }
-    // Mensualidad: el cap se sincroniza con el value (no aplica como tope
-    // por encima del valor); para parking sí debe ser estrictamente mayor.
     const isMonthly = params.unit === 'mensualidad';
-    if (!isMonthly && params.dailyCapCents <= params.valueCents) {
+
+    // Tiered pricing (S4). Para parking, los 3 valores son obligatorios y
+    // deben cumplir las constraints C4-C6 del backend (ver `tariffs-pricing.spec.md`).
+    if (!isMonthly) {
+      const { perMinuteCents, perHourCents, plenaCents } = params;
+      if (!Number.isInteger(perMinuteCents) || (perMinuteCents as number) <= 0) {
+        return left(new ValidationFailure('Valor por minuto debe ser entero > 0', 'perMinuteCents'));
+      }
+      if (!Number.isInteger(perHourCents) || (perHourCents as number) <= 0) {
+        return left(new ValidationFailure('Valor por hora debe ser entero > 0', 'perHourCents'));
+      }
+      if (!Number.isInteger(plenaCents) || (plenaCents as number) <= 0) {
+        return left(new ValidationFailure('Plena debe ser entero > 0', 'plenaCents'));
+      }
+      if ((perHourCents as number) > (perMinuteCents as number) * 60) {
+        return left(new ValidationFailure('La hora no puede ser más cara que 60 min sueltos', 'perHourCents'));
+      }
+      if ((plenaCents as number) > (perHourCents as number) * 24) {
+        return left(new ValidationFailure('La plena no puede superar 24 h de la tarifa hora', 'plenaCents'));
+      }
+    } else if (params.dailyCapCents <= params.valueCents) {
+      // Mensualidad: el cap se sincroniza con el value; para parking no aplica
+      // (lo reemplaza plena_cents).
       return left(new ValidationFailure('El tope diario debe ser mayor al valor por unidad', 'dailyCapCents'));
     }
     if (params.validFrom && params.validTo && params.validTo <= params.validFrom) {

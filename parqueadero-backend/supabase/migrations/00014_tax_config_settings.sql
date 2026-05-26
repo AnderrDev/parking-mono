@@ -1,4 +1,4 @@
--- Migration 00016: configuración tributaria (régimen IVA, tasa, ICA)
+-- Migration 00014: configuración tributaria (régimen IVA, tasa, ICA)
 -- Spec: parqueadero-backend/specs/tax-config.spec.md
 -- Fecha: 2026-05-04
 --
@@ -7,8 +7,8 @@
 --  • si los precios al público incluyen IVA (true para parqueaderos B2C en CO)
 --  • tarifa IVA y datos básicos para reporte ICA
 --
--- La EF `siigo-emit-invoice` (y reportes contables futuros) leen de aquí
--- en lugar de literales 0.19 / 19.00 regados por el código.
+-- Los reportes contables y use cases del web leen de aquí en lugar de
+-- literales 0.19 / 19.00 regados por el código.
 
 INSERT INTO app_settings (key, value, description) VALUES (
   'tax_config',

@@ -13,7 +13,7 @@ import { CustomerRepository } from '../../../customers/domain/repositories/custo
 import { CashierRepository } from '../../../cashier/domain/repositories/cashier.repository';
 import { PaymentRepository } from '../../../payments/domain/repositories/payment.repository';
 import { MonthlyPlanRepository, CreateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
-import { isValidPlate } from '../../../../shared/utils/plate.utils';
+import { isValidPlate, normalizePlate } from '../../../../shared/utils/plate.utils';
 
 const PLAN_TYPES = ['basico', 'premium', 'ilimitado'];
 
@@ -27,7 +27,7 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
   ) { super(); }
 
   async execute(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
-    const plate = params.vehiclePlate.trim().toUpperCase();
+    const plate = normalizePlate(params.vehiclePlate ?? '');
 
     if (!isValidPlate(plate)) {
       return left(new ValidationFailure('Formato de placa inválido'));

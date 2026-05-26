@@ -15,6 +15,8 @@ import { VehicleType } from '../../domain/entities/parking-session.entity';
 export interface VehicleEntryFormValue {
   plate: string;
   vehicleType: VehicleType;
+  /** Mantenidos para compatibilidad con la pipeline aguas abajo (entity →
+   * datasource → DB). El UI ya no los captura; siempre llegan en `null`. */
   color: string | null;
   brand: string | null;
 }
@@ -127,12 +129,12 @@ export class VehicleEntryFormComponent implements OnInit {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 
-    const raw = this.form.value as { plate: string; vehicleType: string; color: string; brand: string };
+    const raw = this.form.value as { plate: string; vehicleType: string };
     this.submitted.emit({
       plate: raw.plate,
       vehicleType: raw.vehicleType as VehicleType,
-      color: raw.color || null,
-      brand: raw.brand || null,
+      color: null,
+      brand: null,
     });
   }
 

@@ -63,8 +63,9 @@ import type { GetOperatorPerformanceUseCase } from '../../features/reports/domai
 import type { ExportCsvUseCase } from '../../features/reports/domain/usecases/export-csv.usecase';
 import type { InvoicingRepository } from '../../features/invoicing/domain/repositories/invoicing.repository';
 import type { RequestInvoiceUseCase } from '../../features/invoicing/domain/usecases/request-invoice.usecase';
-import type { ReissueInvoiceUseCase } from '../../features/invoicing/domain/usecases/reissue-invoice.usecase';
 import type { ListInvoicesUseCase } from '../../features/invoicing/domain/usecases/list-invoices.usecase';
+import type { GetInvoiceDetailUseCase } from '../../features/invoicing/domain/usecases/get-invoice-detail.usecase';
+import type { ReprintTicketUseCase } from '../../features/invoicing/domain/usecases/reprint-ticket.usecase';
 import type { AuditRepository } from '../../features/audit/domain/repositories/audit.repository';
 import type { ListAuditUseCase } from '../../features/audit/domain/usecases/list-audit.usecase';
 import type { SettingsRepository } from '../../features/settings/domain/repositories/settings.repository';
@@ -160,8 +161,9 @@ export const EXPORT_CSV_TOKEN = new InjectionToken<ExportCsvUseCase>('ExportCsvU
 export const INVOICING_REPOSITORY_TOKEN = new InjectionToken<InvoicingRepository>('InvoicingRepository');
 export const INVOICING_REMOTE_DATASOURCE_TOKEN = new InjectionToken<InvoicingRepository>('InvoicingRemoteDataSource');
 export const REQUEST_INVOICE_TOKEN = new InjectionToken<RequestInvoiceUseCase>('RequestInvoiceUseCase');
-export const REISSUE_INVOICE_TOKEN = new InjectionToken<ReissueInvoiceUseCase>('ReissueInvoiceUseCase');
 export const LIST_INVOICES_TOKEN = new InjectionToken<ListInvoicesUseCase>('ListInvoicesUseCase');
+export const GET_INVOICE_DETAIL_TOKEN = new InjectionToken<GetInvoiceDetailUseCase>('GetInvoiceDetailUseCase');
+export const REPRINT_TICKET_TOKEN = new InjectionToken<ReprintTicketUseCase>('ReprintTicketUseCase');
 
 // ── Audit ─────────────────────────────────────────────────────────────────────
 export const AUDIT_REPOSITORY_TOKEN = new InjectionToken<AuditRepository>('AuditRepository');

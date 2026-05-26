@@ -1,0 +1,125 @@
+<div class="detail-page">
+  <header class="detail-page__header">
+    <button type="button" class="btn-back" (click)="goBack()">← Volver al listado</button>
+  </header>
+
+  @if (loading()) {
+    <p class="state">Cargando ticket…</p>
+  }
+
+  @if (errorMsg()) {
+    <p class="error">{{ errorMsg() }}</p>
+  }
+
+  @if (detail(); as d) {
+    <article class="ticket-card">
+      <div class="ticket-card__title">
+        <h1>Ticket {{ d.invoice.internalNumber }}</h1>
+        <button type="button" class="btn-reprint" (click)="reprint()" [disabled]="reprinting()">
+          {{ reprinting() ? 'Imprimiendo…' : 'Reimprimir' }}
+        </button>
+      </div>
+
+      <div class="ticket-card__section">
+        <div class="kv">
+          <span class="k">Emitido</span>
+          <span class="v">{{ d.invoice.issuedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+        @if (d.customer) {
+          <div class="kv">
+            <span class="k">Cliente</span>
+            <span class="v">
+              {{ d.customer.name }}
+              @if (d.customer.docNumber) {
+                · {{ d.customer.docType | uppercase }} {{ d.customer.docNumber }}
+              }
+            </span>
+          </div>
+        }
+      </div>
+
+      @if (d.session) {
+        <div class="ticket-card__section">
+          <h2>Sesión de parqueo</h2>
+          <div class="kv">
+            <span class="k">Placa</span>
+            <span class="v plate">{{ d.session.vehiclePlate }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Tipo</span>
+            <span class="v">{{ d.session.vehicleType | titlecase }}</span>
+          </div>
+          <div class="kv">
+            <span class="k">Entrada</span>
+            <span class="v">{{ d.session.entryAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          @if (d.session.exitAt) {
+            <div class="kv">
+              <span class="k">Salida</span>
+              <span class="v">{{ d.session.exitAt | date:'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+          }
+          @if (durationLabel()) {
+            <div class="kv">
+              <span class="k">Duración</span>
+              <span class="v">{{ durationLabel() }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      @if (d.tariff) {
+        <div class="ticket-card__section">
+          <h2>Tarifa aplicada</h2>
+          <div class="kv">
+            <span class="k">Nombre</span><span class="v">{{ d.tariff.name }}</span>
+          </div>
+          @if (d.tariff.perHourCents !== null) {
+            <div class="kv">
+              <span class="k">Por hora</span>
+              <span class="v">{{ d.tariff.perHourCents! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+          }
+          @if (d.tariff.perMinuteCents !== null) {
+            <div class="kv">
+              <span class="k">Por minuto</span>
+              <span class="v">{{ d.tariff.perMinuteCents! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+          }
+          @if (d.tariff.plenaCents !== null) {
+            <div class="kv">
+              <span class="k">Plena</span>
+              <span class="v">{{ d.tariff.plenaCents! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <div class="ticket-card__totals">
+        <div class="totals-row">
+          <span class="k">Subtotal</span>
+          <span class="v">{{ d.invoice.subtotalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="totals-row">
+          <span class="k">IVA</span>
+          <span class="v">{{ d.invoice.taxCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="totals-row totals-row--grand">
+          <span class="k">TOTAL</span>
+          <span class="v">{{ d.invoice.totalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+        </div>
+        <div class="totals-row">
+          <span class="k">Método de pago</span>
+          <span class="v">{{ methodLabel() }}</span>
+        </div>
+      </div>
+
+      @if (d.invoice.notes) {
+        <div class="ticket-card__section">
+          <h2>Notas</h2>
+          <p class="notes">{{ d.invoice.notes }}</p>
+        </div>
+      }
+    </article>
+  }
+</div>

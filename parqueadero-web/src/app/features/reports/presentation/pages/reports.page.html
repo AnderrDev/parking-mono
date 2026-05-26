@@ -122,15 +122,6 @@
             }
           </article>
 
-          <article class="kpi" data-variant="primary" aria-label="Total facturado a la DIAN">
-            <span class="kpi__label">
-              Total facturado (DIAN)
-              <span class="kpi__hint" title="Suma del total de las facturas electrónicas emitidas y aceptadas por la DIAN.">?</span>
-            </span>
-            <strong class="kpi__value">{{ (invoicingSummary()?.totalCents ?? 0) | currencyCop }}</strong>
-            <span class="kpi__detail">{{ invoicingSummary()?.count ?? 0 }} facturas aceptadas</span>
-          </article>
-
           <article class="kpi" aria-label="Ticket promedio por sesión">
             <span class="kpi__label">
               Ticket promedio
@@ -170,15 +161,6 @@
           <app-payment-method-stack [slices]="revenue()?.byMethod ?? []" />
         </article>
 
-        @if (invoicingSummary() && invoicingSummary()!.byStatus.length > 0) {
-          <article class="card" aria-label="Estado de facturación electrónica DIAN">
-            <header class="card__head">
-              <h2>Facturación electrónica (DIAN)</h2>
-              <p class="card__hint">Estado de las facturas emitidas en el período.</p>
-            </header>
-            <app-dian-status-grid [entries]="invoicingSummary()!.byStatus" />
-          </article>
-        }
       </section>
     }
 

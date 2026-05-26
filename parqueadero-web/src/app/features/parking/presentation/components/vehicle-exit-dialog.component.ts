@@ -19,17 +19,19 @@ import { CalculateParkingFeeResult } from '../../domain/usecases/calculate-parki
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP as copFormatter } from '../../../../shared/utils/currency.utils';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
-import { LIST_CUSTOMERS_TOKEN } from '../../../../core/di/injection-tokens';
-import { ListCustomersUseCase } from '../../../customers/domain/usecases/list-customers.usecase';
-import { CustomerEntity } from '../../../customers/domain/entities/customer.entity';
+import { GET_SETTING_TOKEN } from '../../../../core/di/injection-tokens';
+import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
+import { OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
 
 export interface ExitFormValue {
   paymentMethod: PaymentMethod;
   justification: string;
-  emitInvoice: boolean;
   /** HU-029: monto recibido cuando paymentMethod=efectivo. */
   cashReceivedCents: number | null;
-  /** HU-040: cliente seleccionado para factura electrónica. */
+  /** Mantenidos para compat con el dashboard del operador. El UI ya no los
+   *  expone (2026-05-24): `emitInvoice` siempre false, `customerId` siempre
+   *  null. La emisión de ticket interno se hizo opcional desde el dialog. */
+  emitInvoice: boolean;
   customerId: string | null;
 }
 
@@ -50,6 +52,16 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   error: 'Error de entrada',
   mensual: 'Plan mensual',
 };
+
+/** Métodos cobrables: el admin los toggle desde /settings →
+ *  operational_config.enabled_payment_methods. SOLO estos aparecen en el
+ *  select. `cortesia` y `error` quedan fuera de la UI por decisión del
+ *  usuario (2026-05-24): si en el futuro se requieren, se exponen como
+ *  toggles separados en settings. `mensual` aparece SOLO cuando la sesión
+ *  tiene plan mensual activo (auto-seleccionado, no elegible). */
+const BILLABLE_METHODS: readonly PaymentMethod[] = [
+  'efectivo', 'tarjeta_credito', 'tarjeta_debito', 'transferencia', 'nequi', 'daviplata',
+];
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -74,7 +86,6 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
   form!: FormGroup;
   readonly showJustification = signal(false);
   readonly cashReceived = signal<number | null>(null);
-  readonly emitInvoice = signal(false);
   readonly paymentMethod = signal<PaymentMethod>('efectivo');
 
   // HU-029: cambio = recibido - cobro. Negativo si falta dinero.
@@ -85,25 +96,26 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
     return received - due;
   });
 
-  // HU-040: búsqueda de cliente
-  readonly customerQuery = signal('');
-  readonly customerResults = signal<CustomerEntity[]>([]);
-  readonly customerSearchLoading = signal(false);
-  readonly selectedCustomer = signal<CustomerEntity | null>(null);
+  /** Set de métodos cobrables habilitados (default = todos hasta que load
+   *  resuelva). Se filtra contra BILLABLE_METHODS. */
+  private readonly enabledBillable = signal<readonly PaymentMethod[]>(BILLABLE_METHODS);
 
-  readonly paymentMethodEntries = Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({
-    value: value as PaymentMethod,
-    label,
-  }));
+  readonly paymentMethodEntries = computed(() => {
+    // Sesión mensual: el método es siempre 'mensual', sin elección posible.
+    if (this.data.session.isMonthly) {
+      return [{ value: 'mensual' as PaymentMethod, label: PAYMENT_METHOD_LABELS['mensual'] }];
+    }
+    // Sesión normal: solo los billables marcados por el admin.
+    return this.enabledBillable().map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }));
+  });
 
   readonly formatDuration = formatDuration;
   readonly formatCOP = copFormatter;
 
   private readonly destroy$ = new Subject<void>();
-  private customerSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
-    @Inject(LIST_CUSTOMERS_TOKEN) private readonly listCustomers: ListCustomersUseCase,
+    @Inject(GET_SETTING_TOKEN) private readonly getSetting: GetSettingUseCase,
   ) {}
 
   amountCents(): number {
@@ -140,25 +152,36 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
         this.cashReceived.set(Number.isNaN(num) ? null : num);
       });
 
-    this.form.get('emitInvoice')!.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((value: boolean) => {
-        this.emitInvoice.set(value);
-        if (!value) {
-          // Si destildaron factura, limpiar selección de cliente
-          this.selectedCustomer.set(null);
-          this.form.get('customerId')!.setValue(null, { emitEvent: false });
-          this.form.get('customerId')!.clearValidators();
-          this.form.get('customerId')!.updateValueAndValidity({ emitEvent: false });
-        } else {
-          this.form.get('customerId')!.setValidators([Validators.required]);
-          this.form.get('customerId')!.updateValueAndValidity({ emitEvent: false });
-        }
-      });
+    // emitInvoice/customerId quedan fuera del UI (2026-05-24). El form
+    // mantiene los campos por compat con el dashboard, pero forzamos
+    // valores fijos.
+    this.form.get('emitInvoice')!.setValue(false, { emitEvent: false });
+    this.form.get('customerId')!.setValue(null, { emitEvent: false });
+    this.form.get('customerId')!.clearValidators();
+    this.form.get('customerId')!.updateValueAndValidity({ emitEvent: false });
 
     // Trigger initial state
     this.applyDynamicValidators(this.paymentMethod(), FREE_PAYMENT_METHODS.includes(this.paymentMethod()));
     this.showJustification.set(FREE_PAYMENT_METHODS.includes(this.paymentMethod()));
+
+    // Filtro de métodos según operational_config.enabled_payment_methods.
+    // Si el setting falla o trae lista vacía, mantenemos los 6 billables
+    // por default (no rompemos el flujo de cobro).
+    void this.loadEnabledMethods();
+  }
+
+  private async loadEnabledMethods(): Promise<void> {
+    const r = await this.getSetting.execute({ key: 'operational_config' });
+    r.fold(
+      () => {/* fallback al default ya seteado */},
+      (entity) => {
+        if (!entity) return;
+        const v = entity.value as OperationalConfigValue;
+        const list = Array.isArray(v.enabled_payment_methods) ? v.enabled_payment_methods : [];
+        const filtered = BILLABLE_METHODS.filter((m) => list.includes(m));
+        if (filtered.length > 0) this.enabledBillable.set(filtered);
+      },
+    );
   }
 
   private applyDynamicValidators(method: PaymentMethod, isFree: boolean): void {
@@ -182,7 +205,6 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.customerSearchTimer) clearTimeout(this.customerSearchTimer);
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -195,44 +217,6 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
     return VEHICLE_TYPE_LABEL[t] ?? t;
   }
 
-  // HU-040: buscador de cliente con debounce 300ms
-  onCustomerSearch(event: Event): void {
-    const value = (event.target as HTMLInputElement).value.trim();
-    this.customerQuery.set(value);
-
-    if (this.customerSearchTimer) clearTimeout(this.customerSearchTimer);
-    if (value.length < 3) {
-      this.customerResults.set([]);
-      return;
-    }
-
-    this.customerSearchTimer = setTimeout(async () => {
-      this.customerSearchLoading.set(true);
-      const result = await this.listCustomers.execute({
-        search: value,
-        includeDeleted: false,
-        pagination: { page: 1, pageSize: 10 },
-      });
-      this.customerSearchLoading.set(false);
-      result.fold(
-        () => this.customerResults.set([]),
-        (r) => this.customerResults.set(r.data),
-      );
-    }, 300);
-  }
-
-  selectCustomer(customer: CustomerEntity): void {
-    this.selectedCustomer.set(customer);
-    this.form.get('customerId')!.setValue(customer.id);
-    this.customerResults.set([]);
-    this.customerQuery.set('');
-  }
-
-  clearCustomer(): void {
-    this.selectedCustomer.set(null);
-    this.form.get('customerId')!.setValue(null);
-  }
-
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -241,16 +225,15 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
     const raw = this.form.getRawValue() as {
       paymentMethod: PaymentMethod;
       justification: string;
-      emitInvoice: boolean;
       cashReceivedCents: number | null;
-      customerId: string | null;
     };
     this.dialogRef.close({
       paymentMethod: raw.paymentMethod,
       justification: raw.justification ?? '',
-      emitInvoice: raw.emitInvoice ?? false,
       cashReceivedCents: raw.cashReceivedCents,
-      customerId: raw.customerId,
+      // Mantienen valores fijos: la emisión de factura/cliente se eliminó del flujo.
+      emitInvoice: false,
+      customerId: null,
     });
   }
 

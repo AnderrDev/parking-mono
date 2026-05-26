@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@angular/core';
 import { UseCase } from '../../../../core/base/usecase';
 import { Either, left, right } from '../../../../core/either/either';
 import { Failure, ValidationFailure } from '../../../../core/either/failures';
-import { REPORT_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
+import { REPORT_REPOSITORY_TOKEN, GET_SETTING_TOKEN } from '../../../../core/di/injection-tokens';
 import {
   ReportRepository,
   RevenueByPeriodParams,
@@ -11,8 +11,10 @@ import {
   GroupBy,
   RevenueDailyRow,
 } from '../repositories/report.repository';
+import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
+import { OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
 
-const MAX_RANGE_MS = 365 * 24 * 60 * 60 * 1000;
+const DEFAULT_MAX_RANGE_DAYS = 365;
 
 function isoWeek(d: Date): string {
   const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -32,7 +34,10 @@ function periodLabel(day: string, groupBy: GroupBy): string {
 
 @Injectable()
 export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, RevenueReportResult> {
-  constructor(@Inject(REPORT_REPOSITORY_TOKEN) private readonly repo: ReportRepository) {
+  constructor(
+    @Inject(REPORT_REPOSITORY_TOKEN) private readonly repo: ReportRepository,
+    @Inject(GET_SETTING_TOKEN) private readonly getSetting: GetSettingUseCase,
+  ) {
     super();
   }
 
@@ -40,8 +45,10 @@ export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, Re
     if (params.dateTo < params.dateFrom) {
       return left(new ValidationFailure('dateTo debe ser ≥ dateFrom'));
     }
-    if (params.dateTo.getTime() - params.dateFrom.getTime() > MAX_RANGE_MS) {
-      return left(new ValidationFailure('El rango máximo es 12 meses'));
+    const maxRangeDays = await this.loadMaxRangeDays();
+    const maxRangeMs = maxRangeDays * 24 * 60 * 60 * 1000;
+    if (params.dateTo.getTime() - params.dateFrom.getTime() > maxRangeMs) {
+      return left(new ValidationFailure(`El rango máximo es ${maxRangeDays} días`));
     }
 
     const rowsResult = await this.repo.getRevenueDailyRows(
@@ -94,5 +101,12 @@ export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, Re
       byPeriod,
       byMethod,
     });
+  }
+
+  private async loadMaxRangeDays(): Promise<number> {
+    const r = await this.getSetting.execute({ key: 'operational_config' });
+    if (r.isLeft() || !r.value) return DEFAULT_MAX_RANGE_DAYS;
+    const v = (r.value.value as OperationalConfigValue).max_report_range_days;
+    return typeof v === 'number' && v > 0 ? v : DEFAULT_MAX_RANGE_DAYS;
   }
 }

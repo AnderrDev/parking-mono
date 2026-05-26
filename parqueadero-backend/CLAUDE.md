@@ -38,7 +38,7 @@ supabase/
 │   └── ...
 ├── functions/
 │   ├── request-invoice/
-│   │   ├── index.ts                  ← Asigna número, llama dian-fe-service
+│   │   ├── index.ts                  ← Asigna número interno (ticket POS)
 │   │   └── test-request.ts
 │   ├── process-payment/
 │   │   ├── index.ts                  ← Webhook Wompi
@@ -117,8 +117,8 @@ supabase/
 - INDEX en end_date WHERE status='active' para buscar próximos a vencer
 
 ### 5.4 `invoices`
-- id, number (UNIQUE), cufe (UNIQUE), customer_id, total_cents, dian_status
-- dian_status: pending, sent, accepted, rejected, contingency
+- id, internal_number (UNIQUE), customer_id, total_cents
+- Ticket POS interno. NO es factura electrónica DIAN.
 - Trigger que asigna número secuencial
 
 ### 5.5 `payments`
@@ -179,30 +179,19 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 serve(async (req) => {
   const { cashier_shift_id, invoice_data } = await req.json();
-  
+
   // 1. Verificar que shift existe y está cerrado
-  // 2. Asignar número secuencial
-  const invoice_number = await getNextInvoiceNumber();
-  
-  // 3. Llamar a dian-fe-service
-  const dianResponse = await fetch(
-    'https://dian-fe-service.fly.dev/invoice',
-    {
-      method: 'POST',
-      body: JSON.stringify({ invoice_number, ...invoice_data })
-    }
-  );
-  
-  // 4. Guardar en BD
+  // 2. Asignar número interno secuencial (sequence local, no DIAN)
+  const internal_number = await getNextInvoiceNumber();
+
+  // 3. Guardar en BD
   const result = await supabase
     .from('invoices')
     .insert({
-      number: invoice_number,
-      dian_status: dianResponse.dian_status,
-      dian_cufe: dianResponse.cufe,
-      ...
+      internal_number,
+      ...invoice_data,
     });
-  
+
   return new Response(JSON.stringify(result), { status: 200 });
 });
 ```
@@ -252,13 +241,12 @@ VALUES ('admin@parqueadero.local', '...', now());
 
 - **Documentos de identidad**: Encrypted o masked en APIs
 - **Números de tarjeta**: NUNCA en BD (usa Wompi)
-- **Claves técnicas DIAN**: En .env, NO en código
 - **Audit log**: Toda acción sensible queda registrada
 
 ### 9.3 Backup
 
 - Supabase hace backup automático
-- Configurar retención según DIAN (mínimo 2 años)
+- Retención de respaldos según política del negocio
 
 ---
 
@@ -294,7 +282,7 @@ VALUES ('admin@parqueadero.local', '...', now());
 3. ⏳ Seed data (tarifas, usuario admin)
 4. ⏳ Edge Functions (request-invoice, process-payment, renew-monthly)
 5. ⏳ Tests de RLS por rol
-6. ⏳ Integración con parqueadero-web y dian-fe-service
+6. ⏳ Integración con parqueadero-web
 
 ---
 

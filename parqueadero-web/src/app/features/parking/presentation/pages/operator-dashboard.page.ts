@@ -89,6 +89,7 @@ import { VehicleHistoryPanelComponent } from '../components/vehicle-history-pane
 import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
+import { TicketRendererService } from '../../data/services/ticket-renderer.service';
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -214,6 +215,11 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
    * sí entrega el del route (con sus providers); pasarlo explícito.
    */
   private readonly envInjector = inject(EnvironmentInjector);
+  /**
+   * Renderer del ticket de entrada — el page sólo lo usa para reaprovechar
+   * el cache de `parking_info` al imprimir el comprobante de salida.
+   */
+  private readonly ticketRenderer = inject(TicketRendererService);
 
   constructor(
     @Inject(REGISTER_VEHICLE_ENTRY_TOKEN)
@@ -653,6 +659,10 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           amountCents: amount,
           paymentMethod: value.paymentMethod,
           cashReceivedCents: value.cashReceivedCents,
+          // Mostrada en el ticket impreso (no en la `.receipt-card`).
+          // Cae al snapshot vigente del tipo de vehículo — suficiente
+          // mientras no haya cambios de tarifa entre entrada y salida.
+          tariffSnapshot: this.activeTariffs().get(closedSession.vehicleType) ?? null,
         };
         this.lastReceipt.set(receipt);
         this.scheduleReceiptDismiss();
@@ -660,12 +670,13 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
         // HU-031 v1.1: auto-impresión del comprobante. Si el popup está
         // bloqueado, queda el botón manual en `<app-receipt-card>` como
         // fallback — informamos con un toast no-bloqueante.
-        const printed = this.printReceipt(receipt);
-        if (!printed) {
-          this.toast.warning(
-            'Popup bloqueado. Usa el botón "Imprimir comprobante" para reimprimir.',
-          );
-        }
+        void this.printReceipt(receipt).then((printed) => {
+          if (!printed) {
+            this.toast.warning(
+              'Popup bloqueado. Usa el botón "Imprimir comprobante" para reimprimir.',
+            );
+          }
+        });
 
         // HU-040: emitir factura electrónica si el operador la pidió.
         if (value.emitInvoice && value.customerId) {
@@ -676,11 +687,11 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   private async emitInvoiceFor(sessionId: string, customerId: string): Promise<void> {
-    this.toast.info('Emitiendo factura electrónica...');
+    this.toast.info('Generando ticket interno...');
     const result = await this.requestInvoice.execute({ sessionId, customerId });
     result.fold(
-      (failure) => this.toast.error(`No se pudo emitir factura: ${failure.message}`),
-      (invoice) => this.toast.success(`Factura ${invoice.number} (${invoice.dianStatus})`),
+      (failure) => this.toast.error(`No se pudo emitir ticket: ${failure.message}`),
+      (invoice) => this.toast.success(`Ticket ${invoice.internalNumber} emitido`),
     );
   }
 
@@ -693,90 +704,21 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Imprime el comprobante de salida en una ventana popup.
-   * Retorna true si la ventana se abrió, false si el popup fue bloqueado
-   * (para que el llamador decida cómo notificar). Auto-cierra el popup
-   * 1s después de imprimir (mismo patrón que el ticket de entrada).
+   * Imprime el comprobante delegando al ticket-renderer (que aloja la
+   * lógica de build+popup para reuso desde /payments). Retorna true si
+   * el popup se abrió.
    */
-  protected printReceipt(r: ExitReceipt): boolean {
-    const w = window.open('', '_blank', 'width=420,height=620');
-    if (!w) return false;
-    w.document.write(this.buildReceiptHtml(r));
-    w.document.close();
-    w.focus();
-    try {
-      w.print();
-    } catch {
-      // Algunos navegadores cierran solos al print(); ignoramos.
-    }
-    setTimeout(() => {
-      try {
-        w.close();
-      } catch {
-        /* noop */
-      }
-    }, 1000);
-    return true;
+  protected async printReceipt(r: ExitReceipt): Promise<boolean> {
+    const result = await this.ticketRenderer.printExitReceipt(r);
+    return result.ok;
   }
 
-  private buildReceiptHtml(r: ExitReceipt): string {
-    const fmt = (d: Date) =>
-      d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
-      ' ' +
-      d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-
-    const dur = r.durationMinutes >= 60
-      ? `${Math.floor(r.durationMinutes / 60)}h ${r.durationMinutes % 60}m`
-      : `${r.durationMinutes}m`;
-
-    const moneyFmt = (cents: number) => formatCOP(cents) + ' COP';
-
-    const amountRow = r.amountCents > 0
-      ? `<tr><td>Total</td><td><strong>${moneyFmt(r.amountCents)}</strong></td></tr>`
-      : `<tr><td>Total</td><td><strong>Sin cobro</strong></td></tr>`;
-
-    const cashRows = r.paymentMethod === 'efectivo' &&
-      r.cashReceivedCents !== null && r.amountCents > 0
-      ? `<tr><td>Efectivo recibido</td><td>${moneyFmt(r.cashReceivedCents)}</td></tr>
-         <tr><td>Cambio</td><td>${moneyFmt(r.cashReceivedCents - r.amountCents)}</td></tr>`
-      : '';
-
-    const now = fmt(new Date());
-
-    return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <title>Comprobante ${r.plate}</title>
-  <style>
-    body { font-family: 'Courier New', monospace; font-size: 13px; margin: 0; padding: 20px; color: #111; }
-    h1 { font-size: 16px; text-align: center; margin: 0 0 4px; }
-    .sub { text-align: center; font-size: 11px; color: #555; margin-bottom: 16px; }
-    .plate { font-size: 28px; font-weight: bold; text-align: center; letter-spacing: 0.12em; margin: 12px 0; border: 2px solid #111; padding: 6px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    td { padding: 5px 2px; border-bottom: 1px dotted #ccc; }
-    td:last-child { text-align: right; }
-    .footer { margin-top: 20px; font-size: 10px; text-align: center; color: #888; }
-    @media print { button { display: none; } }
-  </style>
-</head>
-<body>
-  <h1>PARQUEADERO</h1>
-  <p class="sub">Comprobante de pago</p>
-  <div class="plate">${r.plate}</div>
-  <table>
-    <tr><td>Tipo</td><td>${VEHICLE_TYPE_LABEL[r.vehicleType]}</td></tr>
-    <tr><td>Entrada</td><td>${fmt(r.entryAt)}</td></tr>
-    <tr><td>Salida</td><td>${fmt(r.exitAt)}</td></tr>
-    <tr><td>Duración</td><td>${dur}</td></tr>
-    ${amountRow}
-    <tr><td>Método de pago</td><td>${r.paymentMethod}</td></tr>
-    ${cashRows}
-  </table>
-  <p class="footer">Generado el ${now}</p>
-</body>
-</html>`;
+  /** Wrapper para el template (`receipt-card.printRequested`) — no propaga el Promise. */
+  protected reprintReceipt(): void {
+    const r = this.lastReceipt();
+    if (r) void this.printReceipt(r);
   }
+
 
   /** Abre el modal de ingreso. Disparado por botón header, FAB o atajo `N`. */
   openEntryModal(): void {

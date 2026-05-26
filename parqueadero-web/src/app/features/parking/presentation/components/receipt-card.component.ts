@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { VehicleType } from '../../domain/entities/parking-session.entity';
+import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { PaymentMethod } from '../../domain/entities/payment.entity';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 
 export interface ExitReceipt {
@@ -10,8 +12,11 @@ export interface ExitReceipt {
   exitAt: Date;
   durationMinutes: number;
   amountCents: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   cashReceivedCents: number | null;
+  // Tarifa aplicada (snapshot al momento del cobro). null si no se cargó —
+  // el render omite la sección.
+  tariffSnapshot: TariffEntity | null;
 }
 
 /**

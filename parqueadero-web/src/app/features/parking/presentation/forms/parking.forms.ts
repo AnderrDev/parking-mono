@@ -7,11 +7,12 @@ export class ParkingForms {
   constructor(private readonly fb: FormBuilder) {}
 
   createEntryForm(): FormGroup {
+    // Color y marca se removieron del flujo de entrada (2026-05-24). Las
+    // columnas siguen en `vehicles` aceptando NULL para no romper datos
+    // históricos ni back-compat de datasources.
     return this.fb.group({
       plate: ['', [Validators.required, plateValidator()]],
       vehicleType: ['carro', Validators.required],
-      color: ['', Validators.maxLength(50)],
-      brand: ['', Validators.maxLength(50)],
     });
   }
 

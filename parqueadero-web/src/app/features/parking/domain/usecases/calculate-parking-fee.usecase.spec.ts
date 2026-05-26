@@ -1,39 +1,54 @@
 import { CalculateParkingFeeUseCase, CalculateParkingFeeParams } from './calculate-parking-fee.usecase';
 import { TariffEntity } from '../entities/tariff.entity';
 import { ValidationFailure } from '../../../../core/either/failures';
+import { VehicleType } from '../entities/parking-session.entity';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Tarifa canónica para tests (valores del seed real del cliente):
+//   moto : per_minute=$60   per_hour=$2.400 plena=$9.000
+//   carro: per_minute=$100  per_hour=$3.600 plena=$12.000
 
-const makeTariff = (overrides: Partial<{
-  unit: string;
-  valueCents: number;
-  graceMinutes: number;
-  dailyCapCents: number;
-}> = {}): TariffEntity =>
-  new TariffEntity(
-    'tariff-id-1',
-    new Date(),
-    new Date(),
-    'Tarifa Carro',
-    'carro',
-    (overrides.unit ?? 'hora') as TariffEntity['unit'],
-    overrides.valueCents ?? 500_000,
-    overrides.graceMinutes ?? 10,
-    overrides.dailyCapCents ?? 30_000_000,
+const MOTO_DEFAULTS  = { perMinuteCents: 6000,  perHourCents: 240000, plenaCents: 900000  };
+const CARRO_DEFAULTS = { perMinuteCents: 10000, perHourCents: 360000, plenaCents: 1200000 };
+
+interface TariffOverrides {
+  vehicleType?: VehicleType;
+  perMinuteCents?: number | null;
+  perHourCents?: number | null;
+  plenaCents?: number | null;
+}
+
+const makeTariff = (over: TariffOverrides = {}): TariffEntity => {
+  const vt = over.vehicleType ?? 'moto';
+  const base = vt === 'carro' ? CARRO_DEFAULTS : MOTO_DEFAULTS;
+  return new TariffEntity(
+    'tariff-id',
+    new Date(), new Date(),
+    `Tarifa ${vt}`,
+    vt,
+    'hora',
+    over.perHourCents ?? base.perHourCents,    // valueCents legacy (derivado)
+    0,                                          // graceMinutes — eliminada del producto (2026-05-24)
+    over.plenaCents ?? base.plenaCents,         // dailyCapCents legacy (derivado)
     true,
+    undefined, null, null,
+    over.perMinuteCents !== undefined ? over.perMinuteCents : base.perMinuteCents,
+    over.perHourCents   !== undefined ? over.perHourCents   : base.perHourCents,
+    over.plenaCents     !== undefined ? over.plenaCents     : base.plenaCents,
   );
+};
 
-const baseParams = (overrides: Partial<CalculateParkingFeeParams> = {}): CalculateParkingFeeParams => ({
+const baseParams = (over: Partial<CalculateParkingFeeParams> = {}): CalculateParkingFeeParams => ({
   durationMinutes: 60,
   tariff: makeTariff(),
   isMonthly: false,
-  vehicleType: 'carro',
-  ...overrides,
+  vehicleType: 'moto',
+  ...over,
 });
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
 
-describe('CalculateParkingFeeUseCase', () => {
+describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos × per_minute), tope plena', () => {
   let usecase: CalculateParkingFeeUseCase;
 
   beforeEach(() => {
@@ -42,168 +57,231 @@ describe('CalculateParkingFeeUseCase', () => {
 
   // ── Validaciones ────────────────────────────────────────────────────────────
 
-  it('retorna ValidationFailure si durationMinutes = 0', () => {
-    const result = usecase.calculate(baseParams({ durationMinutes: 0 }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
+  it('ValidationFailure si durationMinutes = 0', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 0 }));
+    expect(r.isLeft()).toBeTrue();
+    expect(r.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
   });
 
-  it('retorna ValidationFailure si durationMinutes es negativo', () => {
-    const result = usecase.calculate(baseParams({ durationMinutes: -5 }));
-    expect(result.isLeft()).toBeTrue();
+  it('ValidationFailure si durationMinutes negativo', () => {
+    expect(usecase.calculate(baseParams({ durationMinutes: -5 })).isLeft()).toBeTrue();
   });
 
-  it('retorna ValidationFailure si tope diario = 0', () => {
-    const result = usecase.calculate(baseParams({ tariff: makeTariff({ dailyCapCents: 0 }) }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
-  });
-
-  it('retorna ValidationFailure si unidad de tarifa es desconocida', () => {
-    const result = usecase.calculate(baseParams({ tariff: makeTariff({ unit: 'semana' }) }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
-  });
-
-  // ── Gracia ──────────────────────────────────────────────────────────────────
-
-  it('retorna reason=grace si duración < minutos de gracia', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 5,
-      tariff: makeTariff({ graceMinutes: 10 }),
+  it('ValidationFailure si la tarifa no trae los 3 fields tiered', () => {
+    const r = usecase.calculate(baseParams({
+      tariff: makeTariff({ perMinuteCents: null }),
     }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(0);
-      expect(fee.reason).toBe('grace');
-    });
+    expect(r.isLeft()).toBeTrue();
+    expect(r.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
+  });
+
+  it('ValidationFailure si algún field tiered <= 0', () => {
+    const r = usecase.calculate(baseParams({
+      tariff: makeTariff({ perHourCents: 0 }),
+    }));
+    expect(r.isLeft()).toBeTrue();
   });
 
   // ── Mensualidad ─────────────────────────────────────────────────────────────
 
-  it('retorna reason=monthly y monto=0 si isMonthly=true', () => {
-    const result = usecase.calculate(baseParams({ durationMinutes: 60, isMonthly: true }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
+  it('reason=monthly cuando isMonthly=true, amount=0', () => {
+    const r = usecase.calculate(baseParams({ isMonthly: true }));
+    r.fold(f => fail(f.message), fee => {
       expect(fee.amountCents).toBe(0);
       expect(fee.reason).toBe('monthly');
+      // Breakdown se calcula igual para auditoría.
+      expect(fee.breakdown.subtotalCents).toBe(240000);
     });
   });
 
-  // ── Por hora ─────────────────────────────────────────────────────────────────
+  // ── Tabla canónica MOTO ($60/min · $2.400/h · $9.000 plena) ─────────────
 
-  it('cobra 1 hora exacta (unit=hora)', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 60,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(500_000);
-      expect(fee.reason).toBe('paid');
+  it('MOTO 1 min → $60 (0 h + 1 min)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 1 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(6000);
+      expect(fee.breakdown.hoursCompleted).toBe(0);
+      expect(fee.breakdown.remainderMinutes).toBe(1);
+      expect(fee.breakdown.cappedByPlena).toBeFalse();
     });
   });
 
-  it('cobra proporcional: 61 minutos = 61/60 de hora (unit=hora)', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 61,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      // (61 * 500_000) / 60 = 508_333.33 → roundToCopStep($50 = 5_000 cents) = 510_000
-      // (regla Colombia: cobrar siempre múltiplos de $50)
-      expect(fee.amountCents).toBe(510_000);
+  it('MOTO 15 min → $900', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 15 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(90000);
     });
   });
 
-  it('cobra proporcional: 1 minuto = 1/60 de hora (unit=hora)', () => {
-    const result = usecase.calculate(baseParams({
+  it('MOTO 30 min → $1.800', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 30 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(180000);
+    });
+  });
+
+  it('MOTO 59 min → $3.540 (justo antes del corte horario)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 59 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(354000);
+      expect(fee.breakdown.hoursCompleted).toBe(0);
+      expect(fee.breakdown.remainderMinutes).toBe(59);
+    });
+  });
+
+  it('MOTO 60 min → $2.400 (1 hora exacta)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 60 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(240000);
+      expect(fee.breakdown.hoursCompleted).toBe(1);
+      expect(fee.breakdown.remainderMinutes).toBe(0);
+    });
+  });
+
+  it('MOTO 90 min → $4.200 (1h × $2.400 + 30 min × $60)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 90 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(420000);
+      expect(fee.breakdown.hoursCompleted).toBe(1);
+      expect(fee.breakdown.remainderMinutes).toBe(30);
+      expect(fee.breakdown.hoursSubtotalCents).toBe(240000);
+      expect(fee.breakdown.minutesSubtotalCents).toBe(180000);
+    });
+  });
+
+  it('MOTO 150 min (2h 30min) → $6.600 (ejemplo canónico del usuario)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 150 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(660000);
+      expect(fee.breakdown.hoursCompleted).toBe(2);
+      expect(fee.breakdown.remainderMinutes).toBe(30);
+    });
+  });
+
+  it('MOTO 180 min (3h) → $7.200', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 180 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(720000);
+    });
+  });
+
+  it('MOTO 240 min (4h) → $9.000 (cap por plena: $9.600 > $9.000)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 240 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(900000);
+      expect(fee.breakdown.cappedByPlena).toBeTrue();
+      expect(fee.breakdown.subtotalCents).toBe(960000);
+    });
+  });
+
+  it('MOTO 720 min (12h) → $9.000 (cap por plena)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 720 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(900000);
+      expect(fee.breakdown.cappedByPlena).toBeTrue();
+    });
+  });
+
+  it('MOTO 1440 min (24h) → $9.000 (cap por plena)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 1440 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(900000);
+      expect(fee.breakdown.cappedByPlena).toBeTrue();
+    });
+  });
+
+  // ── Tabla canónica CARRO ($100/min · $3.600/h · $12.000 plena) ──────────
+
+  it('CARRO 1 min → $100', () => {
+    const r = usecase.calculate(baseParams({
       durationMinutes: 1,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, graceMinutes: 0 }),
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
     }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      // (1 * 500_000) / 60 = 8_333.33 → roundToCopStep($50) = 10_000 ($100)
-      expect(fee.amountCents).toBe(10_000);
-      expect(fee.reason).toBe('paid');
-    });
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(10000));
   });
 
-  it('cobra proporcional: 30 minutos = 1/2 hora (unit=hora)', () => {
-    const result = usecase.calculate(baseParams({
+  it('CARRO 30 min → $3.000', () => {
+    const r = usecase.calculate(baseParams({
       durationMinutes: 30,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, graceMinutes: 0 }),
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
     }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      // (30 * 500_000) / 60 = 250_000
-      expect(fee.amountCents).toBe(250_000);
-    });
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(300000));
   });
 
-  // ── Tope diario ──────────────────────────────────────────────────────────────
-
-  it('aplica tope diario cuando el cálculo lo supera', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 240,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, dailyCapCents: 600_000 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(600_000);
-    });
-  });
-
-  // ── Por fracción ─────────────────────────────────────────────────────────────
-
-  it('cobra 1 fracción por 30 minutos exactos (unit=fraccion)', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 30,
-      tariff: makeTariff({ unit: 'fraccion', valueCents: 200_000, graceMinutes: 0 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(200_000);
-    });
-  });
-
-  it('cobra 2 fracciones por 31 minutos (unit=fraccion)', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 31,
-      tariff: makeTariff({ unit: 'fraccion', valueCents: 200_000, graceMinutes: 0 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(400_000);
-    });
-  });
-
-  // ── Por día ──────────────────────────────────────────────────────────────────
-
-  it('cobra 2 días por 25 horas (unit=dia)', () => {
-    const result = usecase.calculate(baseParams({
-      durationMinutes: 25 * 60,
-      tariff: makeTariff({ unit: 'dia', valueCents: 5_000_000, graceMinutes: 0, dailyCapCents: 50_000_000 }),
-    }));
-    expect(result.isRight()).toBeTrue();
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(10_000_000);
-    });
-  });
-
-  // ── Breakdown ────────────────────────────────────────────────────────────────
-
-  it('incluye breakdown con campos esperados en cobro normal', () => {
-    const result = usecase.calculate(baseParams({
+  it('CARRO 60 min → $3.600 (1 hora exacta)', () => {
+    const r = usecase.calculate(baseParams({
       durationMinutes: 60,
-      tariff: makeTariff({ unit: 'hora', valueCents: 500_000, graceMinutes: 10, dailyCapCents: 30_000_000 }),
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
     }));
-    result.fold(f => fail(f.message), fee => {
-      expect(fee.breakdown.grace).toBe(10);
-      expect(fee.breakdown.cap).toBe(30_000_000);
-      expect(fee.breakdown.unit).toBe('hora');
-      expect(fee.breakdown.durationMinutes).toBe(60);
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(360000));
+  });
+
+  it('CARRO 90 min → $6.600 (1h × $3.600 + 30 min × $100)', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 90,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(660000));
+  });
+
+  it('CARRO 180 min (3h) → $10.800', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 180,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(1080000));
+  });
+
+  it('CARRO 200 min (3h 20min) → $12.000 (cap: subtotal=$12.800 > $12.000)', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 200,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(1200000);
+      expect(fee.breakdown.cappedByPlena).toBeTrue();
+    });
+  });
+
+  it('CARRO 240 min (4h) → $12.000 (cap)', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 240,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(1200000));
+  });
+
+  it('CARRO 1440 min (24h) → $12.000 (cap)', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 1440,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(1200000));
+  });
+
+  // ── Breakdown ────────────────────────────────────────────────────────────
+
+  it('breakdown expone descomposición y duración', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 90 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.breakdown.hoursCompleted).toBe(1);
+      expect(fee.breakdown.remainderMinutes).toBe(30);
+      expect(fee.breakdown.perMinuteCents).toBe(6000);
+      expect(fee.breakdown.perHourCents).toBe(240000);
+      expect(fee.breakdown.plenaCents).toBe(900000);
+      expect(fee.breakdown.hoursSubtotalCents).toBe(240000);
+      expect(fee.breakdown.minutesSubtotalCents).toBe(180000);
+      expect(fee.breakdown.subtotalCents).toBe(420000);
+      expect(fee.breakdown.cappedByPlena).toBeFalse();
+      expect(fee.breakdown.durationMinutes).toBe(90);
     });
   });
 });

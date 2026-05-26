@@ -155,6 +155,10 @@ export class SyncOrchestrator implements OnDestroy {
   ).toISOString();
 
   constructor() {
+    // allowSignalWrites: el effect orquesta dos lados (login/logout). El
+    // login dispara snapshotPull() que escribe _syncing/_activeShiftId; el
+    // logout limpia _activeShiftId. Ambos son writes legítimos a partir de
+    // un cambio en authState.currentUser(), no un ciclo reactivo.
     effect(() => {
       const user = this.authState.currentUser();
       if (
@@ -169,7 +173,7 @@ export class SyncOrchestrator implements OnDestroy {
         this.stopDrainTimer();
         this._activeShiftId.set(null);
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   async initialize(): Promise<void> {

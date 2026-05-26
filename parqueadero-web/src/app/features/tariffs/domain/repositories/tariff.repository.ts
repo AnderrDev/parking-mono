@@ -16,9 +16,16 @@ export interface CreateTariffParams {
   name: string;
   vehicleType: VehicleType;
   unit: TariffUnit;
+  // Legacy: aplica a mensualidad (precio mensual). Para parking se deriva
+  // automáticamente desde perHourCents en el repositorio para back-compat.
   valueCents: number;
   graceMinutes: number;
   dailyCapCents: number;
+  // Tiered pricing (S4). Requeridos cuando unit != 'mensualidad'. Para
+  // mensualidad se ignoran.
+  perMinuteCents?: number | null;
+  perHourCents?: number | null;
+  plenaCents?: number | null;
   scheduleJson?: Record<string, string>;
   validFrom?: Date | null;
   validTo?: Date | null;
@@ -29,6 +36,9 @@ export interface UpdateTariffParams {
   valueCents?: number;
   graceMinutes?: number;
   dailyCapCents?: number;
+  perMinuteCents?: number | null;
+  perHourCents?: number | null;
+  plenaCents?: number | null;
   scheduleJson?: Record<string, string>;
   validFrom?: Date | null;
   validTo?: Date | null;

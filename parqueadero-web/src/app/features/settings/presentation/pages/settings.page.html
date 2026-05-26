@@ -6,7 +6,6 @@
 
   <nav class="tabs">
     <button [class.active]="tab() === 'parking'" (click)="setTab('parking')">Datos del parqueadero</button>
-    <button [class.active]="tab() === 'invoicing'" (click)="setTab('invoicing')">Facturación DIAN</button>
     <button [class.active]="tab() === 'operational'" (click)="setTab('operational')">Parámetros operativos</button>
   </nav>
 
@@ -51,48 +50,32 @@
               <input type="text" formControlName="departamento" />
             </label>
           </div>
-          <div class="actions">
-            <button type="submit" class="btn btn--primary" [disabled]="parkingForm.invalid || saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
-            </button>
-          </div>
-        </form>
-      }
 
-      @case ('invoicing') {
-        <form class="card" [formGroup]="invoicingForm" (ngSubmit)="saveInvoicing()">
-          <h2>Facturación electrónica DIAN</h2>
-          <p class="warn">
-            Estos datos se usan para emitir facturas electrónicas. Verifica con tu contador antes de cambiar.
+          <h3 class="section-title">Datos del ticket impreso</h3>
+          <p class="hint">
+            Información legal y operativa que aparece en cada ticket de ingreso y comprobante de salida.
           </p>
           <div class="grid">
             <label class="field">
-              <span>Prefijo *</span>
-              <input type="text" formControlName="prefix" />
+              <span>Tipo de parqueadero</span>
+              <select formControlName="parkingType">
+                <option value="">— Sin especificar —</option>
+                <option value="publico">Público</option>
+                <option value="privado">Privado</option>
+              </select>
             </label>
             <label class="field">
-              <span>Prefijo contingencia</span>
-              <input type="text" formControlName="contingency_prefix" />
-            </label>
-            <label class="field field--full">
-              <span>Resolución DIAN</span>
-              <input type="text" formControlName="resolution" />
-            </label>
-            <label class="field field--full">
-              <span>Clave técnica (cifrada)</span>
-              <input type="password" formControlName="technical_key" autocomplete="off" />
+              <span>Resolución</span>
+              <input type="text" formControlName="resolutionNumber" placeholder="Ej: 18764107780828" />
             </label>
             <label class="field">
-              <span>Software ID</span>
-              <input type="text" formControlName="software_id" />
-            </label>
-            <label class="field">
-              <span>Software PIN (cifrado)</span>
-              <input type="password" formControlName="software_pin" autocomplete="off" />
+              <span>Hora de cierre</span>
+              <input type="text" formControlName="closingTime" placeholder="Ej: 18:00" />
             </label>
           </div>
+
           <div class="actions">
-            <button type="submit" class="btn btn--primary" [disabled]="invoicingForm.invalid || saving()">
+            <button type="submit" class="btn btn--primary" [disabled]="parkingForm.invalid || saving()">
               {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
             </button>
           </div>

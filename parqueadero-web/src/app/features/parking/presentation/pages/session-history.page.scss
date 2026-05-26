@@ -89,6 +89,22 @@
   }
   tr:last-child td { border-bottom: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .num--projected {
+    color: var(--color-text-muted);
+    font-style: italic;
+    .proj-tag {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: var(--color-warning-soft, #fef3c7);
+      color: var(--color-warning-strong, #b45309);
+      font-style: normal;
+      font-weight: var(--font-weight-bold);
+      vertical-align: middle;
+    }
+  }
 
   .row--cancelled td {
     color: var(--color-text-muted);

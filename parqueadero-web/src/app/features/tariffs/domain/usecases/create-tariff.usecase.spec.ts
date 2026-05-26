@@ -55,6 +55,10 @@ describe('CreateTariffUseCase', () => {
     valueCents: 500_000,
     graceMinutes: 10,
     dailyCapCents: 30_000_000,
+    // Tiered fields requeridos para parking (post tariff-tiered-pricing).
+    perMinuteCents: 8333,    // ≈ valueCents/60
+    perHourCents:   500_000,
+    plenaCents:     30_000_000,
     ...overrides,
   });
 

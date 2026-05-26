@@ -49,14 +49,10 @@ const NAV_ITEMS: NavItem[] = [
     // Lucide: calendar-clock
     icon: 'M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5 M16 2v4 M8 2v4 M3 10h18 M16 22a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z M16 14v3l1.5 1.5',
   },
-  {
-    path: '/customers',
-    label: 'Clientes',
-    ariaLabel: 'Ir a clientes',
-    group: 'main',
-    // Lucide: users
-    icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
-  },
+  // Sección "Clientes" oculta del sidebar (2026-05-24) — el parqueadero no
+  // gestiona clientes recurrentes en este alcance. La ruta /customers sigue
+  // accesible directamente por URL para mantener back-compat de mensualidades
+  // que aún tienen FK a customers.
   {
     path: '/vehicles',
     label: 'Vehículos',
@@ -75,9 +71,9 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z',
   },
   {
-    path: '/invoicing',
-    label: 'Facturación',
-    ariaLabel: 'Ir a facturación',
+    path: '/payments',
+    label: 'Historial cobros',
+    ariaLabel: 'Ir al historial de cobros',
     group: 'admin',
     // Lucide: receipt
     icon: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z M16 8H8 M16 12H8 M13 16H8',

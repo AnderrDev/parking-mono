@@ -83,23 +83,58 @@
     color: var(--color-text);
   }
 
-  input {
+  input,
+  select,
+  textarea {
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     font-size: var(--text-md);
+    font-family: inherit;
     background: var(--color-surface);
     color: var(--color-text);
     min-height: var(--touch-target-min);
+    width: 100%;
+    box-sizing: border-box;
 
     &:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  }
+
+  // Select: custom chevron + appearance: none para que herede el look del input.
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: calc(var(--space-4) + 18px);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='2 2 6 6 10 2'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right var(--space-4) center;
+    cursor: pointer;
+  }
+}
+
+// Fieldset estilizado (legend + payment-methods grid). Sin esto el browser
+// renderiza el border default y el legend recortando la línea, que se ve
+// como markup sin estilos.
+fieldset.field {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-bg-subtle, #f9fafb);
+  margin: 0;
+
+  legend {
+    padding: 0 var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
   }
 }
 
 .payment-methods {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .checkbox {
@@ -107,12 +142,46 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--color-bg-subtle);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   cursor: pointer;
+  user-select: none;
+  transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
+
+  &:hover { border-color: var(--color-border-strong); }
+  &:has(input:checked) {
+    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+    border-color: var(--color-accent);
+  }
 
   input { accent-color: var(--color-accent); width: 18px; height: 18px; }
+}
+
+// Inputs de dinero: prefijo $ inline. Sin esto, el width:100% del input de
+// .field input lo empuja a otra línea y el $ queda flotando arriba.
+.field__money {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+
+  // Cancela el width:100% del input dentro del wrapper para que comparta
+  // espacio con el prefijo.
+  input { width: auto; flex: 1 1 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+}
+
+.field__money-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-right: 0;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
 }
 
 .actions {

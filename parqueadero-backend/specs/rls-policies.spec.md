@@ -125,7 +125,7 @@ FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
 | operador | No directo (via Edge Function) | No | No | No |
 | contador | Todo (lectura) | No | No | No |
 
-**Nota:** Las inserciones y updates de facturas NUNCA vienen directamente del cliente; siempre van vía Edge Function que valida, calcula CUFE y llama al microservicio DIAN.
+**Nota:** Las inserciones y updates de tickets internos NUNCA vienen directamente del cliente; siempre van vía Edge Function que valida y asigna el `internal_number`.
 
 ```sql
 -- Solo Edge Function (service_role) inserta

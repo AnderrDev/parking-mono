@@ -6,6 +6,31 @@ import { CashWithdrawalEntity } from '../entities/cash-withdrawal.entity';
 import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { left, right } from '../../../../core/either/either';
 import { NetworkFailure, NotFoundFailure, ServerFailure, ValidationFailure } from '../../../../core/either/failures';
+import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
+import { AppSettingEntity, OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
+
+class MockGetSetting extends GetSettingUseCase {
+  diffThresholdCents: number | undefined = undefined;
+  constructor() {
+    // @ts-expect-error mock no necesita el repository real
+    super(undefined);
+  }
+  override async execute(_params: { key: string }) {
+    const value: OperationalConfigValue = {
+      cash_cap_cents: 50_000_000,
+      monthly_grace_days: 3,
+      max_courtesies_per_shift: 3,
+      admin_email: '',
+      enabled_payment_methods: [],
+      ...(this.diffThresholdCents !== undefined
+        ? { diff_threshold_cents: this.diffThresholdCents }
+        : {}),
+    };
+    return right<AppSettingEntity | null>(
+      new AppSettingEntity('operational_config', value, null, new Date()),
+    );
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -79,7 +104,7 @@ describe('CloseShiftUseCase', () => {
   beforeEach(() => {
     cashierRepo = new MockCashierRepository();
     paymentRepo = new MockPaymentRepository();
-    usecase = new CloseShiftUseCase(cashierRepo, paymentRepo);
+    usecase = new CloseShiftUseCase(cashierRepo, paymentRepo, new MockGetSetting());
   });
 
   it('happy path: cierra turno sin diferencia', async () => {

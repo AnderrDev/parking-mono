@@ -28,8 +28,12 @@ import {
   INVOICING_REPOSITORY_TOKEN,
   INVOICING_REMOTE_DATASOURCE_TOKEN,
   REQUEST_INVOICE_TOKEN,
-  REISSUE_INVOICE_TOKEN,
   LIST_INVOICES_TOKEN,
+  GET_INVOICE_DETAIL_TOKEN,
+  REPRINT_TICKET_TOKEN,
+  SETTINGS_DATASOURCE_TOKEN,
+  SETTINGS_REPOSITORY_TOKEN,
+  GET_SETTING_TOKEN,
 } from './core/di/injection-tokens';
 import { AuthRemoteDataSource } from './features/auth/data/datasources/auth-remote.datasource';
 import { AuthRepositoryImpl } from './features/auth/data/repositories/auth.repository.impl';
@@ -47,8 +51,12 @@ import { DeactivateCustomerUseCase } from './features/customers/domain/usecases/
 import { InvoicingRemoteDataSource } from './features/invoicing/data/datasources/invoicing-remote.datasource';
 import { InvoicingRepositoryImpl } from './features/invoicing/data/repositories/invoicing.repository.impl';
 import { RequestInvoiceUseCase } from './features/invoicing/domain/usecases/request-invoice.usecase';
-import { ReissueInvoiceUseCase } from './features/invoicing/domain/usecases/reissue-invoice.usecase';
 import { ListInvoicesUseCase } from './features/invoicing/domain/usecases/list-invoices.usecase';
+import { GetInvoiceDetailUseCase } from './features/invoicing/domain/usecases/get-invoice-detail.usecase';
+import { ReprintTicketUseCase } from './features/invoicing/domain/usecases/reprint-ticket.usecase';
+import { SettingsRemoteDataSource } from './features/settings/data/datasources/settings-remote.datasource';
+import { SettingsRepositoryImpl } from './features/settings/data/repositories/settings.repository.impl';
+import { GetSettingUseCase } from './features/settings/domain/usecases/get-setting.usecase';
 import { SyncOrchestrator } from './core/services/sync-orchestrator.service';
 
 export const appConfig: ApplicationConfig = {
@@ -72,8 +80,7 @@ export const appConfig: ApplicationConfig = {
     { provide: RESTORE_SESSION_USECASE_TOKEN, useClass: RestoreSessionUseCase },
     { provide: CHANGE_PASSWORD_USECASE_TOKEN, useClass: ChangePasswordUseCase },
 
-    // Customers: root-scoped — el exit dialog del parking necesita
-    // search-customers para HU-040 (selector de cliente al emitir factura).
+    // Customers: root-scoped — usado por dialogs y listados desde varios features.
     { provide: CUSTOMER_REMOTE_DATASOURCE_TOKEN, useClass: CustomerRemoteDataSource },
     { provide: CUSTOMER_REPOSITORY_TOKEN, useClass: CustomerRepositoryImpl },
     { provide: LIST_CUSTOMERS_TOKEN, useClass: ListCustomersUseCase },
@@ -81,13 +88,21 @@ export const appConfig: ApplicationConfig = {
     { provide: UPDATE_CUSTOMER_TOKEN, useClass: UpdateCustomerUseCase },
     { provide: DEACTIVATE_CUSTOMER_TOKEN, useClass: DeactivateCustomerUseCase },
 
-    // Invoicing: root-scoped — el operator-dashboard llama request-invoice
-    // tras una salida con factura activada (HU-040).
+    // Invoicing (tickets POS internos): root-scoped — el operator-dashboard
+    // llama request-invoice tras una salida cuando el cliente pide ticket.
     { provide: INVOICING_REMOTE_DATASOURCE_TOKEN, useClass: InvoicingRemoteDataSource },
     { provide: INVOICING_REPOSITORY_TOKEN, useClass: InvoicingRepositoryImpl },
     { provide: REQUEST_INVOICE_TOKEN, useClass: RequestInvoiceUseCase },
-    { provide: REISSUE_INVOICE_TOKEN, useClass: ReissueInvoiceUseCase },
     { provide: LIST_INVOICES_TOKEN, useClass: ListInvoicesUseCase },
+    { provide: GET_INVOICE_DETAIL_TOKEN, useClass: GetInvoiceDetailUseCase },
+    { provide: REPRINT_TICKET_TOKEN, useClass: ReprintTicketUseCase },
+
+    // Settings (read-only): root-scoped — GetSettingUseCase lo consumen
+    // reports, payments y cashier. UpdateSettingUseCase queda en
+    // settings.routes.ts porque solo aplica al admin desde /settings.
+    { provide: SETTINGS_DATASOURCE_TOKEN, useClass: SettingsRemoteDataSource },
+    { provide: SETTINGS_REPOSITORY_TOKEN, useClass: SettingsRepositoryImpl },
+    { provide: GET_SETTING_TOKEN, useClass: GetSettingUseCase },
 
     {
       provide: APP_INITIALIZER,

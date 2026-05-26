@@ -658,19 +658,17 @@ Verificar punto por punto que la implementación cumple la spec.
 2. **Minutos de gracia**: Si sale antes de X minutos, no se cobra
 3. **Tope diario**: Nunca se cobra más que el tope configurado
 4. **Mensualidad**: Sesión gratis si está en vigencia
-5. **Numeración de facturas**: Asignada por Edge Function, nunca por cliente
-6. **Factura DIAN**: Requiere XML válido + firma XAdES + CUFE
-7. **Offline-first**: Operación se guarda local, sincroniza cuando hay conexión
-8. **Audit trail**: Todo cambio sensible queda registrado en BD
+5. **Numeración de tickets**: Asignada por Edge Function (`internal_number`), nunca por cliente
+6. **Offline-first**: Operación se guarda local, sincroniza cuando hay conexión
+7. **Audit trail**: Todo cambio sensible queda registrado en BD
 
 ---
 
 ## 10. DEPLOYMENT & CI/CD
 
-- **Front-end**: Vercel, Netlify o similar (Angular build → estática)
+- **Front-end**: Firebase Hosting (Angular build → estática)
 - **Service Worker**: Automático con `ng build` (incluye NGSW)
 - **Backend**: Supabase (postgres + edge functions)
-- **Microservicio FE**: Fly.io (Docker)
 
 ---
 

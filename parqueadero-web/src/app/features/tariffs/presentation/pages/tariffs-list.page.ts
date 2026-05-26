@@ -26,10 +26,9 @@ import { ToastService } from '../../../../core/services/toast.service';
 const COLUMNS: TableColumn<TariffEntity>[] = [
   { key: 'name', label: 'Nombre', sortable: true },
   { key: 'vehicleType', label: 'Vehículo', sortable: true },
-  { key: 'unit', label: 'Unidad', sortable: false },
-  { key: 'valueCents', label: 'Valor', sortable: true },
-  { key: 'dailyCapCents', label: 'Tope diario', sortable: true },
-  { key: 'graceMinutes', label: 'Gracia (min)', sortable: false },
+  { key: 'perMinuteCents', label: '$/min', sortable: false },
+  { key: 'perHourCents', label: '$/hora', sortable: false },
+  { key: 'plenaCents', label: 'Tope día', sortable: false },
   { key: 'isActive', label: 'Estado', sortable: false },
   { key: '_actions', label: 'Acciones', sortable: false },
 ];
@@ -145,6 +144,9 @@ export class TariffsListPageComponent implements OnInit {
             valueCents: Number(value.valueCents),
             graceMinutes: Number(value.graceMinutes),
             dailyCapCents: Number(value.dailyCapCents),
+            perMinuteCents: value.perMinuteCents,
+            perHourCents: value.perHourCents,
+            plenaCents: value.plenaCents,
             validFrom: value.validFrom ? new Date(value.validFrom) : null,
             validTo: value.validTo ? new Date(value.validTo) : null,
           });
@@ -172,6 +174,9 @@ export class TariffsListPageComponent implements OnInit {
             valueCents: Number(value.valueCents),
             graceMinutes: Number(value.graceMinutes),
             dailyCapCents: Number(value.dailyCapCents),
+            perMinuteCents: value.perMinuteCents,
+            perHourCents: value.perHourCents,
+            plenaCents: value.plenaCents,
             validFrom: value.validFrom ? new Date(value.validFrom) : null,
             validTo: value.validTo ? new Date(value.validTo) : null,
             isActive: value.isActive,

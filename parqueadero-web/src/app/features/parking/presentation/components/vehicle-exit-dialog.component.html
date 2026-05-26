@@ -20,22 +20,57 @@
 
   @if (data.feeResult) {
     <div class="dialog__fee" [class.dialog__fee--free]="data.feeResult.amountCents === 0">
-      @if (data.feeResult.reason === 'grace') {
-        <div class="fee-label">Sin cobro — dentro de los {{ data.feeResult.breakdown.grace }} min de gracia</div>
-      } @else if (data.feeResult.reason === 'monthly') {
+      @if (data.feeResult.reason === 'monthly') {
         <div class="fee-label">Sin cobro — plan mensual activo</div>
       } @else {
         <div class="fee-amount">{{ formatCOP(data.feeResult.amountCents) }}</div>
         <div class="fee-unit">{{ data.tariff ? data.tariff.name : '' }}</div>
       }
     </div>
+
+    @if (data.feeResult.reason === 'paid') {
+      <div class="dialog__fee-breakdown">
+        <div class="fee-breakdown__title">Detalle del cobro</div>
+        <ul class="fee-breakdown__list">
+          @if (data.feeResult.breakdown.hoursCompleted > 0) {
+            <li>
+              <span class="fee-breakdown__label">
+                {{ data.feeResult.breakdown.hoursCompleted }}
+                {{ data.feeResult.breakdown.hoursCompleted === 1 ? 'hora' : 'horas' }}
+                × {{ formatCOP(data.feeResult.breakdown.perHourCents) }}
+              </span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.hoursSubtotalCents) }}</span>
+            </li>
+          }
+          @if (data.feeResult.breakdown.remainderMinutes > 0) {
+            <li>
+              <span class="fee-breakdown__label">
+                {{ data.feeResult.breakdown.remainderMinutes }} min
+                × {{ formatCOP(data.feeResult.breakdown.perMinuteCents) }}
+              </span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.minutesSubtotalCents) }}</span>
+            </li>
+          }
+          @if (data.feeResult.breakdown.cappedByPlena) {
+            <li class="fee-breakdown__row--subtotal">
+              <span class="fee-breakdown__label">Subtotal</span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.subtotalCents) }}</span>
+            </li>
+            <li class="fee-breakdown__row--winner">
+              <span class="fee-breakdown__label">Tope diario (plena)</span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.plenaCents) }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
   }
 
   <form [formGroup]="form" (ngSubmit)="onSubmit()" class="dialog__form">
     <div class="form-field">
       <label class="form-label" for="paymentMethod">Método de pago *</label>
       <select id="paymentMethod" class="form-select" formControlName="paymentMethod">
-        @for (entry of paymentMethodEntries; track entry.value) {
+        @for (entry of paymentMethodEntries(); track entry.value) {
           <option [value]="entry.value">{{ entry.label }}</option>
         }
       </select>
@@ -96,62 +131,6 @@
         />
         @if (form.get('justification')?.invalid && form.get('justification')?.touched) {
           <span class="form-error">La justificación es obligatoria (mínimo 3 caracteres)</span>
-        }
-      </div>
-    }
-
-    <label class="form-check">
-      <input type="checkbox" formControlName="emitInvoice" class="form-check__input" />
-      <span class="form-check__label">Emitir factura electrónica</span>
-    </label>
-
-    @if (emitInvoice()) {
-      <!-- HU-040: selector de cliente para factura electrónica -->
-      <div class="form-field customer-field">
-        <label class="form-label" for="customerSearch">Cliente *</label>
-
-        @if (selectedCustomer()) {
-          <div class="customer-chip">
-            <div class="customer-chip__info">
-              <span class="customer-chip__name">{{ selectedCustomer()!.name }}</span>
-              <span class="customer-chip__doc">
-                {{ selectedCustomer()!.docType }} {{ selectedCustomer()!.docNumber }}
-              </span>
-            </div>
-            <button type="button" class="customer-chip__clear" (click)="clearCustomer()" aria-label="Quitar cliente">×</button>
-          </div>
-        } @else {
-          <div class="customer-search">
-            <input
-              id="customerSearch"
-              type="search"
-              class="form-input"
-              [value]="customerQuery()"
-              (input)="onCustomerSearch($event)"
-              placeholder="Buscar por nombre o documento (mínimo 3 caracteres)"
-              autocomplete="off"
-            />
-            @if (customerSearchLoading()) {
-              <span class="customer-search__loading">Buscando…</span>
-            }
-            @if (customerResults().length > 0) {
-              <ul class="customer-results" role="listbox">
-                @for (customer of customerResults(); track customer.id) {
-                  <li role="option" [attr.aria-selected]="false">
-                    <button type="button" class="customer-results__item" (click)="selectCustomer(customer)">
-                      <span class="customer-results__name">{{ customer.name }}</span>
-                      <span class="customer-results__doc">{{ customer.docType }} {{ customer.docNumber }}</span>
-                    </button>
-                  </li>
-                }
-              </ul>
-            } @else if (customerQuery().length >= 3 && !customerSearchLoading()) {
-              <p class="customer-search__empty">Sin coincidencias. Crea el cliente desde la sección Clientes.</p>
-            }
-          </div>
-          @if (form.get('customerId')?.invalid && form.get('customerId')?.touched) {
-            <span class="form-error">Selecciona un cliente para emitir factura.</span>
-          }
         }
       </div>
     }

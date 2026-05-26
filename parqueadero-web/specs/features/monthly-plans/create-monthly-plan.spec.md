@@ -83,9 +83,8 @@ atomicidad transaccional.
 método y timing. Mejora futura: agregar columna `monthly_plan_id` para
 reportes precisos.
 
-**Factura electrónica (TODO Fase 11+):** S2 puede agregar toggle
-"emitir factura" que llame a `siigo-emit-invoice` con `customer_id` y
-`amount_cents`. Por ahora solo se registra el ingreso.
+<!-- Facturación electrónica descartada del alcance el 2026-05-20. -->
+
 
 **Tarifa por tipo de vehículo (2026-05-02 adenda 13):**
 El monto del plan se auto-rellena desde la tabla `tariffs` con

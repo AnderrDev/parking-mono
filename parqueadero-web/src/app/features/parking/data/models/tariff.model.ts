@@ -16,6 +16,10 @@ export interface TariffModel {
   _deleted: boolean;
   created_at: string;
   updated_at: string;
+  // Tiered pricing (migration 00023). Nullable hasta que la UI los escriba (S4).
+  per_minute_cents?: number | null;
+  per_hour_cents?: number | null;
+  plena_cents?: number | null;
 }
 
 export class TariffMapper {
@@ -34,6 +38,9 @@ export class TariffMapper {
       m.schedule_json ?? { todos: '00:00-23:59' },
       m.valid_from ? new Date(m.valid_from) : null,
       m.valid_to ? new Date(m.valid_to) : null,
+      m.per_minute_cents ?? null,
+      m.per_hour_cents ?? null,
+      m.plena_cents ?? null,
     );
   }
 }

@@ -1,68 +1,91 @@
 <div class="invoices-page">
-      <header class="invoices-page__header">
-        <h1>Facturas</h1>
-      </header>
+  <header class="invoices-page__header">
+    <h1>Tickets</h1>
+  </header>
 
-      @if (loading()) {
-        <p class="invoices-page__loading">Cargando facturas…</p>
-      }
-
-      @if (errorMsg()) {
-        <p class="invoices-page__error">{{ errorMsg() }}</p>
-      }
-
-      @if (!loading() && invoices().length === 0 && !errorMsg()) {
-        <p class="invoices-page__empty">No hay facturas registradas.</p>
-      }
-
-      @if (invoices().length > 0) {
-        <section class="invoices-card">
-          <table class="invoices-table">
-            <thead>
-              <tr>
-                <th>Número</th>
-                <th>Fecha</th>
-                <th>Total</th>
-                <th>Estado DIAN</th>
-                <th>CUFE</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (inv of invoices(); track inv.id) {
-                <tr>
-                  <td class="inv-number">{{ inv.number }}</td>
-                  <td>{{ inv.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                  <td>{{ inv.totalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
-                  <td>
-                    <span class="status-badge" [attr.data-status]="inv.dianStatus">
-                      {{ statusLabel(inv.dianStatus) }}
-                    </span>
-                  </td>
-                  <td class="inv-cufe">{{ inv.dianCufe ? (inv.dianCufe | slice:0:16) + '…' : '—' }}</td>
-                  <td class="inv-actions">
-                    @if (inv.dianXmlUrl) {
-                      <a [href]="inv.dianXmlUrl" target="_blank" class="btn-action">XML</a>
-                    }
-                    @if (inv.dianPdfUrl) {
-                      <a [href]="inv.dianPdfUrl" target="_blank" class="btn-action">PDF</a>
-                    }
-                    @if (inv.canReissue) {
-                      <button class="btn-reissue" (click)="reissue(inv)" [disabled]="reissuing()">
-                        Reintentar
-                      </button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          <div class="invoices-pagination">
-            <button (click)="prevPage()" [disabled]="page() <= 1">Anterior</button>
-            <span>Página {{ page() }} de {{ totalPages() }}</span>
-            <button (click)="nextPage()" [disabled]="page() >= totalPages()">Siguiente</button>
-          </div>
-        </section>
-      }
+  <form class="filters card" [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+    <label class="field">
+      <span>Desde</span>
+      <input type="date" formControlName="dateFrom" />
+    </label>
+    <label class="field">
+      <span>Hasta</span>
+      <input type="date" formControlName="dateTo" />
+    </label>
+    <label class="field">
+      <span>Placa</span>
+      <input type="text" formControlName="vehiclePlate" placeholder="ABC123" maxlength="6" />
+    </label>
+    <label class="field">
+      <span>N° ticket</span>
+      <input type="text" formControlName="internalNumber" placeholder="FAC-2026" />
+    </label>
+    <label class="field">
+      <span>Método</span>
+      <select formControlName="paymentMethod">
+        <option value="">Todos</option>
+        @for (m of methodOptions; track m) {
+          <option [value]="m">{{ methodLabel(m) }}</option>
+        }
+      </select>
+    </label>
+    <div class="filters__actions">
+      <button type="submit" class="btn btn--primary" [disabled]="loading()">Buscar</button>
+      <button type="button" class="btn btn--ghost" (click)="clearFilters()" [disabled]="loading()">Limpiar</button>
     </div>
+  </form>
+
+  @if (loading()) {
+    <p class="invoices-page__loading">Cargando tickets…</p>
+  }
+
+  @if (errorMsg()) {
+    <p class="invoices-page__error">{{ errorMsg() }}</p>
+  }
+
+  @if (!loading() && rows().length === 0 && !errorMsg()) {
+    <p class="invoices-page__empty">No hay tickets para esos filtros.</p>
+  }
+
+  @if (rows().length > 0) {
+    <section class="invoices-card">
+      <table class="invoices-table">
+        <thead>
+          <tr>
+            <th>N° interno</th>
+            <th>Fecha</th>
+            <th>Placa</th>
+            <th>Cliente</th>
+            <th>Método</th>
+            <th class="amount-col">Total</th>
+            <th class="actions-col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.invoice.id) {
+            <tr class="inv-row" (click)="openDetail(row)">
+              <td class="inv-number">{{ row.invoice.internalNumber }}</td>
+              <td>{{ row.invoice.issuedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="plate">{{ row.vehiclePlate ?? '—' }}</td>
+              <td>{{ row.customerName ?? '—' }}</td>
+              <td>{{ methodLabel(row.paymentMethod) }}</td>
+              <td class="amount-col">{{ row.invoice.totalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+              <td class="actions-col">
+                <button type="button" class="btn-reprint" (click)="reprint(row, $event)"
+                        [disabled]="reprinting() === row.invoice.id">
+                  {{ reprinting() === row.invoice.id ? '…' : 'Reimprimir' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="invoices-pagination">
+        <button (click)="prevPage()" [disabled]="page() <= 1">Anterior</button>
+        <span>Página {{ page() }} de {{ totalPages() }}</span>
+        <button (click)="nextPage()" [disabled]="page() >= totalPages()">Siguiente</button>
+      </div>
+    </section>
+  }
+</div>

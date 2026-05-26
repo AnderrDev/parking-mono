@@ -2,8 +2,8 @@
 
 **ID:** HU-031  
 **Módulo:** Parking — Dashboard Operador  
-**Versión:** 1.1  
-**Fecha:** 2026-05-09 (auto-impresión)
+**Versión:** 1.2.2  
+**Fecha:** 2026-05-20 (datos legales + rediseño 80 mm; sin consecutivo; + tarifa aplicada)
 
 ---
 
@@ -27,27 +27,36 @@ Después de registrar exitosamente la salida de un vehículo, el sistema imprime
 
 ---
 
-## Contenido del comprobante impreso
+## Contenido del comprobante impreso (v1.2 — 2026-05-20)
 
 | Campo | Valor | Condición |
 |-------|-------|-----------|
-| Nombre del parqueadero | "Parqueadero" | Siempre |
-| Placa | `vehiclePlate` | Siempre |
-| Tipo de vehículo | Etiqueta en español (Carro, Moto, etc.) | Siempre |
-| Entrada | Fecha y hora (dd/MM/yyyy HH:mm) | Siempre |
-| Salida | Fecha y hora (dd/MM/yyyy HH:mm) | Siempre |
-| Duración | `Xh Ym` o `Ym` | Siempre |
-| Total cobrado | `$X.XXX COP` o "Sin cobro" | Siempre |
-| Método de pago | Efectivo / Transferencia / Cortesía / etc. | Siempre |
-| Efectivo recibido | `$X.XXX COP` | Solo si paymentMethod = "efectivo" y amount > 0 |
-| Cambio | `$X.XXX COP` | Solo si efectivo recibido > monto |
-| Generado el | Timestamp de impresión | Siempre |
+| Tipo de parqueadero | "PARQUEADERO PÚBLICO" / "PRIVADO" en banner negro | Si `parking_info.parkingType` |
+| Nombre | `parking_info.name` | Siempre |
+| NIT-DV | `NIT XXX-X` | Si `parking_info.nit` |
+| Resolución | `Resolución XXX` | Si `parking_info.resolutionNumber` |
+| Tipo de documento | "COMPROBANTE DE PAGO" en caja | Siempre |
+| Placa | `vehiclePlate` (en caja con borde) | Siempre |
+| Tipo de vehículo | Etiqueta en español | Siempre |
+| Entrada | dd/MM/yyyy HH:mm (Bogotá) | Siempre |
+| Salida | dd/MM/yyyy HH:mm (Bogotá) | Siempre |
+| Duración | `Xh Ym` o `Y min` | Siempre |
+| Método de pago | Etiqueta legible (Efectivo, T. Crédito, …) | Siempre |
+| Tarifa aplicada | `$X / unidad · gracia X min` en caja gris | Si `ExitReceipt.tariffSnapshot` no es null y `unit != mensualidad` (v1.2.2) |
+| Total | `$X.XXX` o "Sin cobro" en banner negro | Siempre |
+| Efectivo recibido | `$X.XXX` | Solo si paymentMethod = "efectivo" y amount > 0 |
+| Cambio | `$X.XXX` | Solo si efectivo recibido > monto |
+| Dirección | `parking_info.address` | Si seteado |
+| Teléfono | `☎ parking_info.phone` | Si seteado |
+| Impreso | Timestamp local Bogotá | Siempre |
+
+**Mismo formato 80 mm que el ticket de entrada (HU-030 v2)** — comparte branding, layout y tipografía. La única diferencia visual: el banner superior "COMPROBANTE DE PAGO" y el banner inferior con el total destacado.
 
 ---
 
 ## Reglas de negocio
 
-1. El comprobante no requiere numeración secuencial (no es factura electrónica).
+1. El comprobante **NO** es factura electrónica ni requiere consecutivo numérico (v1.2.1).
 2. Si el monto es 0 (vehículo mensual o cortesía), el comprobante muestra "Sin cobro" y omite los campos de efectivo/cambio.
 3. El cambio solo se calcula si `paymentMethod === 'efectivo'` y `cashReceivedCents > amountCents > 0`.
 4. La tarjeta se descarta automáticamente cuando el operador registra la siguiente entrada (limpieza del formulario) o tras 12 s de auto-dismiss.

@@ -15,14 +15,11 @@ import {
   GET_SESSIONS_BY_TYPE_TOKEN,
   GET_OPERATOR_PERFORMANCE_TOKEN,
   EXPORT_CSV_TOKEN,
-  LIST_INVOICES_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { GetRevenueByPeriodUseCase } from '../../domain/usecases/get-revenue-by-period.usecase';
 import { GetSessionsByTypeUseCase } from '../../domain/usecases/get-sessions-by-type.usecase';
 import { GetOperatorPerformanceUseCase } from '../../domain/usecases/get-operator-performance.usecase';
 import { ExportCsvUseCase } from '../../domain/usecases/export-csv.usecase';
-import { ListInvoicesUseCase } from '../../../invoicing/domain/usecases/list-invoices.usecase';
-import { InvoiceEntity, DianStatus } from '../../../invoicing/domain/entities/invoice.entity';
 import {
   RevenueReportResult,
   SessionsByTypeResult,
@@ -34,7 +31,6 @@ import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { barWidth as calcBarWidth, pctOf } from '../../../../shared/utils/chart.utils';
 import { formatBogotaDay } from '../../../../shared/utils/date.utils';
 import { PaymentMethodStackComponent } from '../components/payment-method-stack.component';
-import { DianStatusGridComponent } from '../components/dian-status-grid.component';
 
 type Tab = 'accounting' | 'revenue' | 'vehicles' | 'operators';
 
@@ -47,12 +43,6 @@ interface Delta {
   isNew: boolean;
 }
 
-interface InvoicingSummary {
-  totalCents: number;
-  count: number;
-  byStatus: { status: DianStatus; count: number; totalCents: number }[];
-}
-
 @Component({
   selector: 'app-reports-page',
   standalone: true,
@@ -62,7 +52,6 @@ interface InvoicingSummary {
     ReactiveFormsModule,
     CurrencyCopPipe,
     PaymentMethodStackComponent,
-    DianStatusGridComponent,
   ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
@@ -77,8 +66,6 @@ export class ReportsPageComponent implements OnInit {
   protected readonly revenue = signal<RevenueReportResult | null>(null);
   protected readonly sessionsByType = signal<SessionsByTypeResult | null>(null);
   protected readonly operatorPerf = signal<OperatorPerformanceResult | null>(null);
-  protected readonly invoicingSummary = signal<InvoicingSummary | null>(null);
-
   // Datos del rango previo (cuando "Comparar" está activo)
   protected readonly revenuePrev = signal<RevenueReportResult | null>(null);
   protected readonly sessionsPrev = signal<SessionsByTypeResult | null>(null);
@@ -98,14 +85,6 @@ export class ReportsPageComponent implements OnInit {
     moto: 'Moto',
     bicicleta: 'Bicicleta',
     otro: 'Otro',
-  };
-
-  protected readonly dianLabels: Record<DianStatus, string> = {
-    accepted: 'Aceptada',
-    sent: 'Enviada',
-    pending: 'Pendiente',
-    rejected: 'Rechazada',
-    contingency: 'Contingencia',
   };
 
   protected readonly presetLabels: Record<DateRangePreset, string> = {
@@ -215,7 +194,6 @@ export class ReportsPageComponent implements OnInit {
     @Inject(GET_SESSIONS_BY_TYPE_TOKEN) private readonly sessionTypesUC: GetSessionsByTypeUseCase,
     @Inject(GET_OPERATOR_PERFORMANCE_TOKEN) private readonly operatorUC: GetOperatorPerformanceUseCase,
     @Inject(EXPORT_CSV_TOKEN) private readonly exportUC: ExportCsvUseCase,
-    @Inject(LIST_INVOICES_TOKEN) private readonly listInvoicesUC: ListInvoicesUseCase,
     private readonly toast: ToastService,
   ) {}
 
@@ -320,11 +298,6 @@ export class ReportsPageComponent implements OnInit {
       this.operatorPerf.set(null);
     }
 
-    // ── Resumen contable: invoices solo cuando tab activo ──
-    if (activeTab === 'accounting' && role === 'admin') {
-      await this.loadInvoicingSummary(from, to);
-    }
-
     // ── Comparativa con período previo ──
     if (compare) {
       const prev = this.reportsForms.previousRange(range);
@@ -341,33 +314,6 @@ export class ReportsPageComponent implements OnInit {
     }
 
     this.loading.set(false);
-  }
-
-  private async loadInvoicingSummary(from: Date, to: Date): Promise<void> {
-    // Página grande para sumarizar; en producción se podría mover a una view SQL.
-    const result = await this.listInvoicesUC.execute({
-      dateFrom: from, dateTo: to, page: 1, pageSize: 100,
-    });
-    result.fold(
-      () => this.invoicingSummary.set(null),
-      ({ data }) => {
-        const accepted = data.filter((i: InvoiceEntity) => i.dianStatus === 'accepted');
-        const totalCents = accepted.reduce((s, i) => s + i.totalCents, 0);
-        const map = new Map<DianStatus, { count: number; totalCents: number }>();
-        for (const inv of data) {
-          const e = map.get(inv.dianStatus) ?? { count: 0, totalCents: 0 };
-          map.set(inv.dianStatus, {
-            count: e.count + 1,
-            totalCents: e.totalCents + inv.totalCents,
-          });
-        }
-        this.invoicingSummary.set({
-          totalCents,
-          count: accepted.length,
-          byStatus: Array.from(map.entries()).map(([status, v]) => ({ status, ...v })),
-        });
-      },
-    );
   }
 
   // ── Export ──────────────────────────────────────────────────────────────────
@@ -425,10 +371,6 @@ export class ReportsPageComponent implements OnInit {
   protected vehicleLabel(v: string): string {
     return this.vehicleLabels[v] ?? v;
   }
-  protected dianLabel(s: DianStatus): string {
-    return this.dianLabels[s] ?? s;
-  }
-
   protected pctOfMethodTotal(amountCents: number): number {
     return pctOf(amountCents, this.methodTotalCents());
   }

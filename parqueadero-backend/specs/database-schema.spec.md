@@ -69,7 +69,7 @@ phone TEXT
 address TEXT
 municipio TEXT
 departamento TEXT
-responsabilidades_fiscales TEXT[] -- Para factura DIAN
+responsabilidades_fiscales TEXT[] -- Histórico (sin uso activo; FE descartada el 2026-05-20)
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 _deleted BOOLEAN NOT NULL DEFAULT FALSE
@@ -84,10 +84,24 @@ INDEXES:
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 name TEXT NOT NULL
 vehicle_type TEXT NOT NULL CHECK (vehicle_type IN ('carro', 'moto', 'bicicleta', 'otro'))
-unit TEXT NOT NULL CHECK (unit IN ('minuto', 'hora', 'fraccion', 'dia'))
+unit TEXT NOT NULL CHECK (unit IN ('minuto', 'hora', 'fraccion', 'dia', 'mensualidad'))
+  -- Para parking: el `unit` deja de gobernar el cobro (queda como etiqueta).
+  -- Para `mensualidad`: sigue rigiendo (planes mensuales usan value_cents).
 value_cents BIGINT NOT NULL CHECK (value_cents > 0)
+  -- DEPRECADO para parking (lo reemplazan los 3 cents por tier).
+  -- Vigente para `mensualidad` = precio mensual del plan.
 grace_minutes INTEGER NOT NULL DEFAULT 0
 daily_cap_cents BIGINT NOT NULL CHECK (daily_cap_cents > 0)
+  -- DEPRECADO para parking. Se mantiene como espejo de plena_cents para back-compat.
+
+-- NUEVOS (tiered pricing, migration 00021):
+per_minute_cents BIGINT
+  -- Valor por minuto. NOT NULL cuando unit != 'mensualidad'.
+per_hour_cents BIGINT
+  -- Valor por hora completa (se cobra ceil(min/60)). NOT NULL si unit != 'mensualidad'.
+plena_cents BIGINT
+  -- Tope absoluto por sesión (día completo). NOT NULL si unit != 'mensualidad'.
+
 schedule_json JSONB NOT NULL DEFAULT '{"lunes": "07:00-22:00"}'
 valid_from DATE
 valid_to DATE
@@ -96,10 +110,22 @@ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 _deleted BOOLEAN NOT NULL DEFAULT FALSE
 
+CONSTRAINTS:
+  - CHECK: unit = 'mensualidad' OR (per_minute_cents IS NOT NULL AND per_hour_cents IS NOT NULL AND plena_cents IS NOT NULL)
+  - CHECK: unit = 'mensualidad' OR (per_minute_cents > 0 AND per_hour_cents > 0 AND plena_cents > 0)
+  - CHECK: unit = 'mensualidad' OR per_hour_cents <= per_minute_cents * 60
+    -- la hora no puede ser más cara que 60 minutos sueltos (cliente-friendly)
+  - CHECK: unit = 'mensualidad' OR plena_cents <= per_hour_cents * 24
+    -- la plena no puede superar 24h de la tarifa hora
+
 INDEXES:
   - INDEX(is_active)
   - INDEX(vehicle_type)
+  - UNIQUE(vehicle_type) WHERE is_active=true AND _deleted=false AND unit != 'mensualidad'
+    -- una sola tarifa de parking activa por tipo de vehículo
 ```
+
+**Semántica de cobro**: ver `specs/tariffs-pricing.spec.md`. El cliente paga el **MIN** de tres cálculos (minuto / hora redondeada / plena), nunca más que `plena_cents`.
 
 ### 5. `parking_sessions`
 ```sql
@@ -151,44 +177,18 @@ INDEXES:
 
 ### 7. `invoices`
 
-**Nota histórica (Fase 11 / S2):** la columna `number` se renombró a
-`internal_number` en `00013_siigo_integration.sql` y se agregaron columnas
-`siigo_*` para la integración Siigo. Los campos `dian_*` y `cufe` se
-preservan como derivados via trigger `sync_dian_from_siigo` (compatibilidad
-con queries históricas).
+Ticket POS interno numerado. NO es factura electrónica DIAN — el proyecto
+descartó la integración con FE/Siigo el 2026-05-20.
 
 ```sql
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
-internal_number TEXT UNIQUE NOT NULL  -- ex `number`. Consecutivo operacional propio (FAC-YYYY-MM-DD-NNNN). NO es el fiscal DIAN.
-cufe TEXT UNIQUE                       -- legacy: derivado via trigger desde siigo_cufe
+internal_number TEXT UNIQUE NOT NULL  -- Consecutivo operacional propio (FAC-YYYY-MM-DD-NNNN).
 tipo_documento TEXT NOT NULL CHECK (tipo_documento IN ('01', '02', '91'))  -- 01: factura, 02: nota crédito, 91: nota débito
 customer_id UUID NOT NULL REFERENCES customers(id)
 subtotal_cents BIGINT NOT NULL DEFAULT 0
 tax_cents BIGINT NOT NULL DEFAULT 0
 total_cents BIGINT NOT NULL DEFAULT 0
-dian_status TEXT NOT NULL DEFAULT 'pending' CHECK (dian_status IN ('pending', 'sent', 'accepted', 'rejected', 'contingency'))
-                                       -- DERIVED: trigger sync_dian_from_siigo lo deriva desde siigo_status. NO escribir directo.
-dian_cufe TEXT                         -- DERIVED desde siigo_cufe
-dian_xml_url TEXT                      -- DERIVED desde siigo_xml_url
-dian_pdf_url TEXT                      -- DERIVED desde siigo_pdf_url
-
--- === Columnas Siigo (00013) ===
-siigo_id              TEXT UNIQUE       -- ID interno Siigo para GET /v1/invoices/{id}
-siigo_number          TEXT              -- consecutivo fiscal asignado por Siigo
-siigo_status          TEXT NOT NULL DEFAULT 'pending'
-                      CHECK (siigo_status IN (
-                        'pending','InProcess','Sent','Stamped','Rejected',
-                        'queued_offline','error_max_retries'))
-siigo_observations    JSONB
-siigo_pdf_url         TEXT
-siigo_xml_url         TEXT
-siigo_qr_url          TEXT
-siigo_cufe            TEXT              -- CUFE devuelto por Siigo (UNIQUE parcial — ver 00017)
-siigo_cude            TEXT
-siigo_attempts        INTEGER NOT NULL DEFAULT 0
-siigo_last_attempt_at TIMESTAMPTZ
-siigo_last_error      TEXT
-requested_invoice     BOOLEAN NOT NULL DEFAULT FALSE  -- TRUE = cliente pidió FE; FALSE = ticket POS interno
+requested_invoice BOOLEAN NOT NULL DEFAULT FALSE  -- TRUE = cliente pidió ticket impreso al salir
 
 issued_at TIMESTAMPTZ NOT NULL DEFAULT now()
 payment_id UUID REFERENCES payments(id)
@@ -198,17 +198,12 @@ _deleted BOOLEAN NOT NULL DEFAULT FALSE
 
 INDEXES:
   - UNIQUE(internal_number)
-  - UNIQUE(cufe)                                              -- legacy
-  - UNIQUE(siigo_id) WHERE siigo_id IS NOT NULL               -- 00013
-  - UNIQUE(siigo_cufe) WHERE siigo_cufe IS NOT NULL           -- 00017 (defensa anti-duplicado fiscal)
   - INDEX(customer_id)
-  - INDEX(dian_status)
   - INDEX(issued_at DESC)
-  - INDEX(siigo_status, siigo_attempts) WHERE siigo_status IN ('pending','InProcess','Sent')  -- 00013, hot path del cron poller
 
 REPLICATION:
-  - REPLICA IDENTITY FULL                                     -- 00018
-  - publicada en `supabase_realtime` para refresh in-app de siigo_status
+  - REPLICA IDENTITY FULL                                     -- 00015
+  - publicada en `supabase_realtime` para refresh in-app del listado de tickets
 ```
 
 ### 8. `invoice_lines`

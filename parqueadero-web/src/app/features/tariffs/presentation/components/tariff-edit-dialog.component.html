@@ -30,27 +30,25 @@
       </div>
 
       <div class="field">
-        <label class="field__label" for="t-unit">Unidad de cobro</label>
-        <select id="t-unit" class="field__select" formControlName="unit">
-          @for (u of units; track u.value) {
-            <option [value]="u.value">{{ u.label }}</option>
-          }
+        <label class="field__label" for="t-kind">Tipo de tarifa</label>
+        <select id="t-kind" class="field__select" formControlName="unit">
+          <option value="hora">Parking</option>
+          <option value="mensualidad">Mensualidad</option>
         </select>
       </div>
     </div>
 
-    <div class="field-row">
+    @if (isMonthly()) {
+      <!-- ── Mensualidad: un solo valor (precio mensual) ──────────────── -->
       <div class="field">
         <label class="field__label" for="t-value">
           Valor (COP)
-          @if (isMonthly()) {
-            <span class="field__hint-inline">precio mensual</span>
-          }
+          <span class="field__hint-inline">precio mensual</span>
         </label>
         <div class="field__money">
           <span class="field__money-prefix">$</span>
           <input id="t-value" class="field__input" [class.field__input--error]="err('valueCents')"
-            appCurrencyInput formControlName="valueCents" placeholder="5.000"
+            appCurrencyInput formControlName="valueCents" placeholder="80.000"
             [attr.aria-describedby]="err('valueCents') ? 't-value-err' : null" />
         </div>
         @if (err('valueCents')) {
@@ -58,35 +56,6 @@
         }
       </div>
 
-      @if (!isMonthly()) {
-        <div class="field">
-          <label class="field__label" for="t-cap">Tope diario (COP)</label>
-          <div class="field__money">
-            <span class="field__money-prefix">$</span>
-            <input id="t-cap" class="field__input" [class.field__input--error]="err('dailyCapCents')"
-              appCurrencyInput formControlName="dailyCapCents" placeholder="300.000"
-              [attr.aria-describedby]="err('dailyCapCents') ? 't-cap-err' : null" />
-          </div>
-          @if (err('dailyCapCents')) {
-            <span id="t-cap-err" class="field__error" role="alert">{{ errMsg('dailyCapCents') }}</span>
-          }
-        </div>
-      }
-    </div>
-
-    @if (!isMonthly()) {
-      <div class="field" style="max-width: 160px">
-        <label class="field__label" for="t-grace">Minutos de gracia</label>
-        <input id="t-grace" class="field__input" [class.field__input--error]="err('graceMinutes')"
-          type="number" formControlName="graceMinutes" min="0" placeholder="0"
-          [attr.aria-describedby]="err('graceMinutes') ? 't-grace-err' : null" />
-        @if (err('graceMinutes')) {
-          <span id="t-grace-err" class="field__error" role="alert">{{ errMsg('graceMinutes') }}</span>
-        }
-      </div>
-    }
-
-    @if (isMonthly()) {
       <div class="field-row">
         <div class="field">
           <label class="field__label" for="t-from">Válida desde</label>
@@ -97,6 +66,91 @@
           <input id="t-to" class="field__input" type="date" formControlName="validTo" />
         </div>
       </div>
+    } @else {
+      <!-- ── Parking: 3 valores independientes (min / hora / plena) ───── -->
+      <div class="field-row">
+        <div class="field">
+          <label class="field__label" for="t-per-min">Por minuto (COP)</label>
+          <div class="field__money">
+            <span class="field__money-prefix">$</span>
+            <input id="t-per-min" class="field__input" [class.field__input--error]="err('perMinuteCents')"
+              appCurrencyInput formControlName="perMinuteCents" placeholder="60"
+              [attr.aria-describedby]="err('perMinuteCents') ? 't-per-min-err' : null" />
+          </div>
+          @if (err('perMinuteCents')) {
+            <span id="t-per-min-err" class="field__error" role="alert">{{ errMsg('perMinuteCents') }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="t-per-hour">Por hora (COP)</label>
+          <div class="field__money">
+            <span class="field__money-prefix">$</span>
+            <input id="t-per-hour" class="field__input" [class.field__input--error]="err('perHourCents')"
+              appCurrencyInput formControlName="perHourCents" placeholder="2.400"
+              [attr.aria-describedby]="err('perHourCents') ? 't-per-hour-err' : null" />
+          </div>
+          @if (err('perHourCents')) {
+            <span id="t-per-hour-err" class="field__error" role="alert">{{ errMsg('perHourCents') }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field__label" for="t-plena">Tope día (COP)</label>
+          <div class="field__money">
+            <span class="field__money-prefix">$</span>
+            <input id="t-plena" class="field__input" [class.field__input--error]="err('plenaCents')"
+              appCurrencyInput formControlName="plenaCents" placeholder="9.000"
+              [attr.aria-describedby]="err('plenaCents') ? 't-plena-err' : null" />
+          </div>
+          @if (err('plenaCents')) {
+            <span id="t-plena-err" class="field__error" role="alert">{{ errMsg('plenaCents') }}</span>
+          }
+        </div>
+      </div>
+
+      @if (formError('c5'); as msg) {
+        <div class="submit-error" role="alert">
+          <span class="submit-error__icon" aria-hidden="true">⚠</span>
+          <span class="submit-error__text">{{ msg }}</span>
+        </div>
+      }
+      @if (formError('c6'); as msg) {
+        <div class="submit-error" role="alert">
+          <span class="submit-error__icon" aria-hidden="true">⚠</span>
+          <span class="submit-error__text">{{ msg }}</span>
+        </div>
+      }
+
+      @if (previewRows().length > 0) {
+        <section class="preview" aria-labelledby="t-preview-title">
+          <h3 class="preview__title" id="t-preview-title">Vista previa de cobro</h3>
+          <ul class="preview__list">
+            @for (row of previewRows(); track row.label) {
+              <li class="preview__row" [class.preview__row--capped]="row.capped">
+                <span class="preview__label">{{ row.label }}</span>
+                <span class="preview__value">
+                  {{ row.formatted }}
+                  @if (row.capped) {
+                    <span class="preview__cap-badge">tope</span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+          <p class="preview__formula">
+            Cobro = (horas completas × valor hora) + (minutos restantes × valor minuto),
+            con tope diario.
+          </p>
+        </section>
+      } @else {
+        <p class="field__hint">
+          Cobro = (horas completas × valor hora) + (minutos restantes × valor minuto).
+          Tope absoluto por sesión = tope día.
+        </p>
+      }
     }
 
     @if (isEdit) {

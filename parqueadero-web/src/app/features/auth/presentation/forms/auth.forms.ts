@@ -6,9 +6,12 @@ export class AuthForms {
   constructor(private readonly fb: FormBuilder) {}
 
   createLoginForm(): FormGroup {
+    // DEV-ONLY: prefill con credenciales del admin de dev (proyecto Supabase
+    // hhwctcjwrlbqgsrfriqn). Quitar antes del build productivo o reemplazar
+    // por valores vacíos en `auth.forms.prod.ts` vía fileReplacements.
     return this.fb.group({
-      email: ['admin@parqueadero.local', [Validators.required, Validators.email]],
-      password: ['admin12345', [Validators.required, Validators.minLength(6)]],
+      email: ['admin@parqueadero.com', [Validators.required, Validators.email]],
+      password: ['ParqueaderoAdmin2026!', [Validators.required, Validators.minLength(6)]],
     });
   }
 

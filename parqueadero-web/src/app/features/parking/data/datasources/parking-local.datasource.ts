@@ -98,6 +98,14 @@ export class ParkingLocalDataSource extends ParkingDataSource {
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
         _sync_status: 'pending',
+        // Snapshot de tarifa: el flujo offline no resuelve la tarifa al
+        // ingreso (no tiene acceso al remoto). Cuando la sesión sincroniza
+        // vía outbox, el servidor o un retry posterior puede setear estos
+        // campos; por ahora quedan null y el display cae al fallback.
+        tariff_snapshot_name: null,
+        tariff_snapshot_per_minute_cents: null,
+        tariff_snapshot_per_hour_cents: null,
+        tariff_snapshot_plena_cents: null,
         _deleted: false,
         client_op_id: opId,
       };

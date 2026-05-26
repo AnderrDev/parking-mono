@@ -1,0 +1,158 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page__title">Historial de cobros</h1>
+      <p class="page__subtitle">Pagos registrados. Reimprime el comprobante o consulta detalles.</p>
+    </div>
+    <div class="page__stats">
+      <span class="stat-label">Total filtrado</span>
+      <span class="stat-value">{{ formatCOP(totalCents()) }}</span>
+    </div>
+  </header>
+
+  <form class="filters" [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+    <label class="field">
+      <span>Desde</span>
+      <input type="date" formControlName="dateFrom" />
+    </label>
+    <label class="field">
+      <span>Hasta</span>
+      <input type="date" formControlName="dateTo" />
+    </label>
+    <label class="field">
+      <span>Placa</span>
+      <input type="text" formControlName="vehiclePlate" placeholder="ABC123" maxlength="6" />
+    </label>
+    <label class="field">
+      <span>Método</span>
+      <select formControlName="method">
+        <option value="">Todos</option>
+        @for (m of methodOptions; track m[0]) {
+          <option [value]="m[0]">{{ m[1] }}</option>
+        }
+      </select>
+    </label>
+    <div class="filters__actions">
+      <button type="submit" class="btn btn--primary" [disabled]="loading()">Buscar</button>
+      <button type="button" class="btn btn--ghost" (click)="clearFilters()" [disabled]="loading()">Limpiar</button>
+    </div>
+  </form>
+
+  @if (loading()) {
+    <p class="page__loading">Cargando cobros…</p>
+  }
+
+  @if (errorMsg()) {
+    <p class="page__error">{{ errorMsg() }}</p>
+  }
+
+  @if (!loading() && rows().length === 0 && !errorMsg()) {
+    <p class="page__empty">No hay cobros en el rango seleccionado.</p>
+  }
+
+  @if (rows().length > 0) {
+    <section class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha / hora</th>
+            <th>Placa</th>
+            <th>Tipo</th>
+            <th>Método</th>
+            <th class="amount-col">Monto</th>
+            <th class="actions-col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.paymentId) {
+            <tr class="row" [class.row--expanded]="expandedRowId() === row.paymentId"
+                (click)="toggleExpand(row.paymentId)">
+              <td>{{ row.paidAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="plate">{{ row.vehiclePlate ?? '—' }}</td>
+              <td>{{ vehicleLabel(row.vehicleType) }}</td>
+              <td>{{ methodLabel(row.method) }}</td>
+              <td class="amount-col">{{ formatCOP(row.amountCents) }}</td>
+              <td class="actions-col">
+                <button type="button" class="btn-reprint"
+                  (click)="reprint(row, $event)"
+                  [disabled]="reprinting() === row.paymentId || !row.sessionId">
+                  {{ reprinting() === row.paymentId ? '…' : 'Reimprimir' }}
+                </button>
+              </td>
+            </tr>
+            @if (expandedRowId() === row.paymentId) {
+              <tr class="row-detail">
+                <td colspan="6">
+                  <div class="detail">
+                    @if (row.sessionId) {
+                      <section class="detail__section">
+                        <h4 class="detail__section-title">Sesión</h4>
+                        <div class="detail__grid">
+                          <div><span class="detail__label">Entrada</span><span class="detail__value">{{ row.entryAt | date:'dd/MM/yyyy HH:mm' }}</span></div>
+                          <div><span class="detail__label">Salida</span><span class="detail__value">{{ row.exitAt | date:'dd/MM/yyyy HH:mm' }}</span></div>
+                          <div><span class="detail__label">Duración</span><span class="detail__value">{{ formatDuration(row.durationMinutes) }}</span></div>
+                        </div>
+                      </section>
+
+                      @if (row.entryUserName || row.exitUserName) {
+                        <section class="detail__section">
+                          <h4 class="detail__section-title">Atención</h4>
+                          <div class="detail__grid">
+                            @if (row.entryUserName) {
+                              <div><span class="detail__label">Registró entrada</span><span class="detail__value">{{ row.entryUserName }}</span></div>
+                            }
+                            @if (row.exitUserName) {
+                              <div><span class="detail__label">Registró salida y cobro</span><span class="detail__value">{{ row.exitUserName }}</span></div>
+                            }
+                          </div>
+                        </section>
+                      }
+                    } @else {
+                      <p class="detail__note">Pago sin sesión asociada (mensualidad u otro).</p>
+                    }
+
+                    <section class="detail__section">
+                      <h4 class="detail__section-title">Cobro</h4>
+                      <div class="detail__grid">
+                        <div><span class="detail__label">Método</span><span class="detail__value">{{ methodLabel(row.method) }}</span></div>
+                        <div><span class="detail__label">Total cobrado</span><span class="detail__value detail__value--strong">{{ formatCOP(row.amountCents) }}</span></div>
+                        @if (row.justification) {
+                          <div class="detail__row--full"><span class="detail__label">Justificación</span><span class="detail__value">{{ row.justification }}</span></div>
+                        }
+                      </div>
+                    </section>
+
+                    @if (row.tariffRow) {
+                      <section class="detail__section">
+                        <h4 class="detail__section-title">Tarifa aplicada</h4>
+                        <div class="detail__grid">
+                          <div><span class="detail__label">Nombre</span><span class="detail__value">{{ row.tariffRow.name }}</span></div>
+                          @if (row.tariffRow.per_minute_cents != null) {
+                            <div><span class="detail__label">Por minuto</span><span class="detail__value">{{ formatCOP(row.tariffRow.per_minute_cents) }}</span></div>
+                          }
+                          @if (row.tariffRow.per_hour_cents != null) {
+                            <div><span class="detail__label">Por hora</span><span class="detail__value">{{ formatCOP(row.tariffRow.per_hour_cents) }}</span></div>
+                          }
+                          @if (row.tariffRow.plena_cents != null) {
+                            <div><span class="detail__label">Tope día</span><span class="detail__value">{{ formatCOP(row.tariffRow.plena_cents) }}</span></div>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        <button type="button" (click)="prevPage()" [disabled]="page() <= 1">Anterior</button>
+        <span>Página {{ page() }}</span>
+        <button type="button" (click)="nextPage()" [disabled]="!hasMore()">Siguiente</button>
+      </div>
+    </section>
+  }
+</div>

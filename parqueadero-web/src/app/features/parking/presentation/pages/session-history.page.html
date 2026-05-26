@@ -68,7 +68,13 @@
               <td>{{ s.entryAt | date:'dd/MM/yy HH:mm' }}</td>
               <td>{{ s.exitAt ? (s.exitAt | date:'dd/MM/yy HH:mm') : '—' }}</td>
               <td>{{ formatDuration(s) }}</td>
-              <td class="num">{{ s.amountDueCents !== null ? (s.amountDueCents | currencyCop) : '—' }}</td>
+              <td class="num" [class.num--projected]="isProjected(s)"
+                  [title]="isProjected(s) ? 'Cobro proyectado al momento actual (sesión aún activa)' : ''">
+                {{ displayAmount(s) }}
+                @if (isProjected(s)) {
+                  <span class="proj-tag" aria-label="Proyectado">~</span>
+                }
+              </td>
               <td>
                 <span class="status-badge"
                   [class.status-badge--active]="s.status === 'active'"

@@ -26,7 +26,7 @@ Admin.
 | address | string \| null | No | max 200 chars |
 | municipio | string \| null | No | max 100 chars |
 | departamento | string \| null | No | max 100 chars |
-| responsabilidadesFiscales | string[] | No | Códigos DIAN; default `['R-99-PN']` |
+| responsabilidadesFiscales | string[] | No | Códigos tributarios (legado); default `['R-99-PN']` |
 
 ## Output (Result)
 
@@ -43,7 +43,7 @@ Admin.
 1. `(doc_type, doc_number)` es UNIQUE — constraint en BD más validación en UseCase.
 2. `email` es UNIQUE si presente.
 3. Para docType = 'nit': `dv` es obligatorio.
-4. `responsabilidadesFiscales` se usa en facturación DIAN (Fase 7+); default `['R-99-PN']` (persona natural no responsable).
+4. `responsabilidadesFiscales` quedó como campo legado (FE descartada 2026-05-20); default `['R-99-PN']`.
 5. Cambio en `audit_log`.
 
 ## Flujo Principal
@@ -59,7 +59,7 @@ Admin.
 
 - `docType = 'nit'` sin `dv` → `ValidationFailure`.
 - `phone = null` → permitido.
-- `responsabilidadesFiscales = []` → guardar vacío (válido; DIAN acepta sin responsabilidades).
+- `responsabilidadesFiscales = []` → guardar vacío (válido).
 
 ## Dependencias
 - `CustomerRepository.create()`

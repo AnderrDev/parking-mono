@@ -135,41 +135,6 @@
     }
   </div>
 
-  <!-- Datos opcionales -->
-  <div class="optional-grid">
-    <div class="field">
-      <label class="field__label" for="color">
-        Color
-        <span class="field__optional">opcional</span>
-      </label>
-      <input
-        id="color"
-        class="field__input"
-        type="text"
-        formControlName="color"
-        placeholder="Ej: blanco"
-        autocomplete="off"
-        maxlength="50"
-      />
-    </div>
-
-    <div class="field">
-      <label class="field__label" for="brand">
-        Marca
-        <span class="field__optional">opcional</span>
-      </label>
-      <input
-        id="brand"
-        class="field__input"
-        type="text"
-        formControlName="brand"
-        placeholder="Ej: Toyota"
-        autocomplete="off"
-        maxlength="50"
-      />
-    </div>
-  </div>
-
   @if (!hideSubmitButton()) {
     <button
       class="submit-btn"

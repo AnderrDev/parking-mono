@@ -139,7 +139,7 @@ Todos se corren desde `parqueadero-web/`.
 ## 9. Variables sensibles
 
 - `environment.prod.ts` contiene `supabaseUrl` y `supabaseAnonKey`. La anon key es **pública por diseño** (filtrada al cliente en cualquier app Supabase), pero la seguridad real depende de las **RLS policies** (cubiertas en `parqueadero-backend/specs/rls-policies.spec.md`).
-- NO incluir service_role keys, secretos de Edge Functions, ni claves de DIAN en el bundle.
+- NO incluir service_role keys ni secretos de Edge Functions en el bundle.
 
 ## 10. Checklist post-deploy
 

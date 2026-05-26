@@ -179,16 +179,11 @@ CREATE INDEX idx_sessions_entry_user_date ON parking_sessions (
 CREATE TABLE invoices (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   number          TEXT UNIQUE NOT NULL,
-  cufe            TEXT UNIQUE,
   tipo_documento  TEXT NOT NULL DEFAULT '01' CHECK (tipo_documento IN ('01', '02', '91')),
   customer_id     UUID NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
   subtotal_cents  BIGINT NOT NULL DEFAULT 0,
   tax_cents       BIGINT NOT NULL DEFAULT 0,
   total_cents     BIGINT NOT NULL DEFAULT 0,
-  dian_status     TEXT NOT NULL DEFAULT 'pending' CHECK (dian_status IN ('pending', 'sent', 'accepted', 'rejected', 'contingency')),
-  dian_cufe       TEXT,
-  dian_xml_url    TEXT,
-  dian_pdf_url    TEXT,
   issued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   payment_id      UUID,  -- FK añadida abajo (FK circular con payments)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -197,7 +192,6 @@ CREATE TABLE invoices (
 );
 
 CREATE INDEX idx_invoices_customer    ON invoices (customer_id);
-CREATE INDEX idx_invoices_dian_status ON invoices (dian_status);
 CREATE INDEX idx_invoices_issued      ON invoices (issued_at DESC);
 
 -- =============================================

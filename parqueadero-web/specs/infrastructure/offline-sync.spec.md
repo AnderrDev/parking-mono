@@ -10,7 +10,6 @@ combina un *mirror* de lectura en IndexedDB (vía Dexie.js) con una *outbox*
 FIFO de mutaciones pendientes drenada por un orquestador.
 
 Admin, contador y reportes NO operan offline (Fase 8 fuera de alcance).
-Facturación electrónica DIAN/Siigo NO se toca en Fase 8.
 
 ## Alcance funcional offline
 
@@ -28,7 +27,6 @@ Operaciones que NO funcionan offline (degradan UX a banner):
 
 - Cualquier acceso de admin (catálogos, configuración, usuarios)
 - Reportes y exportes
-- Solicitar factura electrónica (Siigo)
 
 ## Componentes
 
@@ -209,7 +207,7 @@ const tariff = await localDb.getDB().tariffs
 ## Decisiones cerradas (no re-debatir)
 
 1. Stack: Dexie.js, sin servidor de sync externo.
-2. Alcance: operador-only. Admin/reportes/Siigo fuera.
+2. Alcance: operador-only. Admin y reportes fuera.
 3. Conflictos: server-wins, escalación manual.
 4. Concurrencia: 1 operador = 1 pestaña. Multi-tab fuera de Sprint 0.
 5. `ngsw-config.json` queda sin `dataGroups` (Dexie reemplaza el HTTP cache).

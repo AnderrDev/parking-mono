@@ -20,6 +20,12 @@ export interface ParkingSessionModel {
   created_at: string;
   updated_at: string;
   _sync_status: string;
+  // Snapshot inmutable de la tarifa al ingreso (migration 00027). NULL en
+  // sesiones legacy y mensualidades.
+  tariff_snapshot_name: string | null;
+  tariff_snapshot_per_minute_cents: number | null;
+  tariff_snapshot_per_hour_cents: number | null;
+  tariff_snapshot_plena_cents: number | null;
 }
 
 export class ParkingSessionMapper {
@@ -39,6 +45,10 @@ export class ParkingSessionMapper {
       m.exit_user_id,
       m.amount_due_cents,
       (m._sync_status as SyncStatus) ?? 'synced',
+      m.tariff_snapshot_name ?? null,
+      m.tariff_snapshot_per_minute_cents ?? null,
+      m.tariff_snapshot_per_hour_cents ?? null,
+      m.tariff_snapshot_plena_cents ?? null,
     );
   }
 
@@ -56,6 +66,10 @@ export class ParkingSessionMapper {
       exit_user_id: e.exitUserId,
       amount_due_cents: e.amountDueCents,
       _sync_status: e.syncStatus,
+      tariff_snapshot_name: e.tariffSnapshotName,
+      tariff_snapshot_per_minute_cents: e.tariffSnapshotPerMinuteCents,
+      tariff_snapshot_per_hour_cents: e.tariffSnapshotPerHourCents,
+      tariff_snapshot_plena_cents: e.tariffSnapshotPlenaCents,
     };
   }
 }

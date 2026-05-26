@@ -3,70 +3,113 @@ import {
   Component,
   Inject,
   OnInit,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   LIST_INVOICES_TOKEN,
-  REISSUE_INVOICE_TOKEN,
+  REPRINT_TICKET_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { ListInvoicesUseCase } from '../../domain/usecases/list-invoices.usecase';
-import { ReissueInvoiceUseCase } from '../../domain/usecases/reissue-invoice.usecase';
-import { InvoiceEntity, DianStatus } from '../../domain/entities/invoice.entity';
+import { ReprintTicketUseCase } from '../../domain/usecases/reprint-ticket.usecase';
+import { ListInvoicesRow } from '../../domain/repositories/invoicing.repository';
 import { ToastService } from '../../../../core/services/toast.service';
 
-const STATUS_LABEL: Record<DianStatus, string> = {
-  pending: 'Pendiente',
-  sent: 'Enviado',
-  accepted: 'Aceptado',
-  rejected: 'Rechazado',
-  contingency: 'Contingencia',
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  efectivo: 'Efectivo',
+  tarjeta_credito: 'Tarjeta crédito',
+  tarjeta_debito: 'Tarjeta débito',
+  transferencia: 'Transferencia',
+  nequi: 'Nequi',
+  daviplata: 'Daviplata',
+  cortesia: 'Cortesía',
+  mensual: 'Mensualidad',
+  error: 'Cobro corregido',
 };
 
 @Component({
   selector: 'app-invoices-list-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './invoices-list.page.html',
   styleUrl: './invoices-list.page.scss',
 })
 export class InvoicesListPageComponent implements OnInit {
   loading = signal(true);
-  reissuing = signal(false);
+  reprinting = signal<string | null>(null);
   errorMsg = signal<string | null>(null);
-  invoices = signal<InvoiceEntity[]>([]);
+  rows = signal<ListInvoicesRow[]>([]);
   page = signal(1);
   totalPages = signal(1);
 
+  filtersForm: FormGroup;
+
+  protected readonly methodOptions = Object.keys(PAYMENT_METHOD_LABEL);
+  protected methodLabel(m: string | null): string {
+    return m ? (PAYMENT_METHOD_LABEL[m] ?? m) : '—';
+  }
+
+  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+
   constructor(
     @Inject(LIST_INVOICES_TOKEN) private readonly listUC: ListInvoicesUseCase,
-    @Inject(REISSUE_INVOICE_TOKEN) private readonly reissueUC: ReissueInvoiceUseCase,
+    @Inject(REPRINT_TICKET_TOKEN) private readonly reprintUC: ReprintTicketUseCase,
     private readonly toast: ToastService,
-  ) {}
+  ) {
+    this.filtersForm = this.fb.group({
+      dateFrom: [''],
+      dateTo: [''],
+      vehiclePlate: [''],
+      internalNumber: [''],
+      paymentMethod: [''],
+    });
+  }
 
   ngOnInit(): void {
     this.load();
   }
 
-  statusLabel(status: DianStatus): string {
-    return STATUS_LABEL[status] ?? status;
+  applyFilters(): void {
+    this.page.set(1);
+    this.load();
+  }
+
+  clearFilters(): void {
+    this.filtersForm.reset({
+      dateFrom: '', dateTo: '', vehiclePlate: '', internalNumber: '', paymentMethod: '',
+    });
+    this.page.set(1);
+    this.load();
   }
 
   private async load(): Promise<void> {
     this.loading.set(true);
     this.errorMsg.set(null);
 
-    const result = await this.listUC.execute({ page: this.page(), pageSize: 20 });
+    const v = this.filtersForm.value;
+    const result = await this.listUC.execute({
+      page: this.page(),
+      pageSize: 20,
+      ...(v.dateFrom ? { dateFrom: new Date(v.dateFrom + 'T00:00:00-05:00') } : {}),
+      ...(v.dateTo ? { dateTo: new Date(v.dateTo + 'T23:59:59-05:00') } : {}),
+      ...(v.vehiclePlate ? { vehiclePlate: v.vehiclePlate } : {}),
+      ...(v.internalNumber ? { internalNumber: v.internalNumber } : {}),
+      ...(v.paymentMethod ? { paymentMethod: v.paymentMethod } : {}),
+    });
 
     result.fold(
       (f) => {
         this.errorMsg.set(f.message);
-        this.toast.error(`Error al cargar facturas: ${f.message}`);
+        this.toast.error(`Error al cargar tickets: ${f.message}`);
         this.loading.set(false);
       },
       (r) => {
-        this.invoices.set(r.data);
+        this.rows.set(r.data);
         this.totalPages.set(r.pagination.totalPages);
         this.loading.set(false);
       },
@@ -85,19 +128,22 @@ export class InvoicesListPageComponent implements OnInit {
     this.load();
   }
 
-  async reissue(inv: InvoiceEntity): Promise<void> {
-    this.reissuing.set(true);
-    const result = await this.reissueUC.execute({ invoiceId: inv.id });
+  openDetail(row: ListInvoicesRow): void {
+    void this.router.navigate(['/invoicing', row.invoice.id]);
+  }
+
+  async reprint(row: ListInvoicesRow, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    this.reprinting.set(row.invoice.id);
+    const result = await this.reprintUC.execute({ invoiceId: row.invoice.id });
     result.fold(
-      (f) => {
-        this.errorMsg.set(f.message);
-        this.toast.error(`Reintento falló: ${f.message}`);
-      },
-      () => {
-        this.toast.success(`Factura ${inv.number} reenviada a DIAN`);
-        void this.load();
+      (f) => this.toast.error(`No se pudo reimprimir: ${f.message}`),
+      (r) => {
+        if (r.ok) this.toast.success(`Ticket ${row.invoice.internalNumber} enviado a impresión`);
+        else if (r.reason === 'popup_blocked') this.toast.error('Habilita popups del navegador para reimprimir');
+        else this.toast.error('Error renderizando el ticket');
       },
     );
-    this.reissuing.set(false);
+    this.reprinting.set(null);
   }
 }
