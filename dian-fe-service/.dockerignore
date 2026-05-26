@@ -1,8 +1,0 @@
-*.p12
-.env
-__pycache__
-*.pyc
-*.pyo
-.pytest_cache
-tests/
-.git
