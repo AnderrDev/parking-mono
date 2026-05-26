@@ -18,7 +18,6 @@ Las reglas absolutas y la fase activa ya llegan vía hooks en cada turno — no 
 |---|---|---|
 | `parqueadero-web/` | Angular 18 PWA, TypeScript, SCSS, PowerSync (offline-first) | `parqueadero-web/CLAUDE.md` |
 | `parqueadero-backend/` | Supabase (PostgreSQL + RLS + Deno Edge Functions) | `parqueadero-backend/CLAUDE.md` |
-| `dian-fe-service/` | Python 3.12 + FastAPI, Fly.io | `dian-fe-service/CLAUDE.md` |
 
 ## Spec-Driven Development (regla de proyecto)
 
@@ -35,7 +34,6 @@ Specs existentes (extiende, no duplices):
 - `parqueadero-web/specs/components/*.spec.md` (3 components)
 - `parqueadero-web/specs/infrastructure/offline-sync.spec.md`
 - `parqueadero-backend/specs/database-schema.spec.md`, `rls-policies.spec.md`
-- `dian-fe-service/specs/{emit-invoice,cufe-calculation,xades-signature,dian-soap-integration}.spec.md`
 
 ## Clean Architecture
 
@@ -59,10 +57,11 @@ Convenciones de nombres por subproyecto en cada `CLAUDE.md` (Angular: `kebab-cas
 2. Minutos de gracia: sin cobro si sale antes del umbral configurado.
 3. Tope diario: nunca cobrar más del techo configurado.
 4. Plan mensual activo = sesión gratuita.
-5. Numeración de facturas: solo el servidor (Edge Function), nunca el cliente.
-6. Facturación DIAN directa: UBL XML válido + firma XAdES-EPES + CUFE (SHA-384).
-7. Offline-first: escritura local primero, sync después.
-8. Cambios sensibles van a `audit_log` (append-only).
+5. Numeración de tickets internos: solo el servidor (Edge Function), nunca el cliente.
+6. Offline-first: escritura local primero, sync después.
+7. Cambios sensibles van a `audit_log` (append-only).
+
+> **Out of scope:** facturación electrónica DIAN/Siigo (descartada el 2026-05-20). El parqueadero opera como POS con ticket interno numerado, sin firma XAdES ni CUFE.
 
 ## Notas de trabajo
 

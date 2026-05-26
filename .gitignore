@@ -60,3 +60,15 @@ venv/
 # Local auditorias (no commiteables, conservar en disco)
 AUDIT-*.md
 AUDIT-*.html
+
+# Test artifacts
+.playwright-mcp/
+parqueadero-web/.playwright-mcp/
+test-*.png
+test-snap-*.png
+tariffs-*.png
+tmp-test-*.mjs
+
+# Firebase
+.firebase/
+parqueadero-web/.firebase/
