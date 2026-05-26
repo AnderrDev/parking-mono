@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '../../core/guards/auth.guard';
+import { requireRole } from '../../core/guards/role.guard';
 import {
   CASHIER_REPOSITORY_TOKEN,
   CASHIER_REMOTE_DATASOURCE_TOKEN,
@@ -28,7 +29,7 @@ export const paymentsRoutes: Routes = [
   {
     path: '',
     providers: paymentsProviders,
-    canActivate: [authGuard],
+    canActivate: [authGuard, requireRole('admin', 'contador')],
     loadComponent: () =>
       import('./presentation/pages/payments-history.page').then((m) => m.PaymentsHistoryPageComponent),
     data: { title: 'Historial de cobros' },

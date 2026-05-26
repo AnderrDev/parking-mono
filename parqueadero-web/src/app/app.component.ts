@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, ViewContainerRef, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, ViewContainerRef, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -15,13 +15,42 @@ import { LOGOUT_USECASE_TOKEN } from './core/di/injection-tokens';
 import { LogoutUseCase } from './features/auth/domain/usecases/logout.usecase';
 import { NoParams } from './core/base/usecase';
 
+type AppRole = 'admin' | 'operador' | 'contador';
+
 interface NavItem {
   path: string;
   label: string;
   icon: string;
   ariaLabel: string;
   group: 'main' | 'admin';
+  /** Roles que ven este link. Si se omite, todos los autenticados lo ven. */
+  roles?: AppRole[];
 }
+
+const ROLE_LABEL: Record<AppRole, string> = {
+  admin: 'Admin',
+  operador: 'Operador',
+  contador: 'Contador',
+};
+
+/**
+ * Visibilidad del sidebar por rol. Debe estar alineada con los guards
+ * `requireRole(...)` en las routes correspondientes — el sidebar es la
+ * primera línea de defensa (UX), las routes son la segunda (seguridad).
+ *
+ * Si un path no aparece aquí, es visible para todos los autenticados.
+ */
+const NAV_ROLES: Record<string, AppRole[]> = {
+  '/dashboard':       ['admin', 'contador'],
+  '/payments':        ['admin', 'contador'],
+  '/reports':         ['admin', 'contador'],
+  '/tariffs':         ['admin'],
+  '/cashier/history': ['admin', 'contador'],
+  '/audit':           ['admin', 'contador'],
+  '/parking/history': ['admin', 'contador'],
+  '/settings':        ['admin'],
+  '/users':           ['admin'],
+};
 
 const NAV_ITEMS: NavItem[] = [
   // --- Operación diaria ---
@@ -145,8 +174,31 @@ const NAV_ITEMS: NavItem[] = [
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  protected readonly mainNavItems = NAV_ITEMS.filter(i => i.group === 'main');
-  protected readonly adminNavItems = NAV_ITEMS.filter(i => i.group === 'admin');
+  /** Filtra NAV_ITEMS según el rol actual del usuario.
+   *  - Items sin entry en NAV_ROLES son visibles para cualquier autenticado.
+   *  - Items con roles definidos solo aparecen si el rol del user está en la lista.
+   *  - Sin user (pre-login) no se muestra nada — el shell tampoco se renderiza. */
+  private readonly visibleNavItems = computed<NavItem[]>(() => {
+    const role = this.authState.role() as AppRole | null;
+    if (!role) return [];
+    return NAV_ITEMS.filter((item) => {
+      const allowed = NAV_ROLES[item.path];
+      return !allowed || allowed.includes(role);
+    });
+  });
+
+  protected readonly mainNavItems = computed(() =>
+    this.visibleNavItems().filter((i) => i.group === 'main'),
+  );
+  protected readonly adminNavItems = computed(() =>
+    this.visibleNavItems().filter((i) => i.group === 'admin'),
+  );
+
+  /** Label del brand-tag basado en el rol actual ("Admin", "Operador", "Contador"). */
+  protected readonly roleLabel = computed(() => {
+    const role = this.authState.role() as AppRole | null;
+    return role ? ROLE_LABEL[role] : '';
+  });
 
   private readonly router = inject(Router);
   protected readonly networkInfo = inject(NetworkInfoService);

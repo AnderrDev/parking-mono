@@ -15,7 +15,9 @@
             </span>
             <div class="sidebar__brand-text">
               <span class="sidebar__brand-name">Parqueadero</span>
-              <span class="sidebar__brand-tag">Admin</span>
+              @if (roleLabel()) {
+                <span class="sidebar__brand-tag">{{ roleLabel() }}</span>
+              }
             </div>
           </div>
 
@@ -23,7 +25,7 @@
             <div class="sidebar__group">
               <h2 class="sidebar__group-title">Operación</h2>
               <ul class="sidebar__list" role="list">
-                @for (item of mainNavItems; track item.path) {
+                @for (item of mainNavItems(); track item.path) {
                   <li>
                     <a
                       class="sidebar__link"
@@ -51,10 +53,11 @@
               </ul>
             </div>
 
+            @if (adminNavItems().length > 0) {
             <div class="sidebar__group">
               <h2 class="sidebar__group-title">Administración</h2>
               <ul class="sidebar__list" role="list">
-                @for (item of adminNavItems; track item.path) {
+                @for (item of adminNavItems(); track item.path) {
                   <li>
                     <a
                       class="sidebar__link"
@@ -81,6 +84,7 @@
                 }
               </ul>
             </div>
+            }
           </nav>
 
           @if (currentUser()) {

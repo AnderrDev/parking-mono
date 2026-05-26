@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '../../core/guards/auth.guard';
+import { requireRole } from '../../core/guards/role.guard';
 import {
   REPORT_REPOSITORY_TOKEN,
   REPORT_REMOTE_DATASOURCE_TOKEN,
@@ -28,7 +29,7 @@ export const reportsRoutes: Routes = [
   {
     path: '',
     providers: reportsProviders,
-    canActivate: [authGuard],
+    canActivate: [authGuard, requireRole('admin', 'contador')],
     loadComponent: () =>
       import('./presentation/pages/reports.page').then((m) => m.ReportsPageComponent),
     data: { title: 'Reportes' },

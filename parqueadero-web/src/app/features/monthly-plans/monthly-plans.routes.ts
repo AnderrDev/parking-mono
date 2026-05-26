@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from '../../core/guards/auth.guard';
 import {
   MONTHLY_PLAN_REPOSITORY_TOKEN,
   MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN,
@@ -64,6 +65,7 @@ export const monthlyPlansRoutes: Routes = [
   {
     path: '',
     providers: monthlyPlanProviders,
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./presentation/pages/monthly-plans-list.page').then((m) => m.MonthlyPlansListPageComponent),
   },

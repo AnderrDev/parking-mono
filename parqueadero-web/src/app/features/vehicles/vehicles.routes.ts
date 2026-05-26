@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from '../../core/guards/auth.guard';
 import {
   VEHICLE_REPOSITORY_TOKEN,
   VEHICLE_REMOTE_DATASOURCE_TOKEN,
@@ -33,6 +34,7 @@ export const vehiclesRoutes: Routes = [
   {
     path: '',
     providers: vehicleProviders,
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./presentation/pages/vehicles-list.page').then((m) => m.VehiclesListPageComponent),
   },

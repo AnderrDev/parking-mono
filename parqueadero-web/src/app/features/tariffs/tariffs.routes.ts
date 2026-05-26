@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { authGuard } from '../../core/guards/auth.guard';
+import { requireRole } from '../../core/guards/role.guard';
 import {
   TARIFF_REPOSITORY_TOKEN,
   TARIFF_REMOTE_DATASOURCE_TOKEN,
@@ -27,6 +29,7 @@ export const tariffsRoutes: Routes = [
   {
     path: '',
     providers: tariffProviders,
+    canActivate: [authGuard, requireRole('admin')],
     loadComponent: () =>
       import('./presentation/pages/tariffs-list.page').then((m) => m.TariffsListPageComponent),
   },
