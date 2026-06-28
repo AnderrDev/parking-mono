@@ -15,12 +15,14 @@ import {
   CANCEL_SESSION_TOKEN,
   GET_OPEN_SHIFT_STATUS_TOKEN,
   GET_VEHICLE_HISTORY_STATS_TOKEN,
+  TICKET_RENDERER_TOKEN,
   MONTHLY_PLAN_REPOSITORY_TOKEN,
   MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN,
   LIST_MONTHLY_PLANS_TOKEN,
 } from '../../core/di/injection-tokens';
 import { ParkingRemoteDataSource } from './data/datasources/parking-remote.datasource';
 import { ParkingRepositoryImpl } from './data/repositories/parking.repository.impl';
+import { TicketRendererService } from './data/services/ticket-renderer.service';
 import { RegisterVehicleEntryUseCase } from './domain/usecases/register-vehicle-entry.usecase';
 import { RegisterVehicleExitUseCase } from './domain/usecases/register-vehicle-exit.usecase';
 import { GetActiveSessionsUseCase } from './domain/usecases/get-active-sessions.usecase';
@@ -51,8 +53,7 @@ const parkingProviders = [
   { provide: GET_ACTIVE_TARIFF_TOKEN, useClass: GetActiveTariffUseCase },
   { provide: GET_OPEN_SHIFT_STATUS_TOKEN, useClass: GetOpenShiftStatusUseCase },
   { provide: GET_VEHICLE_HISTORY_STATS_TOKEN, useClass: GetVehicleHistoryStatsUseCase },
-  // Use case route-scoped por el flujo de entrada, pero el renderer es root-scoped
-  // porque también se usa desde invoicing, payments y settings.
+  { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
   PrintEntryTicketUseCase,
   // HU-047: monthly plans panel en la vista del operador.
   { provide: MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN, useClass: MonthlyPlanRemoteDataSource },

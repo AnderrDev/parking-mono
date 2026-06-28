@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import qz from 'qz-tray';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 
 interface QzSigningResponse {
@@ -35,6 +34,7 @@ export class QzSigningService {
       const certificate = response.certificate?.trim();
       if (!certificate) throw new Error('Supabase no devolvió el certificado de QZ Tray');
 
+      const qz = await loadQz();
       qz.security.setCertificatePromise(Promise.resolve(certificate), { rejectOnFailure: true });
       qz.security.setSignatureAlgorithm('SHA512');
       qz.security.setSignaturePromise((request) => (resolve, reject) => {
@@ -69,4 +69,8 @@ export class QzSigningService {
     if (!data) throw new Error('Respuesta vacía de la función qz-sign');
     return data;
   }
+}
+
+async function loadQz(): Promise<typeof import('qz-tray').default> {
+  return (await import('qz-tray')).default;
 }

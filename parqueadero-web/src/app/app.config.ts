@@ -30,11 +30,9 @@ import {
   REQUEST_INVOICE_TOKEN,
   LIST_INVOICES_TOKEN,
   GET_INVOICE_DETAIL_TOKEN,
-  REPRINT_TICKET_TOKEN,
   SETTINGS_DATASOURCE_TOKEN,
   SETTINGS_REPOSITORY_TOKEN,
   GET_SETTING_TOKEN,
-  TICKET_RENDERER_TOKEN,
 } from './core/di/injection-tokens';
 import { AuthRemoteDataSource } from './features/auth/data/datasources/auth-remote.datasource';
 import { AuthRepositoryImpl } from './features/auth/data/repositories/auth.repository.impl';
@@ -54,12 +52,10 @@ import { InvoicingRepositoryImpl } from './features/invoicing/data/repositories/
 import { RequestInvoiceUseCase } from './features/invoicing/domain/usecases/request-invoice.usecase';
 import { ListInvoicesUseCase } from './features/invoicing/domain/usecases/list-invoices.usecase';
 import { GetInvoiceDetailUseCase } from './features/invoicing/domain/usecases/get-invoice-detail.usecase';
-import { ReprintTicketUseCase } from './features/invoicing/domain/usecases/reprint-ticket.usecase';
 import { SettingsRemoteDataSource } from './features/settings/data/datasources/settings-remote.datasource';
 import { SettingsRepositoryImpl } from './features/settings/data/repositories/settings.repository.impl';
 import { GetSettingUseCase } from './features/settings/domain/usecases/get-setting.usecase';
 import { SyncOrchestrator } from './core/services/sync-orchestrator.service';
-import { TicketRendererService } from './features/parking/data/services/ticket-renderer.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -97,8 +93,6 @@ export const appConfig: ApplicationConfig = {
     { provide: REQUEST_INVOICE_TOKEN, useClass: RequestInvoiceUseCase },
     { provide: LIST_INVOICES_TOKEN, useClass: ListInvoicesUseCase },
     { provide: GET_INVOICE_DETAIL_TOKEN, useClass: GetInvoiceDetailUseCase },
-    { provide: REPRINT_TICKET_TOKEN, useClass: ReprintTicketUseCase },
-    { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
 
     // Settings (read-only): root-scoped — GetSettingUseCase lo consumen
     // reports, payments y cashier. UpdateSettingUseCase queda en

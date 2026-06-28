@@ -8,7 +8,9 @@ import {
   PAYMENT_REMOTE_DATASOURCE_TOKEN,
   LIST_PAYMENTS_TOKEN,
   REGISTER_PAYMENT_TOKEN,
+  TICKET_RENDERER_TOKEN,
 } from '../../core/di/injection-tokens';
+import { TicketRendererService } from '../parking/data/services/ticket-renderer.service';
 import { CashierRemoteDataSource } from '../cashier/data/datasources/cashier-remote.datasource';
 import { CashierRepositoryImpl } from '../cashier/data/repositories/cashier.repository.impl';
 import { PaymentRemoteDataSource } from './data/datasources/payment-remote.datasource';
@@ -23,6 +25,7 @@ const paymentsProviders = [
   { provide: PAYMENT_REPOSITORY_TOKEN, useClass: PaymentRepositoryImpl },
   { provide: LIST_PAYMENTS_TOKEN, useClass: ListPaymentsUseCase },
   { provide: REGISTER_PAYMENT_TOKEN, useClass: RegisterPaymentUseCase },
+  { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
 ];
 
 export const paymentsRoutes: Routes = [

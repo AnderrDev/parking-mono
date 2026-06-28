@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import qz from 'qz-tray';
 import { QzSigningService } from './qz-signing.service';
 import { getQzPrintErrorMessage } from './qz-print-error';
 
@@ -32,7 +31,7 @@ export class QzParkingPrinterService {
     options: QzParkingPrintOptions = {},
   ): Promise<void> {
     try {
-      await this.ensureConnected();
+      const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
       const config = qz.configs.create(printerName, { jobName });
       await qz.print(config, [
@@ -46,7 +45,7 @@ export class QzParkingPrinterService {
 
   async openCashDrawer(configuredPrinterName: string): Promise<void> {
     try {
-      await this.ensureConnected();
+      const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
       const config = qz.configs.create(printerName, { jobName: 'Parqueadero abrir caja' });
       await qz.print(config, [CASH_DRAWER_PULSE]);
@@ -55,8 +54,9 @@ export class QzParkingPrinterService {
     }
   }
 
-  private async ensureConnected(): Promise<void> {
-    if (qz.websocket.isActive()) return;
+  private async ensureConnected(): Promise<typeof import('qz-tray').default> {
+    const qz = await loadQz();
+    if (qz.websocket.isActive()) return qz;
     if (!this.connectionPromise) {
       this.connectionPromise = this.signing
         .configureIfAvailable()
@@ -66,6 +66,7 @@ export class QzParkingPrinterService {
         });
     }
     await this.connectionPromise;
+    return qz;
   }
 
   private async findPrinter(configuredPrinterName: string): Promise<string> {
@@ -82,6 +83,7 @@ export class QzParkingPrinterService {
   }
 
   private async resolvePrinter(configuredPrinterName: string): Promise<string> {
+    const qz = await loadQz();
     const configured = configuredPrinterName.trim();
     if (!configured) return this.autoDetectPrinter();
 
@@ -96,6 +98,7 @@ export class QzParkingPrinterService {
   }
 
   private async autoDetectPrinter(): Promise<string> {
+    const qz = await loadQz();
     const found = await qz.printers.find();
     const printers = (typeof found === 'string' ? [found] : found).filter(Boolean);
     if (!printers.length) throw new Error('No se encontraron impresoras instaladas');
@@ -111,6 +114,10 @@ export class QzParkingPrinterService {
     if (!firstPrinter) throw new Error('No se encontraron impresoras instaladas');
     return firstPrinter;
   }
+}
+
+async function loadQz(): Promise<typeof import('qz-tray').default> {
+  return (await import('qz-tray')).default;
 }
 
 export function chooseAutoDetectedPrinter(
