@@ -208,14 +208,6 @@
     }
   </section>
 
-  <app-receipt-card
-    [receipt]="lastReceipt()"
-    (dismissed)="dismissReceipt()"
-    (printRequested)="reprintReceipt()"
-    (paused)="pauseReceiptDismiss()"
-    (resumed)="resumeReceiptDismiss()"
-  />
-
   <app-monthly-plans-panel
     class="dashboard__monthly"
     [plans]="monthlyPlans()"
@@ -286,19 +278,30 @@
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                class="exit-btn"
-                (click)="openExitDialog(session)"
-                [disabled]="cashRegisterClosed()"
-                [attr.aria-label]="'Registrar salida de ' + session.vehiclePlate"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
-                </svg>
-                Salida
-              </button>
+              <div class="session-card__actions">
+                <button
+                  type="button"
+                  class="ticket-btn"
+                  (click)="reprintEntryTicket(session, $event)"
+                  [disabled]="reprintingEntryTicket() === session.id"
+                  [attr.aria-label]="'Reimprimir ticket de ' + session.vehiclePlate"
+                >
+                  {{ reprintingEntryTicket() === session.id ? '…' : 'Ticket' }}
+                </button>
+                <button
+                  type="button"
+                  class="exit-btn"
+                  (click)="openExitDialog(session)"
+                  [disabled]="cashRegisterClosed()"
+                  [attr.aria-label]="'Registrar salida de ' + session.vehiclePlate"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+                  </svg>
+                  Salida
+                </button>
+              </div>
             </li>
           }
         </ul>

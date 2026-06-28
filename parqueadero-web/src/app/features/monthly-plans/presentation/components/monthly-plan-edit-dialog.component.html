@@ -33,7 +33,7 @@
           </div>
 
           <div class="field">
-            <label class="field__label" for="p-customer">Cliente</label>
+            <label class="field__label" for="p-customer">Cliente <span class="field__hint-inline">(opcional)</span></label>
             @if (selectedCustomer(); as c) {
               <div class="customer-chip">
                 <div class="customer-chip__info">
@@ -111,7 +111,7 @@
                 type="text"
                 [value]="customerQuery()"
                 (input)="onCustomerSearch($event)"
-                placeholder="Buscar por nombre o documento (mín. 3 letras)"
+                placeholder="Buscar por nombre o documento (opcional)"
                 autocomplete="off"
                 [attr.aria-describedby]="err('customerId') ? 'p-customer-err' : null" />
 
@@ -142,9 +142,9 @@
                 + Crear cliente nuevo
               </button>
 
-              @if (err('customerId')) {
-                <span id="p-customer-err" class="field__error" role="alert">{{ errMsg('customerId') }}</span>
-              }
+              <span class="field__hint-inline field__hint-inline--block">
+                Si no seleccionas cliente, se usará Cliente General.
+              </span>
             }
           </div>
 

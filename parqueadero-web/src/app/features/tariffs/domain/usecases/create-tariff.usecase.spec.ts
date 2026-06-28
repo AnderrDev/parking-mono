@@ -56,9 +56,9 @@ describe('CreateTariffUseCase', () => {
     graceMinutes: 10,
     dailyCapCents: 30_000_000,
     // Tiered fields requeridos para parking (post tariff-tiered-pricing).
-    perMinuteCents: 8333,    // ≈ valueCents/60
+    perMinuteCents: 8334,    // Redondeado hacia arriba para que 60 min cubran la hora.
     perHourCents:   500_000,
-    plenaCents:     30_000_000,
+    plenaCents:     12_000_000,
     ...overrides,
   });
 
@@ -131,8 +131,12 @@ describe('CreateTariffUseCase', () => {
     expect((result.fold(f => f, () => null) as ValidationFailure).field).toBe('dailyCapCents');
   });
 
-  it('ValidationFailure: dailyCapCents <= valueCents', async () => {
-    const result = await usecase.execute(baseParams({ valueCents: 500_000, dailyCapCents: 500_000 }));
+  it('ValidationFailure: dailyCapCents <= valueCents en mensualidad', async () => {
+    const result = await usecase.execute(baseParams({
+      unit: 'mensualidad',
+      valueCents: 500_000,
+      dailyCapCents: 500_000,
+    }));
     expect(result.isLeft()).toBeTrue();
     expect((result.fold(f => f, () => null) as ValidationFailure).field).toBe('dailyCapCents');
   });

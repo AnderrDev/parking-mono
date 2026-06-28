@@ -29,7 +29,7 @@ export const tariffsRoutes: Routes = [
   {
     path: '',
     providers: tariffProviders,
-    canActivate: [authGuard, requireRole('admin')],
+    canActivate: [authGuard, requireRole('admin', 'operador')],
     loadComponent: () =>
       import('./presentation/pages/tariffs-list.page').then((m) => m.TariffsListPageComponent),
   },

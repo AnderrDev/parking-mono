@@ -12,7 +12,6 @@ import {
   signal,
 } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
-import { RouterLink } from '@angular/router';
 import {
   BusinessRuleFailure,
   NetworkFailure,
@@ -85,12 +84,11 @@ import {
 } from '../components/vehicle-exit-dialog.component';
 import { ShiftStatusBannerComponent, ShiftBannerState } from '../components/shift-status-banner.component';
 import { TariffsBarComponent } from '../components/tariffs-bar.component';
-import { ReceiptCardComponent, ExitReceipt } from '../components/receipt-card.component';
 import { VehicleHistoryPanelComponent } from '../components/vehicle-history-panel.component';
 import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
-import { TicketRendererPort } from '../../domain/services/ticket-renderer.port';
+import { ExitReceiptPrintData, TicketRendererPort } from '../../domain/services/ticket-renderer.port';
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -99,18 +97,14 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   otro: 'Otro',
 };
 
-// ExitReceipt → ahora vive en `receipt-card.component.ts` y se importa.
-
 @Component({
   selector: 'app-operator-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LoadingSpinnerComponent,
-    RouterLink,
     ShiftStatusBannerComponent,
     TariffsBarComponent,
-    ReceiptCardComponent,
     VehicleHistoryPanelComponent,
     MonthlyPlansPanelComponent,
   ],
@@ -121,7 +115,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly sessionsLoading = signal(false);
   readonly activeSessions = signal<ParkingSessionEntity[]>([]);
   readonly monthlyPlanWarning = signal<string | null>(null);
-  readonly lastReceipt = signal<ExitReceipt | null>(null);
+  readonly reprintingEntryTicket = signal<string | null>(null);
 
 
   // Estado de la caja del operador. Se carga al ngOnInit y bloquea la entrada
@@ -165,8 +159,6 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     this.tariffsLoaded() ? Array.from(this.activeTariffs().keys()) : null,
   );
 
-  private receiptDismissTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly RECEIPT_AUTO_DISMISS_MS = 12_000;
 
   // HU-014: buscador por placa con autocomplete
   readonly plateSearchQuery = signal('');
@@ -398,29 +390,6 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.plateSearchTimer) clearTimeout(this.plateSearchTimer);
-    if (this.receiptDismissTimer) clearTimeout(this.receiptDismissTimer);
-  }
-
-  // Programa auto-dismiss del comprobante para que no se quede colgado en
-  // pantalla. Si el cajero quiere imprimirlo o leerlo de cerca, hace hover
-  // o pulsa el botón antes de los 12 s.
-  private scheduleReceiptDismiss(): void {
-    if (this.receiptDismissTimer) clearTimeout(this.receiptDismissTimer);
-    this.receiptDismissTimer = setTimeout(() => {
-      this.lastReceipt.set(null);
-      this.receiptDismissTimer = null;
-    }, OperatorDashboardPageComponent.RECEIPT_AUTO_DISMISS_MS);
-  }
-
-  protected pauseReceiptDismiss(): void {
-    if (this.receiptDismissTimer) {
-      clearTimeout(this.receiptDismissTimer);
-      this.receiptDismissTimer = null;
-    }
-  }
-
-  protected resumeReceiptDismiss(): void {
-    if (this.lastReceipt()) this.scheduleReceiptDismiss();
   }
 
   // HU-014: autocomplete con debounce. El input dispara una búsqueda de
@@ -651,7 +620,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
         }
         this.toast.success(`Vehículo ${closedSession.vehiclePlate} salió${amountStr}${changeStr}`);
 
-        const receipt: ExitReceipt = {
+        const receipt: ExitReceiptPrintData = {
           plate: closedSession.vehiclePlate,
           vehicleType: closedSession.vehicleType,
           entryAt: closedSession.entryAt,
@@ -665,9 +634,6 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           // mientras no haya cambios de tarifa entre entrada y salida.
           tariffSnapshot: this.activeTariffs().get(closedSession.vehicleType) ?? null,
         };
-        this.lastReceipt.set(receipt);
-        this.scheduleReceiptDismiss();
-
         // HU-031 v1.1: auto-impresión del comprobante por QZ Tray. Si falla,
         // la salida queda registrada y se informa al cajero.
         void this.printReceipt(receipt);
@@ -689,19 +655,11 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     );
   }
 
-  protected dismissReceipt(): void {
-    if (this.receiptDismissTimer) {
-      clearTimeout(this.receiptDismissTimer);
-      this.receiptDismissTimer = null;
-    }
-    this.lastReceipt.set(null);
-  }
-
   /**
    * Imprime el comprobante delegando al ticket-renderer QZ.
    * Retorna true si QZ aceptó el trabajo.
    */
-  protected async printReceipt(r: ExitReceipt): Promise<boolean> {
+  protected async printReceipt(r: ExitReceiptPrintData): Promise<boolean> {
     const result = await this.ticketRenderer.printExitReceipt(r);
     if (!result.ok) {
       this.toast.error(result.message ?? 'No se pudo imprimir el comprobante por QZ Tray.');
@@ -709,10 +667,23 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     return result.ok;
   }
 
-  /** Wrapper para el template (`receipt-card.printRequested`) — no propaga el Promise. */
-  protected reprintReceipt(): void {
-    const r = this.lastReceipt();
-    if (r) void this.printReceipt(r);
+  protected async reprintEntryTicket(session: ParkingSessionEntity, event: Event): Promise<void> {
+    event.stopPropagation();
+    if (this.reprintingEntryTicket()) return;
+
+    this.reprintingEntryTicket.set(session.id);
+    try {
+      const tariff = this.activeTariffs().get(session.vehicleType) ?? null;
+      const result = await this.ticketRenderer.renderAndPrint(session, tariff);
+
+      if (result.ok) {
+        this.toast.success(`Ticket de ${session.vehiclePlate} enviado a impresión`);
+      } else {
+        this.toast.error(result.message ?? 'No se pudo reimprimir el ticket de entrada.');
+      }
+    } finally {
+      this.reprintingEntryTicket.set(null);
+    }
   }
 
 
@@ -749,7 +720,6 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
 
   private handleEntryRegistered(result: VehicleEntryModalResult): void {
     const { session, monthlyPlanWarning, ticketPrinted, ticketError } = result;
-    this.lastReceipt.set(null);
     this.activeSessions.update((prev) => [session, ...prev]);
     this.toast.success(
       `Vehículo ${session.vehiclePlate} registrado a las ${session.entryAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`,

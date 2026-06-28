@@ -24,6 +24,12 @@ import { normalizePlate } from '../../../../shared/utils/plate.utils';
 import { todayIsoBogota } from '../../../../shared/utils/date.utils';
 import { DOC_TYPES, VEHICLE_TYPES, PLAN_TYPES, PAYMENT_METHODS_PLAN } from '../../../../shared/constants/form-options';
 
+const DEFAULT_CUSTOMER = {
+  name: 'Cliente General',
+  docType: 'cedula' as DocType,
+  docNumber: '9999999999',
+};
+
 export interface MonthlyPlanDialogData {
   plan: MonthlyPlanEntity | null;
   /**
@@ -299,6 +305,15 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const value = this.form.getRawValue() as MonthlyPlanFormValue;
+    if (!this.isEdit && !value.customerId) {
+      this.submitting.set(true);
+      this.submitError.set(null);
+      const customer = await this.ensureDefaultCustomer();
+      this.submitting.set(false);
+      if (!customer) return;
+      this.selectCustomer(customer);
+      value.customerId = customer.id;
+    }
 
     // Si el padre proveyó onSubmit, dejamos que ejecute el use case y
     // mantenemos el dialog abierto en caso de error inline. Es el patrón
@@ -328,4 +343,31 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
   }
 
   protected cancel(): void { this.dialogRef.close(null); }
+
+  private async ensureDefaultCustomer(): Promise<CustomerEntity | null> {
+    const existing = await this.listCustomers.execute({
+      search: DEFAULT_CUSTOMER.docNumber,
+      includeDeleted: false,
+      pagination: { page: 1, pageSize: 1 },
+    });
+    const found = existing.fold(
+      () => null,
+      (result) => result.data[0] ?? null,
+    );
+    if (found) return found;
+
+    const created = await this.createCustomer.execute({
+      name: DEFAULT_CUSTOMER.name,
+      docType: DEFAULT_CUSTOMER.docType,
+      docNumber: DEFAULT_CUSTOMER.docNumber,
+      dv: null,
+    });
+    return created.fold(
+      (failure) => {
+        this.submitError.set(`No se pudo preparar Cliente General: ${failure.message}`);
+        return null;
+      },
+      (customer) => customer,
+    );
+  }
 }

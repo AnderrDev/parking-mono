@@ -44,7 +44,7 @@ const NAV_ROLES: Record<string, AppRole[]> = {
   '/dashboard':       ['admin', 'contador'],
   '/payments':        ['admin', 'contador', 'operador'],
   '/reports':         ['admin', 'contador'],
-  '/tariffs':         ['admin'],
+  '/tariffs':         ['admin', 'operador'],
   '/cashier/history': ['admin', 'contador'],
   '/audit':           ['admin', 'contador'],
   '/parking/history': ['admin', 'contador'],

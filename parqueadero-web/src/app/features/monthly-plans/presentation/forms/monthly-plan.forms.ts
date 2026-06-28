@@ -22,7 +22,7 @@ export class MonthlyPlanForms {
   }>): FormGroup {
     return this.fb.group({
       vehiclePlate: [defaults?.vehiclePlate ?? '', [Validators.required, plateValidator()]],
-      customerId: [defaults?.customerId ?? '', Validators.required],
+      customerId: [defaults?.customerId ?? ''],
       planType: [defaults?.planType ?? 'basico', Validators.required],
       // Tipo de vehículo: dispara la tarifa de mensualidad en el dialog.
       vehicleType: [defaults?.vehicleType ?? 'carro', Validators.required],

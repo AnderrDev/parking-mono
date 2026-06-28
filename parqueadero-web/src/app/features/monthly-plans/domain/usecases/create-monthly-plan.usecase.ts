@@ -27,11 +27,12 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
   ) { super(); }
 
   async execute(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
-    const plate = normalizePlate(params.vehiclePlate ?? '');
+    const rawPlate = params.vehiclePlate ?? '';
 
-    if (!isValidPlate(plate)) {
+    if (!isValidPlate(rawPlate)) {
       return left(new ValidationFailure('Formato de placa inválido'));
     }
+    const plate = normalizePlate(rawPlate);
     if (!PLAN_TYPES.includes(params.planType)) {
       return left(new ValidationFailure('Tipo de plan inválido. Use: basico, premium o ilimitado'));
     }

@@ -43,9 +43,7 @@ export class RegisterVehicleEntryUseCase extends UseCase<
       return left(new ValidationFailure('La placa es obligatoria', 'plate'));
     }
 
-    const normalized = normalizePlate(params.plate);
-
-    if (!isValidPlate(normalized)) {
+    if (!isValidPlate(params.plate)) {
       return left(
         new ValidationFailure(
           `La placa ${params.plate} no cumple el formato colombiano esperado (ABC123 o ABC12D).`,
@@ -53,6 +51,7 @@ export class RegisterVehicleEntryUseCase extends UseCase<
         ),
       );
     }
+    const normalized = normalizePlate(params.plate);
 
     // 2. Validate vehicle type
     const validTypes: VehicleType[] = ['carro', 'moto', 'bicicleta', 'otro'];
