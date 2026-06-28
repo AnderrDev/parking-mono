@@ -8,8 +8,8 @@ export class AuthForms {
   createLoginForm(): FormGroup {
     // Usuario fijo para el operador del despliegue actual.
     return this.fb.group({
-      email: ['admin@parqueadero.com', [Validators.required, Validators.email]],
-      password: ['ParqueaderoAdmin2026!', [Validators.required, Validators.minLength(6)]],
+      email: ['general@parqueadero.com', [Validators.required, Validators.email]],
+      password: ['ParqueaderoGeneral2026!', [Validators.required, Validators.minLength(6)]],
     });
   }
 
