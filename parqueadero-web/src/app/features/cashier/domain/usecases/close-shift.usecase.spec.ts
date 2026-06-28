@@ -6,31 +6,6 @@ import { CashWithdrawalEntity } from '../entities/cash-withdrawal.entity';
 import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { left, right } from '../../../../core/either/either';
 import { NetworkFailure, NotFoundFailure, ServerFailure, ValidationFailure } from '../../../../core/either/failures';
-import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
-import { AppSettingEntity, OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
-
-class MockGetSetting extends GetSettingUseCase {
-  diffThresholdCents: number | undefined = undefined;
-  constructor() {
-    // @ts-expect-error mock no necesita el repository real
-    super(undefined);
-  }
-  override async execute(_params: { key: string }) {
-    const value: OperationalConfigValue = {
-      cash_cap_cents: 50_000_000,
-      monthly_grace_days: 3,
-      max_courtesies_per_shift: 3,
-      admin_email: '',
-      enabled_payment_methods: [],
-      ...(this.diffThresholdCents !== undefined
-        ? { diff_threshold_cents: this.diffThresholdCents }
-        : {}),
-    };
-    return right<AppSettingEntity | null>(
-      new AppSettingEntity('operational_config', value, null, new Date()),
-    );
-  }
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,7 +80,7 @@ describe('CloseShiftUseCase', () => {
   beforeEach(() => {
     cashierRepo = new MockCashierRepository();
     paymentRepo = new MockPaymentRepository();
-    usecase = new CloseShiftUseCase(cashierRepo, paymentRepo, new MockGetSetting());
+    usecase = new CloseShiftUseCase(cashierRepo, paymentRepo);
   });
 
   it('happy path: cierra turno sin diferencia', async () => {
@@ -153,26 +128,24 @@ describe('CloseShiftUseCase', () => {
     expect(result.fold(f => f, () => null)).toBeInstanceOf(NotFoundFailure);
   });
 
-  it('ValidationFailure: diferencia supera $5.000 sin justificación', async () => {
+  it('happy path: permite sobrante grande sin justificación', async () => {
     cashierRepo.findByIdResult = Promise.resolve(right(makeShift({ openingBalanceCents: 0 }) as CashierShiftEntity | null));
     paymentRepo.sumCashResult = Promise.resolve(right(0));
     const result = await usecase.execute(baseParams({
       closingBalanceCents: 600_001,
       justification: null,
     }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
+    expect(result.isRight()).toBeTrue();
   });
 
-  it('ValidationFailure: diferencia > umbral con justificación vacía', async () => {
+  it('happy path: permite faltante grande sin justificación', async () => {
     cashierRepo.findByIdResult = Promise.resolve(right(makeShift({ openingBalanceCents: 0 }) as CashierShiftEntity | null));
-    paymentRepo.sumCashResult = Promise.resolve(right(0));
+    paymentRepo.sumCashResult = Promise.resolve(right(600_001));
     const result = await usecase.execute(baseParams({
-      closingBalanceCents: 600_001,
+      closingBalanceCents: 0,
       justification: '   ',
     }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
+    expect(result.isRight()).toBeTrue();
   });
 
   it('propaga Left de findById', async () => {

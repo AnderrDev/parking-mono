@@ -110,12 +110,12 @@ export class CashierShiftPageComponent implements OnInit {
 
   showJustification = computed(() => {
     const diff = this.differenceDisplay();
-    return diff !== null && Math.abs(diff) > 500_000;
+    return diff !== null && diff !== 0;
   });
 
   isDiffLarge = computed(() => {
     const diff = this.differenceDisplay();
-    return diff !== null && Math.abs(diff) > 500_000;
+    return diff !== null && diff !== 0;
   });
 
   constructor(

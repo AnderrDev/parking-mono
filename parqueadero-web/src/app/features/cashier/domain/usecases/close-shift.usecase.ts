@@ -5,13 +5,10 @@ import { Failure, NotFoundFailure, ValidationFailure } from '../../../../core/ei
 import {
   CASHIER_REPOSITORY_TOKEN,
   PAYMENT_REPOSITORY_TOKEN,
-  GET_SETTING_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { CashierShiftEntity } from '../entities/cashier-shift.entity';
 import { CashierRepository } from '../repositories/cashier.repository';
 import { PaymentRepository } from '../../../payments/domain/repositories/payment.repository';
-import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
-import { OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
 
 export interface CloseShiftParams {
   shiftId: string;
@@ -20,14 +17,11 @@ export interface CloseShiftParams {
   justification: string | null;
 }
 
-const DEFAULT_DIFF_THRESHOLD_CENTS = 500_000;
-
 @Injectable()
 export class CloseShiftUseCase extends UseCase<CloseShiftParams, CashierShiftEntity> {
   constructor(
     @Inject(CASHIER_REPOSITORY_TOKEN) private readonly cashierRepo: CashierRepository,
     @Inject(PAYMENT_REPOSITORY_TOKEN) private readonly paymentRepo: PaymentRepository,
-    @Inject(GET_SETTING_TOKEN) private readonly getSetting: GetSettingUseCase,
   ) {
     super();
   }
@@ -62,32 +56,12 @@ export class CloseShiftUseCase extends UseCase<CloseShiftParams, CashierShiftEnt
     const expected = shift.openingBalanceCents + cashSum - withdrawalsTotal;
     const difference = params.closingBalanceCents - expected;
 
-    const threshold = await this.loadDiffThreshold();
-    if (Math.abs(difference) > threshold) {
-      const j = params.justification?.trim() ?? '';
-      if (!j) {
-        const thresholdStr = (threshold / 100).toLocaleString('es-CO', {
-          style: 'currency', currency: 'COP', minimumFractionDigits: 0,
-        });
-        return left(new ValidationFailure(
-          `La diferencia supera ${thresholdStr}. Ingresa una justificación.`,
-        ));
-      }
-    }
-
     return this.cashierRepo.close({
       shiftId: params.shiftId,
       closingBalanceCents: params.closingBalanceCents,
       expectedBalanceCents: expected,
       differenceCents: difference,
-      justification: params.justification ?? null,
+      justification: params.justification?.trim() || null,
     });
-  }
-
-  private async loadDiffThreshold(): Promise<number> {
-    const r = await this.getSetting.execute({ key: 'operational_config' });
-    if (r.isLeft() || !r.value) return DEFAULT_DIFF_THRESHOLD_CENTS;
-    const v = (r.value.value as OperationalConfigValue).diff_threshold_cents;
-    return typeof v === 'number' && v > 0 ? v : DEFAULT_DIFF_THRESHOLD_CENTS;
   }
 }
