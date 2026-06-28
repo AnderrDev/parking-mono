@@ -3,6 +3,7 @@ import { QzSigningService } from './qz-signing.service';
 import { getQzPrintErrorMessage } from './qz-print-error';
 
 const CASH_DRAWER_PULSE = '\x1b\x70\x00\x19\xfa';
+const RAW_ESC_POS_ENCODING = 'ISO-8859-1';
 
 export type QzParkingPrintChunk =
   | string
@@ -33,7 +34,7 @@ export class QzParkingPrinterService {
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
-      const config = qz.configs.create(printerName, { jobName });
+      const config = qz.configs.create(printerName, createRawEscPosPrintOptions(jobName));
       await qz.print(config, [
         ...(options.openCashDrawer ? [CASH_DRAWER_PULSE] : []),
         ...chunks,
@@ -47,7 +48,10 @@ export class QzParkingPrinterService {
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
-      const config = qz.configs.create(printerName, { jobName: 'Parqueadero abrir caja' });
+      const config = qz.configs.create(
+        printerName,
+        createRawEscPosPrintOptions('Parqueadero abrir caja'),
+      );
       await qz.print(config, [CASH_DRAWER_PULSE]);
     } catch (error) {
       throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
@@ -128,6 +132,25 @@ export function chooseAutoDetectedPrinter(
   if (thermal) return thermal;
   if (defaultPrinter?.trim()) return defaultPrinter;
   return printers[0] ?? null;
+}
+
+export function createRawEscPosPrintOptions(jobName: string, forceRaw = shouldForceRaw()): {
+  jobName: string;
+  encoding: string;
+  forceRaw?: true;
+} {
+  const options = {
+    jobName,
+    encoding: RAW_ESC_POS_ENCODING,
+  };
+  return forceRaw ? { ...options, forceRaw: true } : options;
+}
+
+function shouldForceRaw(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  const platform = navigator.platform.toLowerCase();
+  const userAgent = navigator.userAgent.toLowerCase();
+  return !platform.includes('win') && !userAgent.includes('windows');
 }
 
 function isLikelyThermalPrinter(name: string): boolean {
