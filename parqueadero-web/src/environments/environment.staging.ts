@@ -9,6 +9,7 @@
 export const environment = {
   production: false,
   staging: true,
+  qzSigningEnabled: false,
   supabaseUrl: '',     // pendiente: crear proyecto staging en Supabase
   supabaseAnonKey: '', // pendiente: anon key del proyecto staging
 };

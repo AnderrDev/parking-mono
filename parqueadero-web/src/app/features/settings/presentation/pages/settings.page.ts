@@ -21,7 +21,11 @@ import {
   ParkingInfoValue,
 } from '../../domain/entities/app-setting.entity';
 import { ToastService } from '../../../../core/services/toast.service';
-import { TicketRendererService } from '../../../parking/data/services/ticket-renderer.service';
+import {
+  ParkingInfo,
+  TicketRendererService,
+} from '../../../parking/data/services/ticket-renderer.service';
+import { QzParkingPrinterDiagnostic } from '../../../parking/data/services/qz-parking-printer.service';
 
 type Tab = 'parking' | 'operational';
 
@@ -41,6 +45,8 @@ export class SettingsPageComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly testingPrinter = signal(false);
   protected readonly openingDrawer = signal(false);
+  protected readonly diagnosingPrinter = signal(false);
+  protected readonly printerDiagnostic = signal<QzParkingPrinterDiagnostic | null>(null);
 
   protected readonly paymentMethods = PAYMENT_METHODS;
 
@@ -106,11 +112,9 @@ export class SettingsPageComponent implements OnInit {
 
   async printTestReceipt(): Promise<void> {
     if (this.parkingForm.invalid || this.testingPrinter()) return;
-    const saved = await this.saveParking();
-    if (!saved) return;
     this.ticketPrinter.invalidateCache();
     this.testingPrinter.set(true);
-    const result = await this.ticketPrinter.printTestReceipt();
+    const result = await this.ticketPrinter.printTestReceipt(this.parkingInfoFromForm());
     this.testingPrinter.set(false);
     if (result.ok) this.toast.success('Prueba enviada a la impresora');
     else this.toast.error(result.message ?? 'No se pudo imprimir la prueba');
@@ -118,14 +122,51 @@ export class SettingsPageComponent implements OnInit {
 
   async openCashDrawer(): Promise<void> {
     if (this.parkingForm.invalid || this.openingDrawer()) return;
-    const saved = await this.saveParking();
-    if (!saved) return;
     this.ticketPrinter.invalidateCache();
     this.openingDrawer.set(true);
-    const result = await this.ticketPrinter.openCashDrawer();
+    const result = await this.ticketPrinter.openCashDrawer(this.parkingInfoFromForm());
     this.openingDrawer.set(false);
     if (result.ok) this.toast.success('Pulso enviado a la caja monedero');
     else this.toast.error(result.message ?? 'No se pudo abrir la caja monedero');
+  }
+
+  async diagnosePrinter(): Promise<void> {
+    if (this.parkingForm.invalid || this.diagnosingPrinter()) return;
+    this.ticketPrinter.invalidateCache();
+    this.diagnosingPrinter.set(true);
+    this.printerDiagnostic.set(null);
+    try {
+      const diagnostic = await this.ticketPrinter.diagnosePrinter(this.parkingInfoFromForm());
+      this.printerDiagnostic.set(diagnostic);
+      if (diagnostic.selectedPrinterName) {
+        this.toast.success(`QZ detectó la impresora ${diagnostic.selectedPrinterName}`);
+      } else {
+        this.toast.warning('QZ conectó, pero no pudo seleccionar una impresora');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.toast.error(message);
+    } finally {
+      this.diagnosingPrinter.set(false);
+    }
+  }
+
+  private parkingInfoFromForm(): ParkingInfo {
+    const value = this.parkingForm.value as ParkingInfoValue;
+    return {
+      name: value.name?.trim() || 'Parqueadero',
+      nit: value.nit ?? '',
+      dv: value.dv ?? '',
+      address: value.address ?? '',
+      phone: value.phone ?? '',
+      parkingType: value.parkingType ?? '',
+      resolutionNumber: value.resolutionNumber ?? '',
+      closingTime: value.closingTime ?? '',
+      printerName: '',
+      printEntryTicketEnabled: value.printEntryTicketEnabled ?? true,
+      printExitReceiptEnabled: value.printExitReceiptEnabled ?? true,
+      openDrawerOnCashPayment: value.openDrawerOnCashPayment ?? false,
+    };
   }
 
   async saveOperational(): Promise<void> {
@@ -159,11 +200,13 @@ export class SettingsPageComponent implements OnInit {
       (f) => this.toast.error(`Error parking_info: ${f.message}`),
       (s) => {
         if (s) {
+          const parkingInfo = s.value as ParkingInfoValue;
           this.parkingForm.patchValue({
             printEntryTicketEnabled: true,
             printExitReceiptEnabled: true,
             openDrawerOnCashPayment: false,
-            ...(s.value as ParkingInfoValue),
+            ...parkingInfo,
+            printerName: '',
           });
         }
       },

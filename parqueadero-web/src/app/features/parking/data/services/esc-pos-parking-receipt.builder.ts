@@ -8,7 +8,8 @@ import type { QzParkingPrintChunk } from './qz-parking-printer.service';
 const ESC = '\x1b';
 const GS = '\x1d';
 
-export const ESC_POS_RECEIPT_COLUMNS = 32;
+export const ESC_POS_RECEIPT_COLUMNS = 48;
+const ESC_POS_CONTENT_COLUMNS = ESC_POS_RECEIPT_COLUMNS;
 
 const COMMAND = {
   initialize: `${ESC}@`,
@@ -16,6 +17,8 @@ const COMMAND = {
   alignCenter: `${ESC}a\x01`,
   boldOn: `${ESC}E\x01`,
   boldOff: `${ESC}E\x00`,
+  textNormal: `${GS}!\x00`,
+  textDouble: `${GS}!\x11`,
   feedOneLine: `${ESC}d\x01`,
   feedThreeLines: `${ESC}d\x03`,
   fullCut: `${GS}V\x00`,
@@ -45,9 +48,11 @@ export function buildEscPosEntryReceipt(input: EscPosEntryReceiptInput): QzParki
     ...lines('TICKET DE ENTRADA'),
     COMMAND.boldOff,
     divider(),
+    COMMAND.textDouble,
     COMMAND.boldOn,
     ...lines(input.session.vehiclePlate),
     COMMAND.boldOff,
+    COMMAND.textNormal,
     COMMAND.alignLeft,
     ...pairLines('Tipo', VEHICLE_TYPE_LABEL[input.session.vehicleType]),
     ...pairLines('Fecha', date),
@@ -59,14 +64,6 @@ export function buildEscPosEntryReceipt(input: EscPosEntryReceiptInput): QzParki
   } else if (input.tariff) {
     output.push(divider(), ...lines(`Tarifa: ${formatTariff(input.tariff)}`));
   }
-
-  output.push(divider(), COMMAND.alignCenter, {
-    type: 'raw',
-    format: 'image',
-    flavor: 'base64',
-    data: input.qrBase64,
-    options: { language: 'ESCPOS' },
-  });
 
   output.push(
     COMMAND.alignCenter,
@@ -176,7 +173,7 @@ export function buildEscPosTestReceipt(info: ParkingInfo): string[] {
     COMMAND.alignLeft,
     divider(),
     ...pairLines('Estado', 'OK'),
-    ...pairLines('Ancho', `${ESC_POS_RECEIPT_COLUMNS} cols`),
+    ...pairLines('Ancho', `${ESC_POS_CONTENT_COLUMNS} cols`),
     ...footer(info),
   );
   return output;
@@ -197,7 +194,9 @@ function footer(info: ParkingInfo): string[] {
   const output: string[] = [divider(), COMMAND.alignCenter];
   if (info.address) output.push(...lines(info.address));
   if (info.phone) output.push(...lines(`Tel. ${info.phone}`));
-  if (info.closingTime) output.push(...lines(`Cierre ${info.closingTime}`));
+  if (info.closingTime) {
+    output.push(COMMAND.boldOn, ...lines(`CIERRE ${info.closingTime}`), COMMAND.boldOff);
+  }
   output.push(COMMAND.feedThreeLines, COMMAND.fullCut);
   return output;
 }
@@ -209,12 +208,12 @@ function lines(value: string): string[] {
 function pairLines(leftValue: string, rightValue: string): string[] {
   const left = sanitizeText(leftValue);
   const right = sanitizeText(rightValue);
-  const spaces = ESC_POS_RECEIPT_COLUMNS - left.length - right.length;
+  const spaces = ESC_POS_CONTENT_COLUMNS - left.length - right.length;
   if (spaces >= 1) return [`${left}${' '.repeat(spaces)}${right}\n`];
 
   return [
     ...wrapText(left).map((line) => `${line}\n`),
-    ...wrapText(right).map((line) => `${line.padStart(ESC_POS_RECEIPT_COLUMNS)}\n`),
+    ...wrapText(right).map((line) => `${line.padStart(ESC_POS_CONTENT_COLUMNS)}\n`),
   ];
 }
 
@@ -225,17 +224,17 @@ function wrapText(value: string): string[] {
   let current = '';
 
   for (const word of text.split(' ')) {
-    if (word.length > ESC_POS_RECEIPT_COLUMNS) {
+    if (word.length > ESC_POS_CONTENT_COLUMNS) {
       if (current) result.push(current);
-      for (let i = 0; i < word.length; i += ESC_POS_RECEIPT_COLUMNS) {
-        result.push(word.slice(i, i + ESC_POS_RECEIPT_COLUMNS));
+      for (let i = 0; i < word.length; i += ESC_POS_CONTENT_COLUMNS) {
+        result.push(word.slice(i, i + ESC_POS_CONTENT_COLUMNS));
       }
       current = '';
       continue;
     }
 
     const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= ESC_POS_RECEIPT_COLUMNS) current = candidate;
+    if (candidate.length <= ESC_POS_CONTENT_COLUMNS) current = candidate;
     else {
       result.push(current);
       current = word;
@@ -259,7 +258,7 @@ function sanitizeText(value: string): string {
 }
 
 function divider(): string {
-  return `${'-'.repeat(ESC_POS_RECEIPT_COLUMNS)}\n`;
+  return `${'-'.repeat(ESC_POS_CONTENT_COLUMNS)}\n`;
 }
 
 function totalLabel(cents: number): string {

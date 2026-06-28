@@ -76,13 +76,9 @@
 
           <h3 class="section-title">Impresora térmica y caja monedero</h3>
           <p class="hint">
-            Si el nombre queda vacío, QZ Tray intentará detectar una impresora térmica automáticamente. Usa el nombre exacto solo cuando quieras forzar una impresora específica.
+            QZ Tray usara la impresora predeterminada instalada en este equipo.
           </p>
           <div class="grid">
-            <label class="field field--full">
-              <span>Nombre de la impresora</span>
-              <input type="text" formControlName="printerName" placeholder="Ej: POS-80" />
-            </label>
             <label class="checkbox">
               <input type="checkbox" formControlName="printEntryTicketEnabled" />
               <span>Imprimir ticket de entrada por QZ</span>
@@ -104,10 +100,40 @@
             <button type="button" class="btn" [disabled]="parkingForm.invalid || saving() || testingPrinter()" (click)="printTestReceipt()">
               {{ testingPrinter() ? 'Imprimiendo…' : 'Imprimir prueba' }}
             </button>
+            <button type="button" class="btn" [disabled]="parkingForm.invalid || saving() || diagnosingPrinter()" (click)="diagnosePrinter()">
+              {{ diagnosingPrinter() ? 'Revisando...' : 'Revisar QZ' }}
+            </button>
             <button type="button" class="btn" [disabled]="parkingForm.invalid || saving() || openingDrawer()" (click)="openCashDrawer()">
               {{ openingDrawer() ? 'Abriendo…' : 'Abrir caja' }}
             </button>
           </div>
+          @if (printerDiagnostic(); as diagnostic) {
+            <section class="printer-diagnostic">
+              <h4>Diagnostico QZ</h4>
+              <dl>
+                <div>
+                  <dt>Conexion</dt>
+                  <dd>{{ diagnostic.connected ? 'Activa' : 'Inactiva' }}</dd>
+                </div>
+                <div>
+                  <dt>Configurada</dt>
+                  <dd>{{ diagnostic.configuredPrinterName || 'Automatica' }}</dd>
+                </div>
+                <div>
+                  <dt>Seleccionada</dt>
+                  <dd>{{ diagnostic.selectedPrinterName || 'No seleccionada' }}</dd>
+                </div>
+                <div>
+                  <dt>Predeterminada</dt>
+                  <dd>{{ diagnostic.defaultPrinterName || 'No reportada' }}</dd>
+                </div>
+              </dl>
+              <p class="printer-diagnostic__list">
+                <strong>Impresoras detectadas:</strong>
+                {{ diagnostic.printers.length ? diagnostic.printers.join(', ') : 'Ninguna' }}
+              </p>
+            </section>
+          }
         </form>
       }
 

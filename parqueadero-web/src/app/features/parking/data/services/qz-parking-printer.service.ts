@@ -1,9 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { QzSigningService } from './qz-signing.service';
 import { getQzPrintErrorMessage } from './qz-print-error';
+import { environment } from '../../../../../environments/environment';
 
-const CASH_DRAWER_PULSE = '\x1b\x70\x00\x19\xfa';
-const RAW_ESC_POS_ENCODING = 'ISO-8859-1';
+const RAW_PRINT_OPTIONS = {
+  encoding: 'ISO-8859-1',
+  forceRaw: true,
+} as const;
+
+const CASH_DRAWER_PULSES = [
+  '\x1b\x70\x00\x19\xfa',
+  '\x1b\x70\x01\x19\xfa',
+  '\x10\x14\x01\x00\x05',
+];
 
 export type QzParkingPrintChunk =
   | string
@@ -17,6 +26,14 @@ export type QzParkingPrintChunk =
 
 export interface QzParkingPrintOptions {
   openCashDrawer?: boolean;
+}
+
+export interface QzParkingPrinterDiagnostic {
+  connected: boolean;
+  configuredPrinterName: string;
+  selectedPrinterName: string | null;
+  printers: string[];
+  defaultPrinterName: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,9 +51,9 @@ export class QzParkingPrinterService {
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
-      const config = qz.configs.create(printerName, createRawEscPosPrintOptions(jobName));
+      const config = qz.configs.create(printerName, { ...RAW_PRINT_OPTIONS, jobName });
       await qz.print(config, [
-        ...(options.openCashDrawer ? [CASH_DRAWER_PULSE] : []),
+        ...(options.openCashDrawer ? CASH_DRAWER_PULSES : []),
         ...chunks,
       ]);
     } catch (error) {
@@ -48,11 +65,40 @@ export class QzParkingPrinterService {
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
-      const config = qz.configs.create(
-        printerName,
-        createRawEscPosPrintOptions('Parqueadero abrir caja'),
-      );
-      await qz.print(config, [CASH_DRAWER_PULSE]);
+      const config = qz.configs.create(printerName, {
+        ...RAW_PRINT_OPTIONS,
+        jobName: 'Parqueadero abrir caja',
+      });
+      await qz.print(config, CASH_DRAWER_PULSES);
+    } catch (error) {
+      throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
+    }
+  }
+
+  clearPrinterCache(): void {
+    this.printerPromises.clear();
+  }
+
+  async diagnose(configuredPrinterName: string): Promise<QzParkingPrinterDiagnostic> {
+    try {
+      this.clearPrinterCache();
+      const qz = await this.ensureConnected();
+      const [found, defaultPrinterName] = await Promise.all([
+        qz.printers.find(),
+        qz.printers.getDefault().catch(() => null),
+      ]);
+      const printers = (typeof found === 'string' ? [found] : found).filter(Boolean);
+      const selectedPrinterName = printers.length
+        ? await this.resolvePrinter(configuredPrinterName).catch(() => null)
+        : null;
+
+      return {
+        connected: qz.websocket.isActive(),
+        configuredPrinterName: configuredPrinterName.trim(),
+        selectedPrinterName,
+        printers,
+        defaultPrinterName,
+      };
     } catch (error) {
       throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
     }
@@ -62,8 +108,7 @@ export class QzParkingPrinterService {
     const qz = await loadQz();
     if (qz.websocket.isActive()) return qz;
     if (!this.connectionPromise) {
-      this.connectionPromise = this.signing
-        .configureIfAvailable()
+      this.connectionPromise = this.configureSecurity()
         .then(() => qz.websocket.connect({ retries: 2, delay: 1 }))
         .finally(() => {
           this.connectionPromise = null;
@@ -71,6 +116,11 @@ export class QzParkingPrinterService {
     }
     await this.connectionPromise;
     return qz;
+  }
+
+  private configureSecurity(): Promise<boolean> {
+    if (environment.qzSigningEnabled === false) return Promise.resolve(false);
+    return this.signing.configureIfAvailable();
   }
 
   private async findPrinter(configuredPrinterName: string): Promise<string> {
@@ -107,12 +157,9 @@ export class QzParkingPrinterService {
     const printers = (typeof found === 'string' ? [found] : found).filter(Boolean);
     if (!printers.length) throw new Error('No se encontraron impresoras instaladas');
 
-    const selected = chooseAutoDetectedPrinter(printers, null);
-    if (selected) return selected;
-
     const defaultPrinter = await qz.printers.getDefault();
-    const selectedWithDefault = chooseAutoDetectedPrinter(printers, defaultPrinter);
-    if (selectedWithDefault) return selectedWithDefault;
+    const selected = chooseAutoDetectedPrinter(printers, defaultPrinter);
+    if (selected) return selected;
 
     const firstPrinter = printers[0];
     if (!firstPrinter) throw new Error('No se encontraron impresoras instaladas');
@@ -128,29 +175,10 @@ export function chooseAutoDetectedPrinter(
   printers: readonly string[],
   defaultPrinter: string | null,
 ): string | null {
+  if (defaultPrinter?.trim()) return defaultPrinter;
   const thermal = printers.find((name) => isLikelyThermalPrinter(name));
   if (thermal) return thermal;
-  if (defaultPrinter?.trim()) return defaultPrinter;
   return printers[0] ?? null;
-}
-
-export function createRawEscPosPrintOptions(jobName: string, forceRaw = shouldForceRaw()): {
-  jobName: string;
-  encoding: string;
-  forceRaw?: true;
-} {
-  const options = {
-    jobName,
-    encoding: RAW_ESC_POS_ENCODING,
-  };
-  return forceRaw ? { ...options, forceRaw: true } : options;
-}
-
-function shouldForceRaw(): boolean {
-  if (typeof navigator === 'undefined') return true;
-  const platform = navigator.platform.toLowerCase();
-  const userAgent = navigator.userAgent.toLowerCase();
-  return !platform.includes('win') && !userAgent.includes('windows');
 }
 
 function isLikelyThermalPrinter(name: string): boolean {

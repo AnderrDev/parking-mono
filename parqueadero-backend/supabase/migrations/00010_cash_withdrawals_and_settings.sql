@@ -97,7 +97,7 @@ CREATE POLICY p_app_settings_write ON app_settings
 INSERT INTO app_settings (key, value, description) VALUES
   (
     'parking_info',
-    '{"name": "Parqueadero Demo", "nit": "", "dv": "", "address": "", "municipio": "", "departamento": "", "phone": "", "email": ""}'::jsonb,
+    '{"name": "Parqueadero Demo", "nit": "", "dv": "", "address": "", "municipio": "", "departamento": "", "phone": "", "email": "", "printEntryTicketEnabled": true, "printExitReceiptEnabled": true}'::jsonb,
     'Datos generales del parqueadero (HU-066)'
   ),
   (

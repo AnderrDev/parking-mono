@@ -6,8 +6,8 @@ declare module 'qz-tray' {
 
   interface QzPrintOptions {
     jobName?: string;
-    forceRaw?: boolean;
     encoding?: string;
+    forceRaw?: boolean;
   }
 
   interface QzPrintConfig {

@@ -15,6 +15,11 @@ export interface CalculateParkingFeeParams {
 export type FeeReason = 'monthly' | 'paid';
 
 export interface FeeBreakdown {
+  plenaBlockMinutes: number;
+  plenaBlocksCompleted: number;
+  remainderAfterPlenaMinutes: number;
+  plenaBlocksSubtotalCents: number;
+  remainderSubtotalCents: number;
   hoursCompleted: number;
   remainderMinutes: number;
   perMinuteCents: number;
@@ -45,6 +50,8 @@ export interface CalculateParkingFeeResult {
  */
 @Injectable({ providedIn: 'root' })
 export class CalculateParkingFeeUseCase extends UseCase<CalculateParkingFeeParams, CalculateParkingFeeResult> {
+  private static readonly PLENA_BLOCK_MINUTES = 12 * 60;
+
   execute(params: CalculateParkingFeeParams): Promise<Either<Failure, CalculateParkingFeeResult>> {
     return Promise.resolve(this.calculate(params));
   }
@@ -71,15 +78,27 @@ export class CalculateParkingFeeUseCase extends UseCase<CalculateParkingFeeParam
     }
 
     const duration = durationMinutes;
-    const hoursCompleted   = Math.floor(duration / 60);
-    const remainderMinutes = duration % 60;
-    const hoursSubtotal    = hoursCompleted   * perHour;
-    const minutesSubtotal  = remainderMinutes * perMinute;
-    const subtotal         = hoursSubtotal + minutesSubtotal;
-    const cappedByPlena    = subtotal > plena;
-    const amount           = cappedByPlena ? plena : subtotal;
+    const plenaBlockMinutes = CalculateParkingFeeUseCase.PLENA_BLOCK_MINUTES;
+    const plenaBlocksCompleted = Math.floor(duration / plenaBlockMinutes);
+    const remainderAfterPlenaMinutes = duration % plenaBlockMinutes;
+    const hoursCompleted = Math.floor(remainderAfterPlenaMinutes / 60);
+    const remainderMinutes = remainderAfterPlenaMinutes % 60;
+    const hoursSubtotal = hoursCompleted * perHour;
+    const minutesSubtotal = remainderMinutes * perMinute;
+    const remainderSubtotal = hoursSubtotal + minutesSubtotal;
+    const plenaBlocksSubtotal = plenaBlocksCompleted * plena;
+    const remainderCappedByPlena = remainderSubtotal > plena;
+    const remainderAmount = remainderCappedByPlena ? plena : remainderSubtotal;
+    const subtotal = plenaBlocksSubtotal + remainderSubtotal;
+    const cappedByPlena = plenaBlocksCompleted > 0 || remainderCappedByPlena;
+    const amount = plenaBlocksSubtotal + remainderAmount;
 
     const breakdown: FeeBreakdown = {
+      plenaBlockMinutes,
+      plenaBlocksCompleted,
+      remainderAfterPlenaMinutes,
+      plenaBlocksSubtotalCents: plenaBlocksSubtotal,
+      remainderSubtotalCents: remainderSubtotal,
       hoursCompleted,
       remainderMinutes,
       perMinuteCents: perMinute,

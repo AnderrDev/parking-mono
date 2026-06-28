@@ -10,7 +10,7 @@ describe('chooseAutoDetectedPrinter', () => {
       'HP LaserJet',
     );
 
-    expect(result).toBe('XP-80C');
+    expect(result).toBe('HP LaserJet');
   });
 
   it('reconoce impresoras DIGITAL POS DIG-180 como térmicas', () => {
@@ -19,7 +19,7 @@ describe('chooseAutoDetectedPrinter', () => {
       'HP LaserJet',
     );
 
-    expect(result).toBe('DIGITAL POS DIG-180');
+    expect(result).toBe('HP LaserJet');
   });
 
   it('usa la impresora predeterminada cuando no hay una térmica reconocible', () => {

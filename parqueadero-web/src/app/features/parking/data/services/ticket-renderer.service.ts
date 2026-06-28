@@ -9,7 +9,6 @@
 // aplica, QR para scan en salida, dirección y horario de cierre en el footer.
 
 import { Injectable, inject } from '@angular/core';
-import * as QRCode from 'qrcode';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
 import {
@@ -25,9 +24,11 @@ import {
   buildEscPosEntryReceipt,
   buildEscPosExitReceipt,
   buildEscPosSalesTicket,
-  buildEscPosTestReceipt,
 } from './esc-pos-parking-receipt.builder';
-import { QzParkingPrinterService } from './qz-parking-printer.service';
+import {
+  QzParkingPrinterDiagnostic,
+  QzParkingPrinterService,
+} from './qz-parking-printer.service';
 import { TicketPrintOptions } from '../../domain/services/ticket-renderer.port';
 
 /** Datos necesarios para renderizar el comprobante de salida (cobro). */
@@ -143,7 +144,7 @@ export class TicketRendererService extends TicketRendererPort {
           parkingType: (v.parkingType as ParkingInfo['parkingType']) ?? '',
           resolutionNumber: v.resolutionNumber ?? '',
           closingTime: v.closingTime ?? '',
-          printerName: typeof v['printerName'] === 'string' ? v['printerName'].trim() : '',
+          printerName: '',
           printEntryTicketEnabled: typeof v['printEntryTicketEnabled'] === 'boolean'
             ? v['printEntryTicketEnabled']
             : true,
@@ -210,17 +211,6 @@ export class TicketRendererService extends TicketRendererPort {
     tariffSnapshot: TariffEntity | null,
     parkingInfo?: ParkingInfo,
   ): Promise<TicketRenderResult> {
-    let qrDataUrl: string;
-    try {
-      qrDataUrl = await QRCode.toDataURL(session.id, {
-        width: 180,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-      });
-    } catch {
-      return { ok: false, reason: 'render_error' };
-    }
-
     const [info] = await Promise.all([
       parkingInfo ? Promise.resolve(parkingInfo) : this.getParkingInfo(),
       this.getActiveTariffsForTicket(),
@@ -233,7 +223,7 @@ export class TicketRendererService extends TicketRendererPort {
             session,
             tariff: tariffSnapshot,
             info,
-            qrBase64: dataUrlToBase64(qrDataUrl),
+            qrBase64: '',
           }),
           info.printerName,
           `Parqueadero entrada ${session.vehiclePlate}`,
@@ -317,8 +307,8 @@ export class TicketRendererService extends TicketRendererPort {
     };
   }
 
-  async openCashDrawer(): Promise<TicketRenderResult> {
-    const info = await this.getParkingInfo();
+  async openCashDrawer(parkingInfo?: ParkingInfo): Promise<TicketRenderResult> {
+    const info = parkingInfo ?? await this.getParkingInfo();
     try {
       await this.qzPrinter.openCashDrawer(info.printerName);
       return { ok: true };
@@ -328,19 +318,63 @@ export class TicketRendererService extends TicketRendererPort {
     }
   }
 
-  async printTestReceipt(): Promise<TicketRenderResult> {
-    const info = await this.getParkingInfo();
+  async printTestReceipt(parkingInfo?: ParkingInfo): Promise<TicketRenderResult> {
+    const info = parkingInfo ?? await this.getParkingInfo();
     try {
+      const sampleSession = new ParkingSessionEntity(
+        'PRUEBA-ENTRADA-LOCAL',
+        new Date(),
+        new Date(),
+        'ABC123',
+        'carro',
+        new Date(),
+        'local-test',
+        'active',
+        null,
+        'tarifa-prueba',
+        null,
+        null,
+        null,
+        'synced',
+      );
+      const sampleTariff = new TariffEntity(
+        'tarifa-prueba',
+        new Date(),
+        new Date(),
+        'Carro particular',
+        'carro',
+        'hora',
+        500000,
+        0,
+        0,
+        true,
+        undefined,
+        null,
+        null,
+        15000,
+        500000,
+        1500000,
+      );
       await this.qzPrinter.print(
-        buildEscPosTestReceipt(info),
+        buildEscPosEntryReceipt({
+          session: sampleSession,
+          tariff: sampleTariff,
+          info,
+          qrBase64: '',
+        }),
         info.printerName,
-        'Parqueadero prueba',
+        'Parqueadero prueba entrada',
       );
       return { ok: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, reason: 'qz_error', message };
     }
+  }
+
+  async diagnosePrinter(parkingInfo?: ParkingInfo): Promise<QzParkingPrinterDiagnostic> {
+    const info = parkingInfo ?? await this.getParkingInfo();
+    return this.qzPrinter.diagnose(info.printerName);
   }
 
   private buildSalesHtml(detail: InvoiceDetailEntity, info: ParkingInfo): string {
@@ -824,11 +858,6 @@ function splitBogotaDateTime(d: Date): { date: string; time: string } {
     timeZone: 'America/Bogota',
   });
   return { date, time };
-}
-
-function dataUrlToBase64(dataUrl: string): string {
-  const comma = dataUrl.indexOf(',');
-  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
 }
 
 function isParkingInfo(value: TicketPrintOptions | ParkingInfo | undefined): value is ParkingInfo {

@@ -178,6 +178,8 @@ describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos ×
     const r = usecase.calculate(baseParams({ durationMinutes: 720 }));
     r.fold(f => fail(f.message), fee => {
       expect(fee.amountCents).toBe(900000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(1);
+      expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(0);
       expect(fee.breakdown.cappedByPlena).toBeTrue();
     });
   });
@@ -185,7 +187,9 @@ describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos ×
   it('MOTO 1440 min (24h) → $9.000 (cap por plena)', () => {
     const r = usecase.calculate(baseParams({ durationMinutes: 1440 }));
     r.fold(f => fail(f.message), fee => {
-      expect(fee.amountCents).toBe(900000);
+      expect(fee.amountCents).toBe(1800000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(2);
+      expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(0);
       expect(fee.breakdown.cappedByPlena).toBeTrue();
     });
   });
@@ -255,16 +259,38 @@ describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos ×
       tariff: makeTariff({ vehicleType: 'carro' }),
       vehicleType: 'carro',
     }));
-    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(1200000));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(1200000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(0);
+      expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(240);
+      expect(fee.breakdown.cappedByPlena).toBeTrue();
+    });
   });
 
   it('CARRO 1440 min (24h) → $12.000 (cap)', () => {
+    const r = usecase.calculate(baseParams({
+      durationMinutes: 780,
+      tariff: makeTariff({ vehicleType: 'carro' }),
+      vehicleType: 'carro',
+    }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(1560000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(1);
+      expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(60);
+    });
+  });
+
+  it('CARRO 1440 min (24h) cobra 2 plenas', () => {
     const r = usecase.calculate(baseParams({
       durationMinutes: 1440,
       tariff: makeTariff({ vehicleType: 'carro' }),
       vehicleType: 'carro',
     }));
-    r.fold(f => fail(f.message), fee => expect(fee.amountCents).toBe(1200000));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(2400000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(2);
+      expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(0);
+    });
   });
 
   // ── Breakdown ────────────────────────────────────────────────────────────
