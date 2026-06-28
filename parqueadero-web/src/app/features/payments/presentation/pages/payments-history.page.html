@@ -83,11 +83,18 @@
               <td>{{ row.status === 'refunded' ? 'Anulado' : row.status === 'completed' ? 'Completado' : row.status }}</td>
               <td class="amount-col">{{ formatCOP(row.amountCents) }}</td>
               <td class="actions-col">
-                <button type="button" class="btn-reprint"
-                  (click)="reprint(row, $event)"
-                  [disabled]="reprinting() === row.paymentId || !row.sessionId || row.status !== 'completed'">
-                  {{ reprinting() === row.paymentId ? '…' : 'Reimprimir' }}
-                </button>
+                <div class="row-actions">
+                  <button type="button" class="btn-reprint"
+                    (click)="reprint(row, $event)"
+                    [disabled]="reprinting() === row.paymentId || !row.sessionId || row.status !== 'completed'">
+                    {{ reprinting() === row.paymentId ? '…' : 'Reimprimir' }}
+                  </button>
+                  <button type="button" class="btn-reprint btn-reprint--danger"
+                    (click)="voidPayment(row, $event)"
+                    [disabled]="voiding() === row.paymentId || row.status !== 'completed'">
+                    {{ voiding() === row.paymentId ? '…' : 'Anular' }}
+                  </button>
+                </div>
               </td>
             </tr>
             @if (expandedRowId() === row.paymentId) {

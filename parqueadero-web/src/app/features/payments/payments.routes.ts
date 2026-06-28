@@ -35,7 +35,7 @@ export const paymentsRoutes: Routes = [
   {
     path: '',
     providers: paymentsProviders,
-    canActivate: [authGuard, requireRole('admin', 'contador')],
+    canActivate: [authGuard, requireRole('admin', 'contador', 'operador')],
     loadComponent: () =>
       import('./presentation/pages/payments-history.page').then((m) => m.PaymentsHistoryPageComponent),
     data: { title: 'Historial de cobros' },

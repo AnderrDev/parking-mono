@@ -12,13 +12,17 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { TICKET_RENDERER_TOKEN } from '../../../../core/di/injection-tokens';
+import {
+  TICKET_RENDERER_TOKEN,
+  VOID_PAYMENT_TOKEN,
+} from '../../../../core/di/injection-tokens';
 import { ExitReceiptData } from '../../../parking/data/services/ticket-renderer.service';
 import { TicketRendererPort } from '../../../parking/domain/services/ticket-renderer.port';
 import { TariffMapper, TariffModel } from '../../../parking/data/models/tariff.model';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
+import { VoidPaymentUseCase } from '../../domain/usecases/void-payment.usecase';
 
 interface HistoryRow {
   paymentId: string;
@@ -71,10 +75,12 @@ export class PaymentsHistoryPageComponent implements OnInit {
   private readonly supabase = inject(SupabaseService);
   private readonly toast = inject(ToastService);
   private readonly ticketRenderer = inject<TicketRendererPort>(TICKET_RENDERER_TOKEN);
+  private readonly voidPaymentUC = inject<VoidPaymentUseCase>(VOID_PAYMENT_TOKEN);
   private readonly fb = inject(FormBuilder);
 
   protected readonly loading = signal(true);
   protected readonly reprinting = signal<string | null>(null);
+  protected readonly voiding = signal<string | null>(null);
   protected readonly errorMsg = signal<string | null>(null);
   protected readonly rows = signal<HistoryRow[]>([]);
   protected readonly totalCents = signal(0);
@@ -380,5 +386,31 @@ export class PaymentsHistoryPageComponent implements OnInit {
     } else {
       this.toast.success(`Comprobante de ${row.vehiclePlate} enviado a impresión`);
     }
+  }
+
+  protected async voidPayment(row: HistoryRow, event: Event): Promise<void> {
+    event.stopPropagation();
+    if (row.status !== 'completed' || this.voiding()) return;
+
+    const reason = window.prompt(
+      `Motivo de anulación para ${row.vehiclePlate ?? row.paymentId}:`,
+      '',
+    )?.trim();
+    if (!reason) return;
+
+    this.voiding.set(row.paymentId);
+    const result = await this.voidPaymentUC.execute({
+      paymentId: row.paymentId,
+      reason,
+    });
+    this.voiding.set(null);
+
+    result.fold(
+      (failure) => this.toast.error(`No se pudo anular: ${failure.message}`),
+      () => {
+        this.toast.success('Cobro anulado');
+        void this.load();
+      },
+    );
   }
 }

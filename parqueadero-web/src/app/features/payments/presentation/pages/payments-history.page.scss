@@ -103,6 +103,13 @@
 .amount-col { text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); }
 .actions-col { text-align: right; width: 1%; white-space: nowrap; }
 
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .btn-reprint {
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
@@ -111,6 +118,15 @@
   border: 1px solid var(--color-border-strong); cursor: pointer;
   &:hover:not(:disabled) { background: var(--color-bg-subtle); border-color: var(--color-text); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.btn-reprint--danger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border-strong));
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+    border-color: var(--color-danger);
+  }
 }
 
 .row-detail td {
