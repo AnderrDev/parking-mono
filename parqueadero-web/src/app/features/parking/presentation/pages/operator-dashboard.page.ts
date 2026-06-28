@@ -668,16 +668,9 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
         this.lastReceipt.set(receipt);
         this.scheduleReceiptDismiss();
 
-        // HU-031 v1.1: auto-impresión del comprobante. Si el popup está
-        // bloqueado, queda el botón manual en `<app-receipt-card>` como
-        // fallback — informamos con un toast no-bloqueante.
-        void this.printReceipt(receipt).then((printed) => {
-          if (!printed) {
-            this.toast.warning(
-              'Popup bloqueado. Usa el botón "Imprimir comprobante" para reimprimir.',
-            );
-          }
-        });
+        // HU-031 v1.1: auto-impresión del comprobante por QZ Tray. Si falla,
+        // la salida queda registrada y se informa al cajero.
+        void this.printReceipt(receipt);
 
         // HU-040: emitir factura electrónica si el operador la pidió.
         if (value.emitInvoice && value.customerId) {
@@ -705,12 +698,14 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Imprime el comprobante delegando al ticket-renderer (que aloja la
-   * lógica de build+popup para reuso desde /payments). Retorna true si
-   * el popup se abrió.
+   * Imprime el comprobante delegando al ticket-renderer QZ.
+   * Retorna true si QZ aceptó el trabajo.
    */
   protected async printReceipt(r: ExitReceipt): Promise<boolean> {
     const result = await this.ticketRenderer.printExitReceipt(r);
+    if (!result.ok) {
+      this.toast.error(result.message ?? 'No se pudo imprimir el comprobante por QZ Tray.');
+    }
     return result.ok;
   }
 
@@ -753,7 +748,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   private handleEntryRegistered(result: VehicleEntryModalResult): void {
-    const { session, monthlyPlanWarning, ticketPrinted } = result;
+    const { session, monthlyPlanWarning, ticketPrinted, ticketError } = result;
     this.lastReceipt.set(null);
     this.activeSessions.update((prev) => [session, ...prev]);
     this.toast.success(
@@ -763,9 +758,8 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       this.monthlyPlanWarning.set(monthlyPlanWarning);
     }
     if (!ticketPrinted) {
-      // No interrumpe — log silencioso. El ticket se puede reimprimir más
-      // tarde desde la lista de sesiones (follow-up).
-      console.warn('[entry] Ticket no imprimido (popup bloqueado o sin impresora).');
+      this.toast.error(ticketError ?? 'Entrada registrada, pero no se pudo imprimir el ticket.');
+      console.warn('[entry] Ticket no imprimido.', ticketError);
     }
   }
 

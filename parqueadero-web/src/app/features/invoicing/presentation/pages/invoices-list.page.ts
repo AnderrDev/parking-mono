@@ -140,8 +140,7 @@ export class InvoicesListPageComponent implements OnInit {
       (f) => this.toast.error(`No se pudo reimprimir: ${f.message}`),
       (r) => {
         if (r.ok) this.toast.success(`Ticket ${row.invoice.internalNumber} enviado a impresión`);
-        else if (r.reason === 'popup_blocked') this.toast.error('Habilita popups del navegador para reimprimir');
-        else this.toast.error('Error renderizando el ticket');
+        else this.toast.error(r.message ?? 'No se pudo imprimir el ticket por QZ Tray');
       },
     );
     this.reprinting.set(null);

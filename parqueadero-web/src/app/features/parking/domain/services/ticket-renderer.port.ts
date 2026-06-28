@@ -1,6 +1,6 @@
 // Puerto abstracto del renderer de ticket térmico.
 // Vive en domain/ porque el UseCase depende del contrato, no de la impl
-// (la impl real toca DOM y vive en data/services/ticket-renderer.service.ts).
+// (la impl real integra QZ Tray y vive en data/services/ticket-renderer.service.ts).
 
 import { ParkingSessionEntity, VehicleType } from '../entities/parking-session.entity';
 import { TariffEntity } from '../entities/tariff.entity';
@@ -11,7 +11,7 @@ export type TicketRenderResult =
   | { ok: true }
   | {
       ok: false;
-      reason: 'popup_blocked' | 'render_error' | 'printer_not_configured' | 'qz_error';
+      reason: 'render_error' | 'printer_not_configured' | 'qz_error';
       message?: string;
     };
 
@@ -43,10 +43,7 @@ export abstract class TicketRendererPort {
     options?: TicketPrintOptions,
   ): Promise<TicketRenderResult>;
 
-  /**
-   * Ticket de SALIDA (comprobante de cobro). Genera HTML con totales,
-   * IVA discriminado, método de pago y datos de la sesión.
-   */
+  /** Ticket de SALIDA (comprobante de cobro). */
   abstract printSalesTicket(detail: InvoiceDetailEntity): Promise<TicketRenderResult>;
 
   abstract openCashDrawer(): Promise<TicketRenderResult>;

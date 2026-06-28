@@ -53,6 +53,7 @@ export interface VehicleEntryModalResult {
   session: ParkingSessionEntity;
   monthlyPlanWarning: string | null;
   ticketPrinted: boolean;
+  ticketError: string | null;
 }
 
 @Component({
@@ -123,11 +124,16 @@ export class VehicleEntryModalComponent {
           tariffSnapshot: tariff,
         });
         const ticketPrinted = printResult.isRight();
+        const ticketError = printResult.fold(
+          (failure) => failure.message,
+          () => null,
+        );
 
         this.dialogRef.close({
           session,
           monthlyPlanWarning: monthlyPlanWarning ?? null,
           ticketPrinted,
+          ticketError,
         });
       },
     );

@@ -1,6 +1,5 @@
-// TicketRendererService — genera el HTML del ticket térmico (80 mm) con QR
-// y dispara la impresión en una ventana popup. Vive en data/ porque toca DOM
-// (window.open). El UseCase solo orquesta.
+// TicketRendererService — genera comandos ESC/POS para QZ Tray.
+// Vive en data/ porque integra con infraestructura local de impresión.
 //
 // Spec: parqueadero-web/specs/features/parking/print-entry-ticket.spec.md (v2)
 //
@@ -222,12 +221,10 @@ export class TicketRendererService extends TicketRendererPort {
       return { ok: false, reason: 'render_error' };
     }
 
-    const [info, allTariffs] = await Promise.all([
+    const [info] = await Promise.all([
       parkingInfo ? Promise.resolve(parkingInfo) : this.getParkingInfo(),
       this.getActiveTariffsForTicket(),
     ]);
-
-    const html = this.buildHtml(session, tariffSnapshot, allTariffs, info, qrDataUrl);
 
     if (info.printEntryTicketEnabled) {
       try {
@@ -243,33 +240,17 @@ export class TicketRendererService extends TicketRendererPort {
         );
         return { ok: true };
       } catch (error) {
-        console.warn('[print-entry] QZ failed, falling back to browser print.', error);
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[print-entry] QZ failed.', error);
+        return { ok: false, reason: 'qz_error', message };
       }
     }
 
-    const w = window.open('', '_blank', 'width=380,height=720');
-    if (!w) return { ok: false, reason: 'popup_blocked' };
-
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-
-    // Esperamos 200ms para que el QR <img> termine de pintar antes del print.
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-    try {
-      w.focus();
-      w.print();
-    } catch {
-      // Algunos navegadores cierran la ventana automáticamente; no es crítico.
-    }
-    setTimeout(() => {
-      try {
-        w.close();
-      } catch {
-        /* noop */
-      }
-    }, 1000);
-    return { ok: true };
+    return {
+      ok: false,
+      reason: 'printer_not_configured',
+      message: 'La impresión de tickets de entrada por QZ está desactivada.',
+    };
   }
 
   /**
@@ -298,30 +279,17 @@ export class TicketRendererService extends TicketRendererPort {
         );
         return { ok: true };
       } catch (error) {
-        console.warn('[print-exit] QZ failed, falling back to browser print.', error);
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[print-exit] QZ failed.', error);
+        return { ok: false, reason: 'qz_error', message };
       }
     }
 
-    const html = buildExitReceiptHtml(r, info);
-
-    const w = window.open('', '_blank', 'width=380,height=720');
-    if (!w) return { ok: false, reason: 'popup_blocked' };
-
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-
-    await new Promise<void>((resolve) => setTimeout(resolve, 150));
-    try {
-      w.focus();
-      w.print();
-    } catch {
-      /* noop */
-    }
-    setTimeout(() => {
-      try { w.close(); } catch { /* noop */ }
-    }, 1000);
-    return { ok: true };
+    return {
+      ok: false,
+      reason: 'printer_not_configured',
+      message: 'La impresión de comprobantes de salida por QZ está desactivada.',
+    };
   }
 
   async printSalesTicket(detail: InvoiceDetailEntity): Promise<TicketRenderResult> {
@@ -336,30 +304,17 @@ export class TicketRendererService extends TicketRendererPort {
         );
         return { ok: true };
       } catch (error) {
-        console.warn('[print-sales-ticket] QZ failed, falling back to browser print.', error);
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[print-sales-ticket] QZ failed.', error);
+        return { ok: false, reason: 'qz_error', message };
       }
     }
 
-    const html = this.buildSalesHtml(detail, info);
-
-    const w = window.open('', '_blank', 'width=380,height=720');
-    if (!w) return { ok: false, reason: 'popup_blocked' };
-
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-    try {
-      w.focus();
-      w.print();
-    } catch {
-      /* noop */
-    }
-    setTimeout(() => {
-      try { w.close(); } catch { /* noop */ }
-    }, 1000);
-    return { ok: true };
+    return {
+      ok: false,
+      reason: 'printer_not_configured',
+      message: 'La impresión de tickets por QZ está desactivada.',
+    };
   }
 
   async openCashDrawer(): Promise<TicketRenderResult> {
@@ -449,7 +404,6 @@ export class TicketRendererService extends TicketRendererPort {
 <title>Ticket cobro ${escapeHtml(invoice.internalNumber)}</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
-  @media print { html, body { margin: 0; padding: 0; } }
   * { box-sizing: border-box; }
   body {
     width: 72mm; margin: 0 auto; padding: 4mm 4mm 6mm;
@@ -545,7 +499,6 @@ ${addressBlock}${addressBlock && phoneBlock ? '<br>' : ''}${phoneBlock}
 <title>Ticket entrada ${escapeHtml(session.vehiclePlate)}</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
-  @media print { html, body { margin: 0; padding: 0; } }
   * { box-sizing: border-box; }
   body {
     width: 72mm;
@@ -935,7 +888,6 @@ function buildExitReceiptHtml(r: ExitReceiptData, info: ParkingInfo): string {
 <title>Comprobante ${escapeHtml(r.plate)}</title>
 <style>
   @page { size: 80mm auto; margin: 0; }
-  @media print { html, body { margin: 0; padding: 0; } }
   * { box-sizing: border-box; }
   body { width: 72mm; margin: 0 auto; padding: 5mm 4mm 6mm; font-family: 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; font-size: 10pt; line-height: 1.35; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ticket-type { text-align: center; font-size: 9pt; font-weight: 700; color: #000; padding: 0 0 1.5mm; margin: 0 0 1.5mm; text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px dashed #000; }

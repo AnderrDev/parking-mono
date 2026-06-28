@@ -353,11 +353,7 @@ export class PaymentsHistoryPageComponent implements OnInit {
     this.reprinting.set(null);
 
     if (!result.ok) {
-      if (result.reason === 'popup_blocked') {
-        this.toast.error('Popup bloqueado. Habilita popups del navegador para reimprimir.');
-      } else {
-        this.toast.error('Error renderizando el comprobante.');
-      }
+      this.toast.error(result.message ?? 'No se pudo imprimir el comprobante por QZ Tray.');
     } else {
       this.toast.success(`Comprobante de ${row.vehiclePlate} enviado a impresión`);
     }
