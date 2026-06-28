@@ -636,7 +636,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           this.toast.error('Error inesperado. Intenta de nuevo.');
         }
       },
-      ({ session: closedSession }) => {
+      ({ session: closedSession, payment }) => {
         this.activeSessions.update((prev) => prev.filter((s) => s.id !== closedSession.id));
         const amount = closedSession.amountDueCents ?? 0;
         const amountStr = amount > 0 ? ` — ${formatCOP(amount)}` : ' — Sin cobro';
@@ -658,7 +658,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
           exitAt: closedSession.exitAt ?? new Date(),
           durationMinutes: closedSession.durationMinutes,
           amountCents: amount,
-          paymentMethod: value.paymentMethod,
+          paymentMethod: payment.method,
           cashReceivedCents: value.cashReceivedCents,
           // Mostrada en el ticket impreso (no en la `.receipt-card`).
           // Cae al snapshot vigente del tipo de vehículo — suficiente

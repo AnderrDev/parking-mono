@@ -9,6 +9,7 @@ import {
   CreatePaymentParams,
   ListPaymentsParams,
   ListPaymentsResult,
+  VoidPaymentParams,
 } from '../../domain/repositories/payment.repository';
 import { PaymentDataSource } from '../datasources/payment.datasource';
 import { PaymentLocalDataSource } from '../datasources/payment-local.datasource';
@@ -72,5 +73,12 @@ export class PaymentRepositoryImpl extends PaymentRepository {
       return this.localDs.sumCashByShift(shiftId);
     }
     return remote;
+  }
+
+  async voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>> {
+    if (!this.networkInfo.isOnline()) {
+      return this.localDs.voidPayment(params);
+    }
+    return this.remoteDs.voidPayment(params);
   }
 }

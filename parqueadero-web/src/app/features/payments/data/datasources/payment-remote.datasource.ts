@@ -5,7 +5,12 @@ import { SupabaseService } from '../../../../core/services/supabase.service';
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
 import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { PaymentMapper, PaymentModel } from '../../../parking/data/models/payment.model';
-import { CreatePaymentParams, ListPaymentsParams, ListPaymentsResult } from '../../domain/repositories/payment.repository';
+import {
+  CreatePaymentParams,
+  ListPaymentsParams,
+  ListPaymentsResult,
+  VoidPaymentParams,
+} from '../../domain/repositories/payment.repository';
 import { PaymentDataSource } from './payment.datasource';
 
 @Injectable()
@@ -121,6 +126,22 @@ export class PaymentRemoteDataSource extends PaymentDataSource {
       if (error) return left(new ServerFailure(error.message));
       const total = (data ?? []).reduce((acc, r) => acc + r.amount_cents, 0);
       return right(total);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>> {
+    try {
+      const { data, error } = await this.supabase.client.rpc('void_shift_payment', {
+        p_payment_id: params.paymentId,
+        p_reason: params.reason,
+      });
+
+      if (error) return left(new ServerFailure(error.message));
+      const payment = (data as { payment?: PaymentModel } | null)?.payment;
+      if (!payment) return left(new ServerFailure('No se recibió el pago anulado'));
+      return right(PaymentMapper.toEntity(payment));
     } catch {
       return left(new NetworkFailure());
     }

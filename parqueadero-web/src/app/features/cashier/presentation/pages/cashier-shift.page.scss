@@ -344,9 +344,15 @@
 
     .payments-table tr:last-child td { border-bottom: none; }
 
+    .payments-table__row--void {
+      opacity: 0.68;
+      background: var(--color-bg-subtle);
+    }
+
     .payments-table__plate {
-      color: var(--color-text-muted);
-      font-size: var(--text-xs);
+      color: var(--color-text-strong);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-bold);
     }
 
     .payments-table__tag {
@@ -360,6 +366,45 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
       font-family: var(--font-sans);
+    }
+
+    .payment-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 120px;
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+    }
+
+    .payment-status {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-pill);
+      background: var(--color-success-soft);
+      color: var(--color-success-strong);
+      font-size: 10px;
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+
+      &--void {
+        background: var(--color-danger-soft);
+        color: var(--color-danger-strong);
+      }
+    }
+
+    .payments-table__actions {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .btn-link--danger {
+      color: var(--color-danger);
+      font-weight: var(--font-weight-semibold);
     }
 
     // ===== Diff =====

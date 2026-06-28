@@ -16,6 +16,7 @@ import {
   CreatePaymentParams,
   ListPaymentsParams,
   ListPaymentsResult,
+  VoidPaymentParams,
 } from '../../domain/repositories/payment.repository';
 import { PaymentDataSource } from './payment.datasource';
 
@@ -195,5 +196,9 @@ export class PaymentLocalDataSource extends PaymentDataSource {
     } catch (e) {
       return left(new ServerFailure(`Lectura local falló: ${String(e)}`));
     }
+  }
+
+  async voidPayment(_params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>> {
+    return left(new ServerFailure('La anulación de pagos requiere conexión al servidor'));
   }
 }

@@ -19,6 +19,7 @@ import {
   LIST_PAYMENTS_TOKEN,
   CASHIER_REPOSITORY_TOKEN,
   REGISTER_WITHDRAWAL_TOKEN,
+  VOID_PAYMENT_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { Dialog } from '@angular/cdk/dialog';
 import {
@@ -31,16 +32,27 @@ import { OpenShiftUseCase } from '../../domain/usecases/open-shift.usecase';
 import { CloseShiftUseCase } from '../../domain/usecases/close-shift.usecase';
 import { ReconcileShiftUseCase, ReconcileResult } from '../../domain/usecases/reconcile-shift.usecase';
 import { ListPaymentsUseCase } from '../../../payments/domain/usecases/list-payments.usecase';
+import { VoidPaymentUseCase } from '../../../payments/domain/usecases/void-payment.usecase';
 import { CashierRepository } from '../../domain/repositories/cashier.repository';
 import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
 import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
+import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { CashierForms } from '../forms/cashier.forms';
 import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorDisplayComponent } from '../../../../shared/components/error-display/error-display.component';
 import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
+import { SupabaseService } from '../../../../core/services/supabase.service';
 
 type PageView = 'loading' | 'no-shift' | 'open-shift';
+
+interface ShiftPaymentRow {
+  payment: PaymentEntity;
+  plate: string | null;
+  vehicleType: VehicleType | null;
+  entryAt: Date | null;
+  exitAt: Date | null;
+}
 
 @Component({
   selector: 'app-cashier-shift-page',
@@ -58,6 +70,7 @@ export class CashierShiftPageComponent implements OnInit {
   shift = signal<CashierShiftEntity | null>(null);
   reconcile = signal<ReconcileResult | null>(null);
   payments = signal<PaymentEntity[]>([]);
+  paymentRows = signal<ShiftPaymentRow[]>([]);
   withdrawals = signal<CashWithdrawalEntity[]>([]);
 
   // HU-036: conteo de efectivo por denominación. Cantidades, no totales.
@@ -113,8 +126,10 @@ export class CashierShiftPageComponent implements OnInit {
     @Inject(CLOSE_SHIFT_TOKEN) private readonly closeShiftUC: CloseShiftUseCase,
     @Inject(RECONCILE_SHIFT_TOKEN) private readonly reconcileUC: ReconcileShiftUseCase,
     @Inject(LIST_PAYMENTS_TOKEN) private readonly listPaymentsUC: ListPaymentsUseCase,
+    @Inject(VOID_PAYMENT_TOKEN) private readonly voidPaymentUC: VoidPaymentUseCase,
     @Inject(REGISTER_WITHDRAWAL_TOKEN) private readonly registerWithdrawalUC: RegisterCashWithdrawalUseCase,
     private readonly toast: ToastService,
+    private readonly supabase: SupabaseService,
     private readonly dialog: Dialog,
     /** Anclar overlay del dialog. */
     private readonly vcr: ViewContainerRef,
@@ -200,7 +215,10 @@ export class CashierShiftPageComponent implements OnInit {
         this.errorMsg.set(f.message);
         this.toast.error(`Error al listar pagos: ${f.message}`);
       },
-      (r) => this.payments.set(r.data),
+      (r) => {
+        this.payments.set(r.data);
+        void this.hydratePaymentRows(r.data);
+      },
     );
 
     withdrawalsRes.fold(
@@ -209,6 +227,83 @@ export class CashierShiftPageComponent implements OnInit {
         this.withdrawals.set([]);
       },
       (list) => this.withdrawals.set(list),
+    );
+  }
+
+  private async hydratePaymentRows(payments: PaymentEntity[]): Promise<void> {
+    const sessionIds = payments
+      .map((p) => p.sessionId)
+      .filter((id): id is string => Boolean(id));
+
+    if (!sessionIds.length) {
+      this.paymentRows.set(payments.map((payment) => ({
+        payment,
+        plate: null,
+        vehicleType: null,
+        entryAt: null,
+        exitAt: null,
+      })));
+      return;
+    }
+
+    const { data, error } = await this.supabase.client
+      .from('parking_sessions')
+      .select('id, vehicle_plate, vehicle_type, entry_at, exit_at')
+      .in('id', sessionIds);
+
+    if (error) {
+      this.paymentRows.set(payments.map((payment) => ({
+        payment,
+        plate: null,
+        vehicleType: null,
+        entryAt: null,
+        exitAt: null,
+      })));
+      return;
+    }
+
+    const sessions = new Map((data ?? []).map((row) => [row.id as string, row]));
+    this.paymentRows.set(payments.map((payment) => {
+      const session = payment.sessionId ? sessions.get(payment.sessionId) : null;
+      return {
+        payment,
+        plate: (session?.vehicle_plate as string | undefined) ?? null,
+        vehicleType: (session?.vehicle_type as VehicleType | undefined) ?? null,
+        entryAt: session?.entry_at ? new Date(session.entry_at as string) : null,
+        exitAt: session?.exit_at ? new Date(session.exit_at as string) : null,
+      };
+    }));
+  }
+
+  protected statusLabel(status: string): string {
+    const map: Record<string, string> = {
+      completed: 'Completado',
+      pending: 'Pendiente',
+      refunded: 'Anulado',
+    };
+    return map[status] ?? status;
+  }
+
+  protected async voidPayment(row: ShiftPaymentRow): Promise<void> {
+    if (row.payment.status !== 'completed') return;
+    const reason = window.prompt(
+      `Motivo de anulación para ${row.plate ?? this.shortId(row.payment.id)}:`,
+      '',
+    )?.trim();
+    if (!reason) return;
+
+    const result = await this.voidPaymentUC.execute({
+      paymentId: row.payment.id,
+      reason,
+    });
+
+    result.fold(
+      (f) => this.toast.error(`No se pudo anular: ${f.message}`),
+      () => {
+        this.toast.success('Movimiento anulado y caja recalculada');
+        const shift = this.shift();
+        if (shift) void this.loadShiftData(shift.id);
+      },
     );
   }
 

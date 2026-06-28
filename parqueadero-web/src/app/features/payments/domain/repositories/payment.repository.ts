@@ -28,9 +28,15 @@ export interface ListPaymentsResult {
   totalCents: number;
 }
 
+export interface VoidPaymentParams {
+  paymentId: string;
+  reason: string;
+}
+
 export abstract class PaymentRepository {
   abstract create(params: CreatePaymentParams): Promise<Either<Failure, PaymentEntity>>;
   abstract list(params: ListPaymentsParams): Promise<Either<Failure, ListPaymentsResult>>;
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
+  abstract voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>>;
 }

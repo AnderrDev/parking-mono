@@ -8,6 +8,7 @@ import {
   PAYMENT_REMOTE_DATASOURCE_TOKEN,
   LIST_PAYMENTS_TOKEN,
   REGISTER_PAYMENT_TOKEN,
+  VOID_PAYMENT_TOKEN,
   TICKET_RENDERER_TOKEN,
 } from '../../core/di/injection-tokens';
 import { TicketRendererService } from '../parking/data/services/ticket-renderer.service';
@@ -17,6 +18,7 @@ import { PaymentRemoteDataSource } from './data/datasources/payment-remote.datas
 import { PaymentRepositoryImpl } from './data/repositories/payment.repository.impl';
 import { ListPaymentsUseCase } from './domain/usecases/list-payments.usecase';
 import { RegisterPaymentUseCase } from './domain/usecases/register-payment.usecase';
+import { VoidPaymentUseCase } from './domain/usecases/void-payment.usecase';
 
 const paymentsProviders = [
   { provide: CASHIER_REMOTE_DATASOURCE_TOKEN, useClass: CashierRemoteDataSource },
@@ -25,6 +27,7 @@ const paymentsProviders = [
   { provide: PAYMENT_REPOSITORY_TOKEN, useClass: PaymentRepositoryImpl },
   { provide: LIST_PAYMENTS_TOKEN, useClass: ListPaymentsUseCase },
   { provide: REGISTER_PAYMENT_TOKEN, useClass: RegisterPaymentUseCase },
+  { provide: VOID_PAYMENT_TOKEN, useClass: VoidPaymentUseCase },
   { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
 ];
 

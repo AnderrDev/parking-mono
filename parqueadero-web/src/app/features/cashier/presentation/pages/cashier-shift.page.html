@@ -187,12 +187,12 @@
                 </h2>
                 <p class="card__subtitle">Movimientos individuales.</p>
               </div>
-              @if (payments().length > 0) {
-                <span class="card__count">{{ payments().length }}</span>
+              @if (paymentRows().length > 0) {
+                <span class="card__count">{{ paymentRows().length }}</span>
               }
             </div>
 
-            @if (payments().length === 0) {
+            @if (paymentRows().length === 0) {
               <p class="card__empty">Sin pagos aún. Las salidas con cobro aparecerán aquí.</p>
             } @else {
               <div class="payments-table-wrap">
@@ -200,24 +200,51 @@
                   <thead>
                     <tr>
                       <th scope="col">Hora</th>
-                      <th scope="col">Sesión</th>
+                      <th scope="col">Vehículo</th>
+                      <th scope="col">Detalle</th>
                       <th scope="col">Método</th>
+                      <th scope="col">Estado</th>
                       <th scope="col" class="num">Monto</th>
+                      <th scope="col"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    @for (p of payments(); track p.id) {
-                      <tr>
-                        <td class="mono">{{ p.paidAt | date:'HH:mm' }}</td>
+                    @for (row of paymentRows(); track row.payment.id) {
+                      <tr [class.payments-table__row--void]="row.payment.status === 'refunded'">
+                        <td class="mono">{{ row.payment.paidAt | date:'HH:mm' }}</td>
                         <td class="payments-table__plate mono">
-                          @if (p.sessionId) {
-                            {{ shortId(p.sessionId) }}
+                          @if (row.plate) {
+                            {{ row.plate }}
                           } @else {
                             <span class="payments-table__tag">Mensualidad</span>
                           }
                         </td>
-                        <td>{{ methodLabel(p.method) }}</td>
-                        <td class="num mono">{{ p.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                        <td>
+                          <div class="payment-detail">
+                            @if (row.vehicleType) {
+                              <span>{{ row.vehicleType }}</span>
+                            }
+                            @if (row.entryAt) {
+                              <span>{{ row.entryAt | date:'HH:mm' }} → {{ row.exitAt ? (row.exitAt | date:'HH:mm') : '—' }}</span>
+                            } @else {
+                              <span>{{ shortId(row.payment.id) }}</span>
+                            }
+                          </div>
+                        </td>
+                        <td>{{ methodLabel(row.payment.method) }}</td>
+                        <td>
+                          <span class="payment-status" [class.payment-status--void]="row.payment.status === 'refunded'">
+                            {{ statusLabel(row.payment.status) }}
+                          </span>
+                        </td>
+                        <td class="num mono">{{ row.payment.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                        <td class="payments-table__actions">
+                          @if (row.payment.status === 'completed') {
+                            <button type="button" class="btn-link btn-link--danger" (click)="voidPayment(row)">
+                              Anular
+                            </button>
+                          }
+                        </td>
                       </tr>
                     }
                   </tbody>
