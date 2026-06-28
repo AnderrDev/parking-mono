@@ -10,6 +10,15 @@ describe('chooseAutoDetectedPrinter', () => {
     expect(result).toBe('XP-80C');
   });
 
+  it('reconoce impresoras DIGITAL POS DIG-180 como térmicas', () => {
+    const result = chooseAutoDetectedPrinter(
+      ['HP LaserJet', 'DIGITAL POS DIG-180'],
+      'HP LaserJet',
+    );
+
+    expect(result).toBe('DIGITAL POS DIG-180');
+  });
+
   it('usa la impresora predeterminada cuando no hay una térmica reconocible', () => {
     const result = chooseAutoDetectedPrinter(
       ['Oficina', 'Contabilidad'],

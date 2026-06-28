@@ -32,7 +32,11 @@ export function getQzPrintErrorMessage(error: unknown, configuredPrinterName: st
   }
 
   if (normalized.includes('printer') || normalized.includes('impresora')) {
-    return `No se encontró la impresora configurada "${configuredPrinterName}" en este equipo.`;
+    const configured = configuredPrinterName.trim();
+    if (!configured) {
+      return 'No se pudo detectar una impresora térmica en este equipo. Revisa que esté instalada y visible para QZ Tray.';
+    }
+    return `No se encontró la impresora configurada "${configured}" en este equipo.`;
   }
 
   if (normalized.includes('image') || normalized.includes('qr')) {
