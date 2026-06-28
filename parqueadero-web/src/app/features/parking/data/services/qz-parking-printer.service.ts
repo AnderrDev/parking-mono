@@ -8,11 +8,10 @@ const RAW_PRINT_OPTIONS = {
   forceRaw: true,
 } as const;
 
-const CASH_DRAWER_PULSES = [
-  '\x1b\x70\x00\x19\xfa',
-  '\x1b\x70\x01\x19\xfa',
-  '\x10\x14\x01\x00\x05',
-];
+// Pulso estándar ESC/POS para abrir caja por el conector DK de la impresora.
+// Antes se enviaban tres variantes en el mismo job para cubrir modelos
+// distintos, pero eso genera múltiples golpes en cajas compatibles.
+const CASH_DRAWER_PULSE = '\x1b\x70\x00\x19\xfa';
 
 export type QzParkingPrintChunk =
   | string
@@ -53,7 +52,7 @@ export class QzParkingPrinterService {
       const printerName = await this.findPrinter(configuredPrinterName);
       const config = qz.configs.create(printerName, { ...RAW_PRINT_OPTIONS, jobName });
       await qz.print(config, [
-        ...(options.openCashDrawer ? CASH_DRAWER_PULSES : []),
+        ...(options.openCashDrawer ? [CASH_DRAWER_PULSE] : []),
         ...chunks,
       ]);
     } catch (error) {
@@ -69,7 +68,7 @@ export class QzParkingPrinterService {
         ...RAW_PRINT_OPTIONS,
         jobName: 'Parqueadero abrir caja',
       });
-      await qz.print(config, CASH_DRAWER_PULSES);
+      await qz.print(config, [CASH_DRAWER_PULSE]);
     } catch (error) {
       throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
     }
