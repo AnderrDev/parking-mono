@@ -31,6 +31,7 @@ import {
   GET_OPEN_SHIFT_STATUS_TOKEN,
   GET_VEHICLE_HISTORY_STATS_TOKEN,
   LIST_MONTHLY_PLANS_TOKEN,
+  TICKET_RENDERER_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -89,7 +90,7 @@ import { VehicleHistoryPanelComponent } from '../components/vehicle-history-pane
 import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.component';
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
-import { TicketRendererService } from '../../data/services/ticket-renderer.service';
+import { TicketRendererPort } from '../../domain/services/ticket-renderer.port';
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -219,7 +220,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
    * Renderer del ticket de entrada — el page sólo lo usa para reaprovechar
    * el cache de `parking_info` al imprimir el comprobante de salida.
    */
-  private readonly ticketRenderer = inject(TicketRendererService);
+  private readonly ticketRenderer = inject<TicketRendererPort>(TICKET_RENDERER_TOKEN);
 
   constructor(
     @Inject(REGISTER_VEHICLE_ENTRY_TOKEN)

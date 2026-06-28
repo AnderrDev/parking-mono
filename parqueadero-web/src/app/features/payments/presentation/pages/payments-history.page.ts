@@ -12,7 +12,9 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { TicketRendererService, ExitReceiptData } from '../../../parking/data/services/ticket-renderer.service';
+import { TICKET_RENDERER_TOKEN } from '../../../../core/di/injection-tokens';
+import { ExitReceiptData } from '../../../parking/data/services/ticket-renderer.service';
+import { TicketRendererPort } from '../../../parking/domain/services/ticket-renderer.port';
 import { TariffMapper, TariffModel } from '../../../parking/data/models/tariff.model';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
@@ -66,7 +68,7 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
 export class PaymentsHistoryPageComponent implements OnInit {
   private readonly supabase = inject(SupabaseService);
   private readonly toast = inject(ToastService);
-  private readonly ticketRenderer = inject(TicketRendererService);
+  private readonly ticketRenderer = inject<TicketRendererPort>(TICKET_RENDERER_TOKEN);
   private readonly fb = inject(FormBuilder);
 
   protected readonly loading = signal(true);

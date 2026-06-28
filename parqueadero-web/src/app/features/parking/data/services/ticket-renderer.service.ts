@@ -14,6 +14,7 @@ import * as QRCode from 'qrcode';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
 import {
+  ExitReceiptPrintData,
   TicketRendererPort,
   TicketRenderResult,
 } from '../../domain/services/ticket-renderer.port';
@@ -21,9 +22,17 @@ import { SupabaseService } from '../../../../core/services/supabase.service';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 import { InvoiceDetailEntity } from '../../../invoicing/domain/entities/invoice-detail.entity';
 import { PaymentMethod } from '../../domain/entities/payment.entity';
+import {
+  buildEscPosEntryReceipt,
+  buildEscPosExitReceipt,
+  buildEscPosSalesTicket,
+  buildEscPosTestReceipt,
+} from './esc-pos-parking-receipt.builder';
+import { QzParkingPrinterService } from './qz-parking-printer.service';
+import { TicketPrintOptions } from '../../domain/services/ticket-renderer.port';
 
 /** Datos necesarios para renderizar el comprobante de salida (cobro). */
-export interface ExitReceiptData {
+export interface ExitReceiptData extends ExitReceiptPrintData {
   plate: string;
   vehicleType: VehicleType;
   entryAt: Date;
@@ -56,6 +65,10 @@ export interface ParkingInfo {
   parkingType: 'publico' | 'privado' | '';
   resolutionNumber: string;
   closingTime: string;
+  printerName: string;
+  printEntryTicketEnabled: boolean;
+  printExitReceiptEnabled: boolean;
+  openDrawerOnCashPayment: boolean;
 }
 
 const FALLBACK_PARKING_INFO: ParkingInfo = {
@@ -67,6 +80,10 @@ const FALLBACK_PARKING_INFO: ParkingInfo = {
   parkingType: '',
   resolutionNumber: '',
   closingTime: '',
+  printerName: '',
+  printEntryTicketEnabled: true,
+  printExitReceiptEnabled: true,
+  openDrawerOnCashPayment: false,
 };
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
@@ -92,6 +109,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 @Injectable({ providedIn: 'root' })
 export class TicketRendererService extends TicketRendererPort {
   private readonly supabase = inject(SupabaseService);
+  private readonly qzPrinter = inject(QzParkingPrinterService);
   private cachedParkingInfo: ParkingInfo | null = null;
   private cachedParkingInfoAt = 0;
   private cachedActiveTariffs: TariffEntity[] | null = null;
@@ -126,6 +144,16 @@ export class TicketRendererService extends TicketRendererPort {
           parkingType: (v.parkingType as ParkingInfo['parkingType']) ?? '',
           resolutionNumber: v.resolutionNumber ?? '',
           closingTime: v.closingTime ?? '',
+          printerName: typeof v['printerName'] === 'string' ? v['printerName'].trim() : '',
+          printEntryTicketEnabled: typeof v['printEntryTicketEnabled'] === 'boolean'
+            ? v['printEntryTicketEnabled']
+            : true,
+          printExitReceiptEnabled: typeof v['printExitReceiptEnabled'] === 'boolean'
+            ? v['printExitReceiptEnabled']
+            : true,
+          openDrawerOnCashPayment: typeof v['openDrawerOnCashPayment'] === 'boolean'
+            ? v['openDrawerOnCashPayment']
+            : false,
         };
         this.cachedParkingInfoAt = Date.now();
         return this.cachedParkingInfo;
@@ -201,6 +229,24 @@ export class TicketRendererService extends TicketRendererPort {
 
     const html = this.buildHtml(session, tariffSnapshot, allTariffs, info, qrDataUrl);
 
+    if (info.printEntryTicketEnabled) {
+      try {
+        await this.qzPrinter.print(
+          buildEscPosEntryReceipt({
+            session,
+            tariff: tariffSnapshot,
+            info,
+            qrBase64: dataUrlToBase64(qrDataUrl),
+          }),
+          info.printerName,
+          `Parqueadero entrada ${session.vehiclePlate}`,
+        );
+        return { ok: true };
+      } catch (error) {
+        console.warn('[print-entry] QZ failed, falling back to browser print.', error);
+      }
+    }
+
     const w = window.open('', '_blank', 'width=380,height=720');
     if (!w) return { ok: false, reason: 'popup_blocked' };
 
@@ -231,8 +277,31 @@ export class TicketRendererService extends TicketRendererPort {
    * confirmar salida y por el historial de cobros (/payments) para
    * reimprimir.
    */
-  async printExitReceipt(r: ExitReceiptData, parkingInfo?: ParkingInfo): Promise<TicketRenderResult> {
-    const info = parkingInfo ?? await this.getParkingInfo();
+  async printExitReceipt(
+    r: ExitReceiptData,
+    optionsOrParkingInfo?: TicketPrintOptions | ParkingInfo,
+  ): Promise<TicketRenderResult> {
+    const explicitParkingInfo = isParkingInfo(optionsOrParkingInfo) ? optionsOrParkingInfo : undefined;
+    const options = isParkingInfo(optionsOrParkingInfo) ? {} : optionsOrParkingInfo ?? {};
+    const info = explicitParkingInfo ?? await this.getParkingInfo();
+
+    if (info.printExitReceiptEnabled) {
+      try {
+        await this.qzPrinter.print(
+          buildEscPosExitReceipt(r, info),
+          info.printerName,
+          `Parqueadero salida ${r.plate}`,
+          {
+            openCashDrawer: options.openCashDrawer ??
+              (info.openDrawerOnCashPayment && r.paymentMethod === 'efectivo' && r.amountCents > 0),
+          },
+        );
+        return { ok: true };
+      } catch (error) {
+        console.warn('[print-exit] QZ failed, falling back to browser print.', error);
+      }
+    }
+
     const html = buildExitReceiptHtml(r, info);
 
     const w = window.open('', '_blank', 'width=380,height=720');
@@ -257,6 +326,20 @@ export class TicketRendererService extends TicketRendererPort {
 
   async printSalesTicket(detail: InvoiceDetailEntity): Promise<TicketRenderResult> {
     const info = await this.getParkingInfo();
+
+    if (info.printExitReceiptEnabled) {
+      try {
+        await this.qzPrinter.print(
+          buildEscPosSalesTicket(detail, info),
+          info.printerName,
+          `Parqueadero ticket ${detail.invoice.internalNumber}`,
+        );
+        return { ok: true };
+      } catch (error) {
+        console.warn('[print-sales-ticket] QZ failed, falling back to browser print.', error);
+      }
+    }
+
     const html = this.buildSalesHtml(detail, info);
 
     const w = window.open('', '_blank', 'width=380,height=720');
@@ -277,6 +360,32 @@ export class TicketRendererService extends TicketRendererPort {
       try { w.close(); } catch { /* noop */ }
     }, 1000);
     return { ok: true };
+  }
+
+  async openCashDrawer(): Promise<TicketRenderResult> {
+    const info = await this.getParkingInfo();
+    try {
+      await this.qzPrinter.openCashDrawer(info.printerName);
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, reason: 'qz_error', message };
+    }
+  }
+
+  async printTestReceipt(): Promise<TicketRenderResult> {
+    const info = await this.getParkingInfo();
+    try {
+      await this.qzPrinter.print(
+        buildEscPosTestReceipt(info),
+        info.printerName,
+        'Parqueadero prueba',
+      );
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, reason: 'qz_error', message };
+    }
   }
 
   private buildSalesHtml(detail: InvoiceDetailEntity, info: ParkingInfo): string {
@@ -762,6 +871,15 @@ function splitBogotaDateTime(d: Date): { date: string; time: string } {
     timeZone: 'America/Bogota',
   });
   return { date, time };
+}
+
+function dataUrlToBase64(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+}
+
+function isParkingInfo(value: TicketPrintOptions | ParkingInfo | undefined): value is ParkingInfo {
+  return Boolean(value && 'name' in value && 'parkingType' in value);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

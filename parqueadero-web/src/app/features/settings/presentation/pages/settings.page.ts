@@ -21,6 +21,7 @@ import {
   ParkingInfoValue,
 } from '../../domain/entities/app-setting.entity';
 import { ToastService } from '../../../../core/services/toast.service';
+import { TicketRendererService } from '../../../parking/data/services/ticket-renderer.service';
 
 type Tab = 'parking' | 'operational';
 
@@ -38,6 +39,8 @@ export class SettingsPageComponent implements OnInit {
   protected readonly tab = signal<Tab>('parking');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly testingPrinter = signal(false);
+  protected readonly openingDrawer = signal(false);
 
   protected readonly paymentMethods = PAYMENT_METHODS;
 
@@ -46,6 +49,7 @@ export class SettingsPageComponent implements OnInit {
 
   private readonly settingsForms = inject(SettingsForms);
   private readonly toast = inject(ToastService);
+  private readonly ticketPrinter = inject(TicketRendererService);
 
   constructor(
     @Inject(GET_SETTING_TOKEN) private readonly getSettingUC: GetSettingUseCase,
@@ -80,18 +84,48 @@ export class SettingsPageComponent implements OnInit {
     this.operationalForm.patchValue({ enabled_payment_methods: next });
   }
 
-  async saveParking(): Promise<void> {
-    if (this.parkingForm.invalid) return;
+  async saveParking(): Promise<boolean> {
+    if (this.parkingForm.invalid) return false;
     this.saving.set(true);
     const result = await this.updateSettingUC.execute({
       key: 'parking_info',
       value: this.parkingForm.value as ParkingInfoValue,
     });
     this.saving.set(false);
-    result.fold(
-      (f) => this.toast.error(`Error al guardar: ${f.message}`),
-      () => this.toast.success('Datos del parqueadero actualizados'),
+    return result.fold(
+      (f) => {
+        this.toast.error(`Error al guardar: ${f.message}`);
+        return false;
+      },
+      () => {
+        this.toast.success('Datos del parqueadero actualizados');
+        return true;
+      },
     );
+  }
+
+  async printTestReceipt(): Promise<void> {
+    if (this.parkingForm.invalid || this.testingPrinter()) return;
+    const saved = await this.saveParking();
+    if (!saved) return;
+    this.ticketPrinter.invalidateCache();
+    this.testingPrinter.set(true);
+    const result = await this.ticketPrinter.printTestReceipt();
+    this.testingPrinter.set(false);
+    if (result.ok) this.toast.success('Prueba enviada a la impresora');
+    else this.toast.error(result.message ?? 'No se pudo imprimir la prueba');
+  }
+
+  async openCashDrawer(): Promise<void> {
+    if (this.parkingForm.invalid || this.openingDrawer()) return;
+    const saved = await this.saveParking();
+    if (!saved) return;
+    this.ticketPrinter.invalidateCache();
+    this.openingDrawer.set(true);
+    const result = await this.ticketPrinter.openCashDrawer();
+    this.openingDrawer.set(false);
+    if (result.ok) this.toast.success('Pulso enviado a la caja monedero');
+    else this.toast.error(result.message ?? 'No se pudo abrir la caja monedero');
   }
 
   async saveOperational(): Promise<void> {
@@ -124,7 +158,14 @@ export class SettingsPageComponent implements OnInit {
     pi.fold(
       (f) => this.toast.error(`Error parking_info: ${f.message}`),
       (s) => {
-        if (s) this.parkingForm.patchValue(s.value as ParkingInfoValue);
+        if (s) {
+          this.parkingForm.patchValue({
+            printEntryTicketEnabled: true,
+            printExitReceiptEnabled: true,
+            openDrawerOnCashPayment: false,
+            ...(s.value as ParkingInfoValue),
+          });
+        }
       },
     );
     op.fold(

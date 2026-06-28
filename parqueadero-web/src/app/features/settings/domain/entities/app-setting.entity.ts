@@ -11,6 +11,10 @@ export interface ParkingInfoValue {
   parkingType: 'publico' | 'privado' | '';
   resolutionNumber: string;
   closingTime: string;
+  printerName?: string;
+  printEntryTicketEnabled?: boolean;
+  printExitReceiptEnabled?: boolean;
+  openDrawerOnCashPayment?: boolean;
 }
 
 export interface OperationalConfigValue {
