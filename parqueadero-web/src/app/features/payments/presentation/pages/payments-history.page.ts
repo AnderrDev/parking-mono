@@ -41,6 +41,8 @@ interface HistoryRow {
   tariffRow: TariffModel | null;
 }
 
+type PaymentStatusFilter = '' | 'completed' | 'pending' | 'refunded';
+
 const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   efectivo:         'Efectivo',
   tarjeta_credito:  'Tarjeta crédito',
@@ -89,17 +91,25 @@ export class PaymentsHistoryPageComponent implements OnInit {
   protected readonly filtersForm: FormGroup;
 
   protected readonly methodOptions = Object.entries(PAYMENT_METHOD_LABEL) as [PaymentMethod, string][];
+  protected readonly statusOptions: [PaymentStatusFilter, string][] = [
+    ['', 'Todos'],
+    ['completed', 'Completados'],
+    ['pending', 'Pendientes'],
+    ['refunded', 'Anulados'],
+  ];
   protected readonly formatCOP = formatCOP;
 
   constructor() {
-    // Default: últimos 7 días.
+    // Default: últimos 60 días para que el historial operativo no aparezca
+    // vacío cuando no hubo cobros recientes.
     const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 3600 * 1000);
+    const from = new Date(today.getTime() - 60 * 24 * 3600 * 1000);
     this.filtersForm = this.fb.group({
-      dateFrom: [weekAgo.toISOString().slice(0, 10)],
+      dateFrom: [from.toISOString().slice(0, 10)],
       dateTo: [today.toISOString().slice(0, 10)],
       vehiclePlate: [''],
       method: [''],
+      status: [''],
     });
   }
 
@@ -181,8 +191,15 @@ export class PaymentsHistoryPageComponent implements OnInit {
   }
 
   protected clearFilters(): void {
-    const today = new Date().toISOString().slice(0, 10);
-    this.filtersForm.reset({ dateFrom: today, dateTo: today, vehiclePlate: '', method: '' });
+    const todayDate = new Date();
+    const from = new Date(todayDate.getTime() - 60 * 24 * 3600 * 1000);
+    this.filtersForm.reset({
+      dateFrom: from.toISOString().slice(0, 10),
+      dateTo: todayDate.toISOString().slice(0, 10),
+      vehiclePlate: '',
+      method: '',
+      status: '',
+    });
     this.page.set(1);
     void this.load();
   }
@@ -208,7 +225,11 @@ export class PaymentsHistoryPageComponent implements OnInit {
     this.errorMsg.set(null);
 
     const v = this.filtersForm.value as {
-      dateFrom: string; dateTo: string; vehiclePlate: string; method: string;
+      dateFrom: string;
+      dateTo: string;
+      vehiclePlate: string;
+      method: string;
+      status: PaymentStatusFilter;
     };
 
     const offset = (this.page() - 1) * this.pageSize;
@@ -224,7 +245,6 @@ export class PaymentsHistoryPageComponent implements OnInit {
           exit_user:exit_user_id ( nombre )
         )
       `, { count: 'exact' })
-      .eq('status', 'completed')
       .order('paid_at', { ascending: false })
       .range(offset, offset + this.pageSize - 1);
 
@@ -236,6 +256,9 @@ export class PaymentsHistoryPageComponent implements OnInit {
     }
     if (v.method) {
       query = query.eq('method', v.method);
+    }
+    if (v.status) {
+      query = query.eq('status', v.status);
     }
     if (v.vehiclePlate?.trim()) {
       const plate = v.vehiclePlate.trim().toUpperCase();
@@ -290,7 +313,7 @@ export class PaymentsHistoryPageComponent implements OnInit {
 
     let totalSum = 0;
     const mapped: HistoryRow[] = (data ?? []).map((r) => {
-      totalSum += r.amount_cents;
+      if (r.status === 'completed') totalSum += r.amount_cents;
       const sess = r.parking_sessions;
       const entryAt = sess?.entry_at ? new Date(sess.entry_at) : null;
       const exitAt = sess?.exit_at ? new Date(sess.exit_at) : null;
