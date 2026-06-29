@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { Router } from '@angular/router';
+import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import {
   REGISTER_VEHICLE_ENTRY_TOKEN,
 } from '../../../../core/di/injection-tokens';
@@ -60,7 +61,7 @@ export interface VehicleEntryModalResult {
   selector: 'app-vehicle-entry-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VehicleEntryFormComponent],
+  imports: [VehicleEntryFormComponent, LoadingSpinnerComponent],
   templateUrl: './vehicle-entry-modal.component.html',
   styleUrl: './vehicle-entry-modal.component.scss',
 })
@@ -81,6 +82,7 @@ export class VehicleEntryModalComponent {
   ) {}
 
   protected onConfirmClick(): void {
+    if (this.submitting()) return;
     // Delega al form interno; si es válido, emite (submitted).
     this.entryForm().onSubmit();
   }
@@ -102,10 +104,9 @@ export class VehicleEntryModalComponent {
       userId: user.id,
     });
 
-    this.submitting.set(false);
-
-    result.fold(
+    await result.fold(
       (failure) => {
+        this.submitting.set(false);
         if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
           this.errorBanner.set(failure.message);
         } else if (failure instanceof NetworkFailure) {
@@ -140,6 +141,7 @@ export class VehicleEntryModalComponent {
   }
 
   protected onCancel(): void {
+    if (this.submitting()) return;
     if (this.hasUnsavedData()) {
       const ok = window.confirm('¿Descartar lo escrito? La entrada no se ha registrado.');
       if (!ok) return;
@@ -153,6 +155,7 @@ export class VehicleEntryModalComponent {
    * sin prefill y el admin abre el dialog de creación desde cero.
    */
   protected onCreateTariffRequested(vehicleType: VehicleType | null): void {
+    if (this.submitting()) return;
     this.dialogRef.close(undefined);
     const queryParams = vehicleType ? { prefill: vehicleType } : {};
     this.router.navigate(['/tariffs'], { queryParams });

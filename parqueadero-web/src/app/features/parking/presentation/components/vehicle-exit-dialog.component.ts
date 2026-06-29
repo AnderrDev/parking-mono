@@ -19,6 +19,7 @@ import { CalculateParkingFeeResult } from '../../domain/usecases/calculate-parki
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP as copFormatter } from '../../../../shared/utils/currency.utils';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
+import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import { GET_SETTING_TOKEN } from '../../../../core/di/injection-tokens';
 import { GetSettingUseCase } from '../../../settings/domain/usecases/get-setting.usecase';
 import { OperationalConfigValue } from '../../../settings/domain/entities/app-setting.entity';
@@ -39,6 +40,7 @@ export interface VehicleExitDialogData {
   readonly session: ParkingSessionEntity;
   readonly tariff: TariffEntity | null;
   readonly feeResult: CalculateParkingFeeResult | null;
+  readonly onSubmit?: (value: ExitFormValue) => Promise<string | null>;
 }
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -74,7 +76,7 @@ const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   selector: 'app-vehicle-exit-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, CurrencyInputDirective],
+  imports: [ReactiveFormsModule, CurrencyInputDirective, LoadingSpinnerComponent],
   templateUrl: './vehicle-exit-dialog.component.html',
   styleUrl: './vehicle-exit-dialog.component.scss',
 })
@@ -87,6 +89,8 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
   readonly showJustification = signal(false);
   readonly cashReceived = signal<number | null>(null);
   readonly paymentMethod = signal<PaymentMethod>('efectivo');
+  readonly submitting = signal(false);
+  readonly submitError = signal<string | null>(null);
 
   // HU-029: cambio = recibido - cobro. Negativo si falta dinero.
   readonly changeCents = computed<number | null>(() => {
@@ -217,7 +221,8 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
     return VEHICLE_TYPE_LABEL[t] ?? t;
   }
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
+    if (this.submitting()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -227,17 +232,33 @@ export class VehicleExitDialogComponent implements OnInit, OnDestroy {
       justification: string;
       cashReceivedCents: number | null;
     };
-    this.dialogRef.close({
+    const value: ExitFormValue = {
       paymentMethod: raw.paymentMethod,
       justification: raw.justification ?? '',
       cashReceivedCents: raw.cashReceivedCents,
       // Mantienen valores fijos: la emisión de factura/cliente se eliminó del flujo.
       emitInvoice: false,
       customerId: null,
-    });
+    };
+
+    if (!this.data.onSubmit) {
+      this.dialogRef.close(value);
+      return;
+    }
+
+    this.submitting.set(true);
+    this.submitError.set(null);
+    const errorMsg = await this.data.onSubmit(value);
+    this.submitting.set(false);
+    if (errorMsg) {
+      this.submitError.set(errorMsg);
+      return;
+    }
+    this.dialogRef.close(undefined);
   }
 
   onCancel(): void {
+    if (this.submitting()) return;
     this.dialogRef.close(undefined);
   }
 }

@@ -116,6 +116,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly activeSessions = signal<ParkingSessionEntity[]>([]);
   readonly monthlyPlanWarning = signal<string | null>(null);
   readonly reprintingEntryTicket = signal<string | null>(null);
+  readonly exitDialogSessionId = signal<string | null>(null);
 
 
   // Estado de la caja del operador. Se carga al ngOnInit y bloquea la entrada
@@ -537,6 +538,9 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async openExitDialog(session: ParkingSessionEntity): Promise<void> {
+    if (this.exitDialogSessionId()) return;
+    this.exitDialogSessionId.set(session.id);
+
     const exitAt = new Date();
     const durationMinutes = Math.max(
       1,
@@ -565,23 +569,30 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       {
         injector: this.envInjector,
         viewContainerRef: this.vcr,
-        data: { session, tariff, feeResult },
+        data: {
+          session,
+          tariff,
+          feeResult,
+          onSubmit: (value) => this.onExitSubmit(session, value),
+        },
         ariaLabelledBy: 'exit-dialog-title',
         autoFocus: 'first-tabbable',
         restoreFocus: true,
         hasBackdrop: true,
+        disableClose: true,
       },
     );
     ref.closed.subscribe((result) => {
+      this.exitDialogSessionId.set(null);
       if (result) {
         void this.onExitSubmit(session, result);
       }
     });
   }
 
-  private async onExitSubmit(session: ParkingSessionEntity, value: ExitFormValue): Promise<void> {
+  private async onExitSubmit(session: ParkingSessionEntity, value: ExitFormValue): Promise<string | null> {
     const user = this.authState.currentUser();
-    if (!user) return;
+    if (!user) return 'Sesión expirada. Vuelve a iniciar sesión.';
 
     const result = await this.registerExit.execute({
       plate: session.vehiclePlate,
@@ -590,60 +601,61 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       userId: user.id,
     });
 
-    result.fold(
-      (failure) => {
-        if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
-          this.toast.error(failure.message);
-        } else if (failure instanceof NotFoundFailure) {
-          this.toast.error(failure.message);
-          void this.loadSessions();
-        } else if (failure instanceof NetworkFailure) {
-          this.toast.warning('Sin conexión. La salida se guardará cuando haya red.');
-        } else if (failure instanceof ServerFailure) {
-          this.toast.error(`Error al registrar salida: ${failure.message}`);
-        } else {
-          this.toast.error('Error inesperado. Intenta de nuevo.');
-        }
-      },
-      ({ session: closedSession, payment }) => {
-        this.activeSessions.update((prev) => prev.filter((s) => s.id !== closedSession.id));
-        const amount = closedSession.amountDueCents ?? 0;
-        const amountStr = amount > 0 ? ` — ${formatCOP(amount)}` : ' — Sin cobro';
+    if (result.isLeft()) {
+      const failure = result.value;
+      let message = 'Error inesperado. Intenta de nuevo.';
+      if (failure instanceof ValidationFailure || failure instanceof BusinessRuleFailure) {
+        message = failure.message;
+      } else if (failure instanceof NotFoundFailure) {
+        message = failure.message;
+        void this.loadSessions();
+      } else if (failure instanceof NetworkFailure) {
+        message = 'Sin conexión. La salida se guardará cuando haya red.';
+      } else if (failure instanceof ServerFailure) {
+        message = `Error al registrar salida: ${failure.message}`;
+      }
+      this.toast.error(message);
+      return message;
+    }
 
-        // HU-029: si pagó en efectivo, mostrar el cambio en el toast de éxito.
-        let changeStr = '';
-        if (value.paymentMethod === 'efectivo' && value.cashReceivedCents !== null && amount > 0) {
-          const change = value.cashReceivedCents - amount;
-          if (change > 0) {
-            changeStr = ` · Cambio ${formatCOP(change)}`;
-          }
-        }
-        this.toast.success(`Vehículo ${closedSession.vehiclePlate} salió${amountStr}${changeStr}`);
+    const { session: closedSession, payment } = result.value;
+    this.activeSessions.update((prev) => prev.filter((s) => s.id !== closedSession.id));
+    const amount = closedSession.amountDueCents ?? 0;
+    const amountStr = amount > 0 ? ` — ${formatCOP(amount)}` : ' — Sin cobro';
 
-        const receipt: ExitReceiptPrintData = {
-          plate: closedSession.vehiclePlate,
-          vehicleType: closedSession.vehicleType,
-          entryAt: closedSession.entryAt,
-          exitAt: closedSession.exitAt ?? new Date(),
-          durationMinutes: closedSession.durationMinutes,
-          amountCents: amount,
-          paymentMethod: payment.method,
-          cashReceivedCents: value.cashReceivedCents,
-          // Mostrada en el ticket impreso (no en la `.receipt-card`).
-          // Cae al snapshot vigente del tipo de vehículo — suficiente
-          // mientras no haya cambios de tarifa entre entrada y salida.
-          tariffSnapshot: this.activeTariffs().get(closedSession.vehicleType) ?? null,
-        };
-        // HU-031 v1.1: auto-impresión del comprobante por QZ Tray. Si falla,
-        // la salida queda registrada y se informa al cajero.
-        void this.printReceipt(receipt);
+    // HU-029: si pagó en efectivo, mostrar el cambio en el toast de éxito.
+    let changeStr = '';
+    if (value.paymentMethod === 'efectivo' && value.cashReceivedCents !== null && amount > 0) {
+      const change = value.cashReceivedCents - amount;
+      if (change > 0) {
+        changeStr = ` · Cambio ${formatCOP(change)}`;
+      }
+    }
+    this.toast.success(`Vehículo ${closedSession.vehiclePlate} salió${amountStr}${changeStr}`);
 
-        // HU-040: emitir factura electrónica si el operador la pidió.
-        if (value.emitInvoice && value.customerId) {
-          void this.emitInvoiceFor(closedSession.id, value.customerId);
-        }
-      },
-    );
+    const receipt: ExitReceiptPrintData = {
+      plate: closedSession.vehiclePlate,
+      vehicleType: closedSession.vehicleType,
+      entryAt: closedSession.entryAt,
+      exitAt: closedSession.exitAt ?? new Date(),
+      durationMinutes: closedSession.durationMinutes,
+      amountCents: amount,
+      paymentMethod: payment.method,
+      cashReceivedCents: value.cashReceivedCents,
+      // Mostrada en el ticket impreso (no en la `.receipt-card`).
+      // Cae al snapshot vigente del tipo de vehículo — suficiente
+      // mientras no haya cambios de tarifa entre entrada y salida.
+      tariffSnapshot: this.activeTariffs().get(closedSession.vehicleType) ?? null,
+    };
+    // HU-031 v1.1: auto-impresión del comprobante por QZ Tray. Si falla,
+    // la salida queda registrada y se informa al cajero.
+    await this.printReceipt(receipt);
+
+    // HU-040: emitir factura electrónica si el operador la pidió.
+    if (value.emitInvoice && value.customerId) {
+      void this.emitInvoiceFor(closedSession.id, value.customerId);
+    }
+    return null;
   }
 
   private async emitInvoiceFor(sessionId: string, customerId: string): Promise<void> {
