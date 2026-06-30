@@ -2,13 +2,11 @@ import {
   APP_INITIALIZER,
   ApplicationConfig,
   inject,
-  isDevMode,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideServiceWorker } from '@angular/service-worker';
 
 import { routes } from './app.routes';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
@@ -55,7 +53,6 @@ import { GetInvoiceDetailUseCase } from './features/invoicing/domain/usecases/ge
 import { SettingsRemoteDataSource } from './features/settings/data/datasources/settings-remote.datasource';
 import { SettingsRepositoryImpl } from './features/settings/data/repositories/settings.repository.impl';
 import { GetSettingUseCase } from './features/settings/domain/usecases/get-setting.usecase';
-import { SyncOrchestrator } from './core/services/sync-orchestrator.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -63,10 +60,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
     provideHttpClient(withInterceptors([errorInterceptor])),
     provideAnimationsAsync(),
-    provideServiceWorker('ngsw-worker.js', {
-      enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
-    }),
 
     // Auth: root-scoped para que APP_INITIALIZER pueda restaurar la sesión
     // antes de que el router corra los guards. Sin esto, F5 expulsa al
@@ -109,17 +102,28 @@ export const appConfig: ApplicationConfig = {
         return () => authRepo.getCurrentUser();
       },
     },
-    // Fase 8 — Sprint 1: arranca el orquestador offline al boot.
-    // Debe correr DESPUÉS de getCurrentUser() porque snapshotPull necesita
-    // un AuthStateService.currentUser() no-null. El multi:true de Angular
-    // ejecuta los initializers en orden de registro, así que basta con
-    // colocarlo aquí.
     {
       provide: APP_INITIALIZER,
       multi: true,
       useFactory: () => {
-        const sync = inject(SyncOrchestrator);
-        return () => sync.initialize();
+        return async () => {
+          try {
+            if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map((registration) => registration.unregister()));
+            }
+            if (typeof caches !== 'undefined') {
+              const keys = await caches.keys();
+              await Promise.all(
+                keys
+                  .filter((key) => key.startsWith('ngsw:') || key.includes('parqueadero'))
+                  .map((key) => caches.delete(key)),
+              );
+            }
+          } catch (err) {
+            console.warn('[startup] no se pudo limpiar el service worker anterior', err);
+          }
+        };
       },
     },
   ],

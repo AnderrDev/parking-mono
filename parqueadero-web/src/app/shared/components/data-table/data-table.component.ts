@@ -15,7 +15,7 @@ export interface TableColumn<T = unknown> {
   class?: string;
 }
 
-export type TableState = 'loading' | 'empty' | 'error' | 'offline' | 'success';
+export type TableState = 'loading' | 'empty' | 'error' | 'success';
 
 @Component({
   selector: 'app-data-table',

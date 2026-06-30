@@ -85,7 +85,7 @@ export class VehiclesListPageComponent implements OnInit {
       ...(s ? { sort: s } : {}),
     });
     result.fold(
-      (f) => this.tableState.set(f instanceof NetworkFailure ? 'offline' : 'error'),
+      (_f) => this.tableState.set('error'),
       ({ data, pagination }) => {
         this.vehicles.set(data);
         this.pagination.set(pagination);

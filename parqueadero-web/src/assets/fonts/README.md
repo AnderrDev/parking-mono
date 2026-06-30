@@ -1,6 +1,6 @@
 # Fuentes self-hosted
 
-Para producción (PWA offline-first) coloca aquí los archivos .woff2:
+Para producción coloca aquí los archivos .woff2:
 
 ## Inter (UI sans-serif)
 Descarga desde: https://rsms.me/inter/download/ o usa `fontsource`:

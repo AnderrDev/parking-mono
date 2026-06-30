@@ -1,15 +1,14 @@
 # Parqueadero: Sistema de Administración de Parqueadero Colombiano
 
-Sistema PWA completo para administrar un parqueadero en Colombia con soporte para rotación por horas y mensualidades. Incluye facturación electrónica directa contra DIAN, pagos en línea via Wompi, y operación offline-first.
+Sistema web para administrar un parqueadero en Colombia con soporte para rotación por horas y mensualidades. Incluye facturación electrónica directa contra DIAN y pagos en línea via Wompi. La operación requiere conexión a internet.
 
 ## Stack Técnico
 
 | Componente | Tecnología | Descripción |
 |---|---|---|
-| **Frontend** | Angular 18 + TypeScript + SCSS | PWA offline-first, arquitectura limpia |
+| **Frontend** | Angular 18 + TypeScript + SCSS | SPA online-only, arquitectura limpia |
 | **Backend** | Supabase (PostgreSQL + Edge Functions) | BaaS con RLS, realtime, storage |
 | **Facturación** | Python 3.12 + FastAPI (Fly.io) | Microservicio independiente, DIAN + SOAP |
-| **Offline** | PowerSync + IndexedDB | Sincronización bidireccional |
 | **Pagos** | Wompi API | Procesamiento de pagos online |
 | **Auth** | Supabase JWT | Autenticación y RLS |
 
@@ -17,7 +16,7 @@ Sistema PWA completo para administrar un parqueadero en Colombia con soporte par
 
 ```
 parqueadero/
-├── parqueadero-web/          ← Cliente Angular PWA
+├── parqueadero-web/          ← Cliente Angular SPA
 │   ├── specs/                ← Especificaciones de features
 │   ├── src/app/
 │   │   ├── core/             ← Either, Failures, DI, Guards
@@ -107,7 +106,7 @@ Left<ServerFailure>
 4. **Mensualidad vigente** → Sesión gratis si está dentro del período
 5. **Numeración de facturas** → Asignada por servidor, nunca por cliente
 6. **DIAN directa** → Factura electrónica contra WS DIAN sin intermediario
-7. **Offline-first** → Operación se guarda local, sincroniza cuando hay conexión
+7. **Online-only** → La operación se confirma contra Supabase; sin conexión se informa error y no se persiste localmente
 8. **Audit trail** → Todo cambio sensible queda registrado
 
 ## Flujos Principales
@@ -292,4 +291,3 @@ admin@parqueadero.local
 ---
 
 **v1.0** — Proyecto de referencia: Spec-Driven Development + Arquitectura Limpia + Factura Electrónica DIAN
-

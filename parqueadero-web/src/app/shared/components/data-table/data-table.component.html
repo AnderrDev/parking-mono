@@ -38,19 +38,6 @@
       </div>
     }
 
-    @case ('offline') {
-      <div class="table-state" role="status">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <path d="M1 6s4-2 11-2 11 2 11 2"/>
-          <path d="M5 10s3-1.5 7-1.5 7 1.5 7 1.5"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-          <circle cx="12" cy="20" r="1"/>
-        </svg>
-        <p class="table-state__title">Sin conexión</p>
-        <p class="table-state__desc">Mostrando datos guardados localmente.</p>
-      </div>
-    }
-
     @case ('success') {
       <div class="table-wrap">
         <table class="table" [attr.aria-rowcount]="pagination()?.total">

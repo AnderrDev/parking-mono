@@ -50,7 +50,7 @@ Operario (usuario con rol operador)
 
 6. **Timestamp en UTC**: La fecha de entrada (`entry_at`) se guarda en UTC (no en hora local colombiana).
 
-7. **Sin sincronización en UI**: Si hay error de red, se guarda en local (IndexedDB) con `status='pending_sync'` y se sincroniza automáticamente cuando haya conexión.
+7. **Online obligatorio**: Si hay error de red, retornar `NetworkFailure` y no persistir la entrada.
 
 ## Flujo Principal
 
@@ -88,8 +88,8 @@ Operario (usuario con rol operador)
      - durationMinutes: 0
 
 6. **Guardar en BD**
-   - Si hay conexión: insertar en `parking_sessions` via Supabase
-   - Si sin conexión: guardar en IndexedDB local con `_sync_status='pending'`
+   - Insertar en `parking_sessions` via Supabase.
+   - Si no hay conexión, retornar error y no crear datos locales.
 
 7. **Retornar resultado**
    - `Right<ParkingSessionEntity>` con la entidad creada

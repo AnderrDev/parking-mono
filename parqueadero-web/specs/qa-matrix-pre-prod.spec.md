@@ -190,9 +190,9 @@ Convención: cada HU tiene **ID**, **rol** requerido, **resultado esperado** y *
 
 | ID | HU | Rol | Verificación |
 |---|---|---|---|
-| INF-01 | App funciona offline (Dexie + outbox FIFO) | Todos | Manual: cortar red, registrar entrada, restaurar red, verificar sync |
-| INF-02 | Realtime entre tabs (BroadcastChannel + Supabase Realtime) | Todos | Manual: abrir 2 tabs, registrar en una, ver actualización en la otra |
-| INF-03 | PWA installable | Todos | Lighthouse PWA ≥ 90 |
+| INF-01 | App online-only bloquea operación sin red | Todos | Manual: cortar red, intentar registrar entrada y verificar error sin persistencia local |
+| INF-02 | Realtime entre tabs (Supabase Realtime) | Todos | Manual: abrir 2 tabs, registrar en una, ver actualización en la otra |
+| INF-03 | Service worker anterior queda desregistrado | Todos | DevTools: Application → Service Workers sin worker activo tras recargar |
 | INF-04 | Stale-write protection (P0409) | Todos | Manual: editar misma tarifa desde 2 tabs |
 | INF-05 | Loading skeletons mientras carga datos | Todos | UI: estados visibles |
 | INF-06 | Toast errors con mensajes accionables | Todos | UI: notificaciones |

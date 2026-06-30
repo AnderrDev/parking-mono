@@ -1,7 +1,5 @@
 <a class="skip-link" href="#main-content">Saltar al contenido principal</a>
 
-    <app-offline-banner />
-
     @if (showShell()) {
       <div class="shell">
         <!-- ============= SIDEBAR ============= -->
@@ -105,15 +103,6 @@
           <header class="header" role="banner">
             <div class="header__left">
               <h1 class="header__title">{{ pageTitle() }}</h1>
-              <span
-                class="header__connection"
-                [class.header__connection--offline]="(networkInfo.isOnline$ | async) === false"
-                [attr.aria-label]="(networkInfo.isOnline$ | async) ? 'En línea' : 'Sin conexión'"
-                role="status"
-              >
-                <span class="header__connection-dot" aria-hidden="true"></span>
-                {{ (networkInfo.isOnline$ | async) ? 'En línea' : 'Sin conexión' }}
-              </span>
             </div>
 
             @if (currentUser()) {

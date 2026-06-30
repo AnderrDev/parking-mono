@@ -7,7 +7,7 @@
 
 ## 1. Propósito
 
-Servir `parqueadero-web` (Angular 18 PWA, CSR) desde Firebase Hosting como sitio estático con SPA fallback y service worker habilitado.
+Servir `parqueadero-web` (Angular 18 CSR, online-only) desde Firebase Hosting como sitio estático con SPA fallback.
 
 ## 2. Alcance
 
@@ -19,12 +19,13 @@ Servir `parqueadero-web` (Angular 18 PWA, CSR) desde Firebase Hosting como sitio
 | Decisión | Valor | Justificación |
 |---|---|---|
 | Carpeta pública | `dist/parqueadero-web/browser` | Output del builder `@angular-devkit/build-angular:application` cuando no hay SSR. |
-| Configuración de build | `production` | `angular.json` aplica fileReplacement a `environment.prod.ts`, habilita el SW vía `ngsw-config.json` y output hashing. |
+| Configuración de build | `production` | `angular.json` aplica fileReplacement a `environment.prod.ts` y output hashing. |
 | SPA rewrite | `**` → `/index.html` | Angular Router maneja el ruteo client-side. |
-| Cache de `index.html` y archivos del SW | `no-cache, no-store, must-revalidate` | `index.html`, `ngsw.json`, `ngsw-worker.js`, `safety-worker.js`, `manifest.webmanifest` NO tienen hash. El SW detecta updates leyendo `ngsw.json`, debe llegar fresco. |
+| Cache de `index.html` | `no-cache, no-store, must-revalidate` | El shell HTML no tiene hash y debe llegar fresco en cada deploy. |
+| Worker de retiro | `ngsw-worker.js` con `no-cache` | Ruta temporal para desregistrar service workers instalados por versiones antiguas. |
 | Cache de assets con hash | `public, max-age=31536000, immutable` | Bundles JS/CSS y fuentes con hash en el nombre — seguros para cache eterno. |
-| Headers de seguridad base | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` | Mínimo razonable. CSP queda para iteración posterior tras inventariar orígenes Supabase/PowerSync. |
-| `cleanUrls` / `trailingSlash` | no configurar | El SPA rewrite cubre todas las rutas; meterse con cleanUrls puede romper PWA. |
+| Headers de seguridad base | `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` | Mínimo razonable. CSP queda para iteración posterior tras inventariar orígenes Supabase. |
+| `cleanUrls` / `trailingSlash` | no configurar | El SPA rewrite cubre todas las rutas. |
 | Proyecto Firebase | `<TO_CONFIRM>` | El usuario decide el ID al hacer `firebase use --add`. Sugerido: `parqueadero-web`. |
 | Ámbito del repo | `parqueadero-web/firebase.json` (no en la raíz) | Mantiene la config junto al artefacto que despliega; el comando se corre con `cwd = parqueadero-web/`. |
 
@@ -38,9 +39,7 @@ parqueadero-web/
 ├── dist/parqueadero-web/
 │   └── browser/           ← lo que se sube
 │       ├── index.html
-│       ├── ngsw.json
-│       ├── ngsw-worker.js
-│       ├── manifest.webmanifest
+│       ├── ngsw-worker.js  ← worker de retiro de PWA vieja
 │       ├── *.js, *.css (con hash)
 │       └── assets/
 ```
@@ -61,25 +60,7 @@ parqueadero-web/
         ]
       },
       {
-        "source": "/ngsw.json",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-        ]
-      },
-      {
         "source": "/ngsw-worker.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-        ]
-      },
-      {
-        "source": "/safety-worker.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-        ]
-      },
-      {
-        "source": "/manifest.webmanifest",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
@@ -145,14 +126,13 @@ Todos se corren desde `parqueadero-web/`.
 
 - [ ] La URL `https://<project>.web.app` carga el login.
 - [ ] Login funciona con credenciales reales (Supabase prod).
-- [ ] `Application → Service Workers` en DevTools muestra `ngsw-worker.js` activado.
-- [ ] `Application → Manifest` muestra el manifest cargado, instalable como PWA.
-- [ ] Refrescar la página tras un nuevo deploy actualiza el SW (ver `ngsw.json` con `hash` nuevo).
+- [ ] `Application → Service Workers` no muestra un worker activo después de recargar.
+- [ ] `ngsw-worker.js` responde con el worker de retiro y no con Angular SW.
 - [ ] `Auth → URL Configuration → Site URL` del proyecto Supabase prod apunta al dominio Firebase.
 
 ## 11. Follow-ups (no bloquean Fase 10)
 
 - CI/CD: GitHub Action `firebase-hosting-merge` para deploy automático en `main`.
 - Dominio custom.
-- CSP estricta (`script-src`, `connect-src` con orígenes Supabase + PowerSync).
+- CSP estricta (`script-src`, `connect-src` con orígenes Supabase).
 - Channel `staging` cuando exista proyecto Supabase staging.

@@ -1,5 +1,5 @@
 # CLAUDE.md — Sistema de Administración de Parqueadero
-## Especificación Técnica Completa - Repo: parqueadero-web (Angular PWA)
+## Especificación Técnica Completa - Repo: parqueadero-web (Angular SPA online-only)
 
 **Versión:** 1.0  
 **Última actualización:** 2026-04-28  
@@ -61,7 +61,7 @@ specs/
 │   ├── active-sessions-table.spec.md
 │   └── data-table.spec.md
 └── infrastructure/                 ← Infrastructure specs
-    └── offline-sync.spec.md
+    └── firebase-hosting.spec.md
 ```
 
 ### 1.3 Templates de Spec
@@ -222,18 +222,7 @@ export class ParkingRepositoryImpl extends ParkingRepository {
   
   async registerEntry(...): Promise<Either<Failure, ParkingSessionEntity>> {
     try {
-      // Intentar remoto (Supabase)
-      if (this.isOnline) {
-        const result = await this.remoteDs.insertSession(...);
-        if (result.isRight()) {
-          // También guardar en local como backup
-          await this.localDs.insertSession(result.value);
-        }
-        return result;
-      } else {
-        // Si offline, guardar solo en local
-        return await this.localDs.insertSession(...);
-      }
+      return await this.remoteDs.insertSession(...);
     } catch (error) {
       return Left(new ServerFailure(error.message));
     }
@@ -243,7 +232,7 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
 ### 2.6 DataSource Pattern
 
-Cada repo tiene dos datasources: remoto (Supabase) y local (IndexedDB).
+Cada repo operativo usa datasource remoto (Supabase). No hay datasource local ni fallback offline.
 
 ```typescript
 // data/datasources/parking.datasource.ts (abstract)
@@ -263,19 +252,6 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
       await this.supabase.from('parking_sessions').insert(data).single();
     if (error) return Left(new ServerFailure(error.message));
     return Right(ParkingSessionMapper.toEntity(result));
-  }
-}
-
-// data/datasources/parking-local.datasource.ts (IndexedDB)
-export class ParkingLocalDataSource extends ParkingDataSource {
-  constructor(private powersync: PowerSyncService) { super(); }
-  
-  async insertSession(data: ParkingSessionModel): Promise<...> {
-    const entity = await this.powersync.db.execute(
-      'INSERT INTO parking_sessions (...) VALUES (...)',
-      [...]
-    );
-    return Right(entity);
   }
 }
 ```
@@ -355,8 +331,7 @@ src/app/
 │   │   │   │   └── vehicle.model.ts
 │   │   │   ├── datasources/
 │   │   │   │   ├── parking.datasource.ts
-│   │   │   │   ├── parking-remote.datasource.ts
-│   │   │   │   └── parking-local.datasource.ts
+│   │   │   │   └── parking-remote.datasource.ts
 │   │   │   └── repositories/
 │   │   │       └── parking.repository.impl.ts
 │   │   ├── presentation/
@@ -439,7 +414,6 @@ specs/                             ← TODAS LAS SPECS
 | Repository (impl) | `XxxRepositoryImpl` | `parking.repository.impl.ts` |
 | DataSource (abstract) | `XxxDataSource` | `parking.datasource.ts` |
 | DataSource (remote) | `XxxRemoteDataSource` | `parking-remote.datasource.ts` |
-| DataSource (local) | `XxxLocalDataSource` | `parking-local.datasource.ts` |
 | UseCase | `VerbNounUseCase` | `register-vehicle-entry.usecase.ts` |
 | Page/Smart Component | descriptivo | `operator-dashboard.component.ts` |
 | Dumb Component | descriptivo | `vehicle-entry-form.component.ts` |
@@ -551,27 +525,14 @@ async onSubmit() {
 
 ---
 
-## 7. PWA & OFFLINE FIRST
+## 7. ONLINE-ONLY
 
-El proyecto es una PWA con soporte offline usando PowerSync:
+El proyecto requiere conexión a internet para operar:
 
-- **Service Worker**: Angular SW en `ngsw-config.json`
-- **Sincronización**: PowerSync para IndexedDB ↔ Supabase
-- **Indicador de estado**: Badge online/offline en la UI
-
-```typescript
-// En cualquier componente smart
-constructor(private networkInfo: NetworkInfoService) {
-  this.isOnline$ = this.networkInfo.isOnline$;
-}
-
-// En template
-<div class="status-bar" [class.offline]="!(isOnline$ | async)">
-  <span *ngIf="!(isOnline$ | async)">
-    ⚠️ Sin conexión. Cambios se sincronizarán automáticamente.
-  </span>
-</div>
-```
+- No hay service worker, IndexedDB operativo, outbox ni sincronización offline.
+- Los repositorios usan datasources remotos contra Supabase.
+- Si falla la red, se propaga `NetworkFailure` y la UI muestra un error accionable.
+- No se deben crear nuevos mirrors locales ni reintroducir persistencia offline.
 
 ---
 
@@ -622,14 +583,13 @@ class ParkingSessionMapper { ... }
 ```typescript
 // features/parking/data/datasources/parking.datasource.ts (abstract)
 // features/parking/data/datasources/parking-remote.datasource.ts (Supabase)
-// features/parking/data/datasources/parking-local.datasource.ts (IndexedDB)
 ```
 
 ### Paso 7: Implementar Repository
 ```typescript
 // features/parking/data/repositories/parking.repository.impl.ts
 export class ParkingRepositoryImpl extends ParkingRepository {
-  // Orquesta datasources remote + local
+  // Orquesta datasource remoto; sin fallback local.
 }
 ```
 
@@ -659,7 +619,7 @@ Verificar punto por punto que la implementación cumple la spec.
 3. **Tope diario**: Nunca se cobra más que el tope configurado
 4. **Mensualidad**: Sesión gratis si está en vigencia
 5. **Numeración de tickets**: Asignada por Edge Function (`internal_number`), nunca por cliente
-6. **Offline-first**: Operación se guarda local, sincroniza cuando hay conexión
+6. **Online-only**: operación confirmada contra Supabase; sin conexión no se persiste localmente
 7. **Audit trail**: Todo cambio sensible queda registrado en BD
 
 ---
@@ -681,7 +641,7 @@ Verificar punto por punto que la implementación cumple la spec.
 5. ⏳ Implementar usecases (domain/usecases/)
 6. ⏳ Implementar components + forms (presentation/)
 7. ⏳ Tests para cada capa
-8. ⏳ Integración con Supabase y PowerSync
+8. ⏳ Integración con Supabase
 
 ---
 

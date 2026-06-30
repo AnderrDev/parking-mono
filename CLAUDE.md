@@ -16,7 +16,7 @@ Las reglas absolutas y la fase activa ya llegan vía hooks en cada turno — no 
 
 | Subproject | Stack | Doc |
 |---|---|---|
-| `parqueadero-web/` | Angular 18 PWA, TypeScript, SCSS, PowerSync (offline-first) | `parqueadero-web/CLAUDE.md` |
+| `parqueadero-web/` | Angular 18 SPA, TypeScript, SCSS, online-only | `parqueadero-web/CLAUDE.md` |
 | `parqueadero-backend/` | Supabase (PostgreSQL + RLS + Deno Edge Functions) | `parqueadero-backend/CLAUDE.md` |
 
 ## Spec-Driven Development (regla de proyecto)
@@ -32,7 +32,6 @@ Si el spec no existe, créalo y confirma antes de codear. Si el código diverge 
 Specs existentes (extiende, no duplices):
 - `parqueadero-web/specs/features/parking/*.spec.md` (5 use cases)
 - `parqueadero-web/specs/components/*.spec.md` (3 components)
-- `parqueadero-web/specs/infrastructure/offline-sync.spec.md`
 - `parqueadero-backend/specs/database-schema.spec.md`, `rls-policies.spec.md`
 
 ## Clean Architecture
@@ -45,7 +44,7 @@ Presentation → Domain ← Data
 
 Patrones compartidos:
 - **`Either<Failure, Result>`** en todos los use cases y repositorios. Sin `throw`/`raise` para control de flujo. Subclases: `ValidationFailure`, `BusinessRuleFailure`, `NotFoundFailure`, `NetworkFailure`, `ServerFailure`.
-- **Repository pattern**: abstracto en `domain/repositories/`, implementación en `data/repositories/`, dos datasources (remote + local en web; real + mock en Python).
+- **Repository pattern**: abstracto en `domain/repositories/`, implementación en `data/repositories/`; en web las operaciones son online-only contra Supabase.
 - **Entity vs Model**: `XxxEntity` (camelCase, domain) ↔ `XxxModel` (snake_case, DB DTO) ↔ `XxxMapper`.
 - **UseCase**: método único `execute(params) → Either[Failure, Result]`.
 
@@ -58,7 +57,7 @@ Convenciones de nombres por subproyecto en cada `CLAUDE.md` (Angular: `kebab-cas
 3. Tope diario: nunca cobrar más del techo configurado.
 4. Plan mensual activo = sesión gratuita.
 5. Numeración de tickets internos: solo el servidor (Edge Function), nunca el cliente.
-6. Offline-first: escritura local primero, sync después.
+6. Online-only: sin conexión se retorna `NetworkFailure`; no se persiste operación local.
 7. Cambios sensibles van a `audit_log` (append-only).
 
 > **Out of scope:** facturación electrónica DIAN/Siigo (descartada el 2026-05-20). El parqueadero opera como POS con ticket interno numerado, sin firma XAdES ni CUFE.

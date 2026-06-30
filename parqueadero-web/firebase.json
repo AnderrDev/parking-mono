@@ -11,12 +11,6 @@
         ]
       },
       {
-        "source": "/ngsw.json",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-        ]
-      },
-      {
         "source": "/ngsw-worker.js",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }

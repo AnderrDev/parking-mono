@@ -1,15 +1,10 @@
-import { ChangeDetectionStrategy, Component, EnvironmentInjector, Inject, ViewContainerRef, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Dialog } from '@angular/cdk/dialog';
-import { filter, firstValueFrom, map, startWith } from 'rxjs';
-import { OfflineBannerComponent } from './shared/components/offline-banner/offline-banner.component';
+import { filter, map, startWith } from 'rxjs';
 import { ToastContainerComponent } from './shared/components/toast-container/toast-container.component';
-import { ConfirmDialogComponent, ConfirmDialogData } from './shared/components/confirm-dialog/confirm-dialog.component';
-import { NetworkInfoService } from './core/services/network-info.service';
 import { AuthStateService } from './core/services/auth-state.service';
-import { SyncOrchestrator } from './core/services/sync-orchestrator.service';
 import { ToastService } from './core/services/toast.service';
 import { LOGOUT_USECASE_TOKEN } from './core/di/injection-tokens';
 import { LogoutUseCase } from './features/auth/domain/usecases/logout.usecase';
@@ -169,7 +164,7 @@ const NAV_ITEMS: NavItem[] = [
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe, OfflineBannerComponent, ToastContainerComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe, ToastContainerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -201,16 +196,8 @@ export class AppComponent {
   });
 
   private readonly router = inject(Router);
-  protected readonly networkInfo = inject(NetworkInfoService);
   protected readonly authState = inject(AuthStateService);
-  private readonly sync = inject(SyncOrchestrator);
   private readonly toast = inject(ToastService);
-  private readonly dialog = inject(Dialog);
-  // feedback_cdk_dialog_vcr — CDK Dialog necesita AMBOS para que el confirm
-  // del logout pueda resolver tokens del injector (toast/logout-uc están
-  // en root, pero el patrón se aplica siempre por seguridad).
-  private readonly envInjector = inject(EnvironmentInjector);
-  private readonly vcr = inject(ViewContainerRef);
 
   constructor(
     @Inject(LOGOUT_USECASE_TOKEN) private readonly logoutUC: LogoutUseCase,
@@ -242,32 +229,6 @@ export class AppComponent {
   }
 
   protected async onLogout(): Promise<void> {
-    // Sprint 3: si hay operaciones sin sincronizar pedimos confirmación.
-    // Cerrar sesión hoy implica `localDb.clear()` (ver AuthRepoImpl), lo que
-    // borra outbox + conflicts. Sin esta guarda el operador perdería trabajo
-    // silenciosamente. El dialog cumple feedback_cdk_dialog_vcr (injector +
-    // viewContainerRef obligatorios).
-    const pending = this.sync.pendingCount();
-    if (pending > 0) {
-      const ref = this.dialog.open<boolean>(ConfirmDialogComponent, {
-        injector: this.envInjector,
-        viewContainerRef: this.vcr,
-        hasBackdrop: true,
-        data: {
-          title: 'Operaciones sin sincronizar',
-          message:
-            `Tienes ${pending} ${pending === 1 ? 'operación' : 'operaciones'} sin ` +
-            'sincronizar con el servidor. Si cierras sesión ahora, se perderán. ' +
-            '¿Continuar?',
-          confirmLabel: 'Cerrar sesión y descartar',
-          cancelLabel: 'Cancelar',
-          variant: 'danger',
-        } satisfies ConfirmDialogData,
-      });
-      const ok = await firstValueFrom(ref.closed);
-      if (!ok) return;
-    }
-
     const result = await this.logoutUC.execute(new NoParams());
     result.fold(
       (f) => this.toast.error(`Error al cerrar sesión: ${f.message}`),

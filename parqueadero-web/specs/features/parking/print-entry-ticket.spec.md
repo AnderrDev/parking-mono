@@ -242,7 +242,7 @@ features/parking/data/services/ticket-renderer.service.ts   ← genera HTML + QR
 - **Sin impresora configurada**: el SO mostrará el diálogo de impresión normal; el operador puede cancelar. La sesión queda igual creada.
 - **Impresora apagada / sin papel**: el SO acumula el job; cuando se prenda, sale. Sin acción del sistema.
 - **Tarifa null**: omite la línea `tariff`.
-- **Offline (PowerSync queda pendiente sync)**: el `session.id` se generó client-side (UUID v4 cliente) y se mantiene tras sync — el QR sigue válido.
+- **Sin conexión**: la entrada no se crea; por tanto no se imprime ticket hasta recuperar internet.
 
 ## Lectura del QR a la salida (out of scope para esta spec)
 
