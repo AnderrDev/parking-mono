@@ -11,6 +11,7 @@ import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 
 export interface WithdrawalFormValue {
+  movementType: 'in' | 'out';
   amountCents: number;
   recipient: string;
   justification: string;
@@ -24,17 +25,28 @@ export interface WithdrawalFormValue {
   template: `
     <div class="dialog" role="document">
       <header class="dialog__header">
-        <h2 class="dialog__title">Retiro parcial de efectivo</h2>
+        <h2 class="dialog__title">Movimiento de caja</h2>
         <button type="button" class="dialog__close" (click)="onCancel()" aria-label="Cerrar">×</button>
       </header>
 
       <p class="dialog__intro">
-        Registra un retiro parcial. El monto se descontará del efectivo esperado al cerrar el turno.
+        Registra una entrada o salida manual de efectivo para que el cierre refleje la caja real.
       </p>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="dialog__form" novalidate>
+        <div class="segmented" role="group" aria-label="Tipo de movimiento">
+          <label class="segmented__option">
+            <input type="radio" formControlName="movementType" value="in" />
+            <span>Entrada</span>
+          </label>
+          <label class="segmented__option">
+            <input type="radio" formControlName="movementType" value="out" />
+            <span>Salida</span>
+          </label>
+        </div>
+
         <div class="form-field">
-          <label class="form-label" for="amount">Monto retirado *</label>
+          <label class="form-label" for="amount">Monto *</label>
           <div class="cash-input">
             <span class="cash-input__prefix" aria-hidden="true">$</span>
             <input
@@ -52,14 +64,14 @@ export interface WithdrawalFormValue {
         </div>
 
         <div class="form-field">
-          <label class="form-label" for="recipient">Entregado a *</label>
+          <label class="form-label" for="recipient">Origen / destino *</label>
           <input
             id="recipient"
             type="text"
             class="form-input"
             [class.form-input--error]="err('recipient')"
             formControlName="recipient"
-            placeholder="Nombre de la persona o cargo"
+            placeholder="Persona, caja menor o motivo operativo"
           />
           @if (err('recipient')) {
             <span class="form-error" role="alert">{{ errMsg('recipient') }}</span>
@@ -74,7 +86,7 @@ export interface WithdrawalFormValue {
             [class.form-input--error]="err('justification')"
             formControlName="justification"
             rows="2"
-            placeholder="Razón del retiro"
+            placeholder="Razón del movimiento"
           ></textarea>
           @if (err('justification')) {
             <span class="form-error" role="alert">{{ errMsg('justification') }}</span>
@@ -83,7 +95,7 @@ export interface WithdrawalFormValue {
 
         <div class="dialog__actions">
           <button type="button" class="btn btn--secondary" (click)="onCancel()">Cancelar</button>
-          <button type="submit" class="btn btn--primary">Registrar retiro</button>
+          <button type="submit" class="btn btn--primary">Registrar movimiento</button>
         </div>
       </form>
     </div>
@@ -119,6 +131,33 @@ export interface WithdrawalFormValue {
       color: var(--color-text-muted);
     }
     .dialog__form { display: flex; flex-direction: column; gap: var(--space-3); }
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background: var(--color-bg-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+    .segmented__option { position: relative; }
+    .segmented__option input { position: absolute; opacity: 0; pointer-events: none; }
+    .segmented__option span {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: calc(var(--radius-md) - 4px);
+      color: var(--color-text-muted);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+    }
+    .segmented__option input:checked + span {
+      background: var(--color-surface);
+      color: var(--color-text-strong);
+      box-shadow: var(--shadow-1);
+    }
     .form-field { display: flex; flex-direction: column; gap: var(--space-2); }
     .form-label { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--color-text); }
     .form-input {
@@ -196,6 +235,7 @@ export class CashWithdrawalDialogComponent implements OnInit {
     if (this.form.invalid) return;
     const v = this.form.value as WithdrawalFormValue;
     this.dialogRef.close({
+      movementType: v.movementType,
       amountCents: Number(v.amountCents),
       recipient: v.recipient.trim(),
       justification: v.justification.trim(),

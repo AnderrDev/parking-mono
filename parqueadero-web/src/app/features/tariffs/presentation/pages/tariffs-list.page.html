@@ -41,9 +41,9 @@
     @case ('vehicleType') { {{ vehicleLabel(row.vehicleType) }} }
     @case ('valueCents') { {{ row.valueCents | currencyCop }} }
     @case ('dailyCapCents') { {{ row.dailyCapCents | currencyCop }} }
-    @case ('perMinuteCents') { {{ row.perMinuteCents != null ? (row.perMinuteCents | currencyCop) : '—' }} }
-    @case ('perHourCents') { {{ row.perHourCents != null ? (row.perHourCents | currencyCop) : '—' }} }
-    @case ('plenaCents') { {{ row.plenaCents != null ? (row.plenaCents | currencyCop) : '—' }} }
+    @case ('perMinuteCents') { {{ row.perMinuteCents !== null ? (row.perMinuteCents | currencyCop) : '—' }} }
+    @case ('perHourCents') { {{ row.perHourCents !== null ? (row.perHourCents | currencyCop) : '—' }} }
+    @case ('plenaCents') { {{ row.plenaCents !== null ? (row.plenaCents | currencyCop) : '—' }} }
     @case ('isActive') {
       <span class="badge" [class.badge--green]="row.isActive" [class.badge--gray]="!row.isActive">
         {{ row.isActive ? 'Activa' : 'Inactiva' }}

@@ -261,7 +261,6 @@ export class ReportsPageComponent implements OnInit {
     const groupBy: GroupBy = this.filterForm.value.groupBy as GroupBy;
     const compare = !!this.filterForm.value.compare;
     const role = this.auth.role() ?? 'operador';
-    const activeTab = this.tab();
 
     const { from, to } = this.toUtcRange(range);
 

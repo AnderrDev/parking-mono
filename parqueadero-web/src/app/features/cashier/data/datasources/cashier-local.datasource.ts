@@ -44,22 +44,28 @@ export class CashierLocalDataSource extends CashierDataSource {
   private readonly localDb = inject(LocalDbService);
   private readonly orchestrator = inject(SyncOrchestrator);
 
-  async findOpenByUser(
-    userId: string,
-  ): Promise<Either<Failure, CashierShiftEntity | null>> {
+  async findOpen(): Promise<Either<Failure, CashierShiftEntity | null>> {
     try {
       const row = (await this.localDb
         .getDB()
-        .cashier_shifts.where('[user_id+status]')
-        .equals([userId, 'open'])
+        .cashier_shifts.where('status')
+        .equals('open')
+        .filter((s) => s['_deleted'] !== true)
         .first()) as LocalCashierShiftModel | undefined;
-      if (!row || row['_deleted'] === true) return right(null);
+      if (!row) return right(null);
       return right(
         CashierShiftMapper.toEntity(row as unknown as CashierShiftModel),
       );
     } catch (e) {
       return left(new ServerFailure(`Lectura local falló: ${String(e)}`));
     }
+  }
+
+  async findOpenByUser(
+    userId: string,
+  ): Promise<Either<Failure, CashierShiftEntity | null>> {
+    void userId;
+    return this.findOpen();
   }
 
   async findById(
@@ -82,18 +88,17 @@ export class CashierLocalDataSource extends CashierDataSource {
     params: OpenShiftParams,
   ): Promise<Either<Failure, CashierShiftEntity>> {
     try {
-      // Validación local de uq_shifts_open_per_user (best-effort — el UC ya
-      // valida antes, pero si el mirror tiene un turno abierto del propio
-      // usuario, rechazamos para evitar enviar al drain una mutación que
-      // será marcada como conflict).
+      // Validación local de caja abierta global (best-effort — el UC ya valida
+      // antes, pero evitamos encolar una apertura que será conflicto).
       const existing = (await this.localDb
         .getDB()
-        .cashier_shifts.where('[user_id+status]')
-        .equals([params.userId, 'open'])
+        .cashier_shifts.where('status')
+        .equals('open')
+        .filter((s) => s['_deleted'] !== true)
         .first()) as LocalCashierShiftModel | undefined;
       if (existing && existing['_deleted'] !== true) {
         return left(
-          new BusinessRuleFailure('Ya tienes un turno abierto'),
+          new BusinessRuleFailure('Ya hay una caja abierta'),
         );
       }
 
@@ -281,6 +286,7 @@ export class CashierLocalDataSource extends CashierDataSource {
         amount_cents: params.amountCents,
         recipient: params.recipient,
         justification: params.justification,
+        movement_type: params.movementType ?? 'out',
         withdrawn_at: now.toISOString(),
         client_op_id: opId,
         _sync_status: 'pending',
@@ -303,6 +309,7 @@ export class CashierLocalDataSource extends CashierDataSource {
           amount_cents: params.amountCents,
           recipient: params.recipient,
           justification: params.justification,
+          movement_type: params.movementType ?? 'out',
           withdrawn_at: row.withdrawn_at,
         },
         rowId: id,
@@ -322,6 +329,7 @@ export class CashierLocalDataSource extends CashierDataSource {
           params.recipient,
           params.justification,
           now,
+          params.movementType ?? 'out',
         ),
       );
     } catch (e) {
@@ -360,6 +368,7 @@ export class CashierLocalDataSource extends CashierDataSource {
               r.recipient,
               r.justification,
               new Date(r.withdrawn_at),
+              (r.movement_type as 'in' | 'out' | undefined) ?? 'out',
             ),
         ),
       );

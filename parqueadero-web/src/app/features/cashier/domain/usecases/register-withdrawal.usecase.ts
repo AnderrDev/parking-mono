@@ -28,7 +28,7 @@ export class RegisterCashWithdrawalUseCase extends UseCase<
     }
     const recipient = params.recipient?.trim() ?? '';
     if (recipient.length < 3) {
-      return left(new ValidationFailure('Indica a quién se entregó el efectivo', 'recipient'));
+      return left(new ValidationFailure('Indica el origen o destino del efectivo', 'recipient'));
     }
     const justification = params.justification?.trim() ?? '';
     if (justification.length < 5) {

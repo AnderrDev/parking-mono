@@ -11,6 +11,7 @@ import {
 } from '../../domain/repositories/cashier.repository';
 
 export abstract class CashierDataSource {
+  abstract findOpen(): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract findById(shiftId: string): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract create(params: OpenShiftParams): Promise<Either<Failure, CashierShiftEntity>>;

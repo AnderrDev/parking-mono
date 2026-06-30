@@ -78,9 +78,10 @@ const makeShift = (): CashierShiftEntity =>
   new CashierShiftEntity('shift-1', new Date(), new Date(), 'user-1', 'open', 5_000_000, new Date(), null, null, null, null, null, false);
 
 class MockCashierRepository extends CashierRepository {
-  findOpenResult: ReturnType<CashierRepository['findOpenByUser']> =
+  findOpenResult: ReturnType<CashierRepository['findOpen']> =
     Promise.resolve(right(makeShift() as CashierShiftEntity | null));
 
+  async findOpen() { return this.findOpenResult; }
   async findOpenByUser(_userId: string) { return this.findOpenResult; }
   async findById(_id: string) { return Promise.resolve(right(makeShift() as CashierShiftEntity | null)); }
   async create(_params: unknown) { return Promise.resolve(right(makeShift())); }

@@ -144,13 +144,13 @@
                         <h4 class="detail__section-title">Tarifa aplicada</h4>
                         <div class="detail__grid">
                           <div><span class="detail__label">Nombre</span><span class="detail__value">{{ row.tariffRow.name }}</span></div>
-                          @if (row.tariffRow.per_minute_cents != null) {
+                          @if (row.tariffRow.per_minute_cents !== null && row.tariffRow.per_minute_cents !== undefined) {
                             <div><span class="detail__label">Por minuto</span><span class="detail__value">{{ formatCOP(row.tariffRow.per_minute_cents) }}</span></div>
                           }
-                          @if (row.tariffRow.per_hour_cents != null) {
+                          @if (row.tariffRow.per_hour_cents !== null && row.tariffRow.per_hour_cents !== undefined) {
                             <div><span class="detail__label">Por hora</span><span class="detail__value">{{ formatCOP(row.tariffRow.per_hour_cents) }}</span></div>
                           }
-                          @if (row.tariffRow.plena_cents != null) {
+                          @if (row.tariffRow.plena_cents !== null && row.tariffRow.plena_cents !== undefined) {
                             <div><span class="detail__label">Tope día</span><span class="detail__value">{{ formatCOP(row.tariffRow.plena_cents) }}</span></div>
                           }
                         </div>

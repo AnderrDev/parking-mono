@@ -42,9 +42,11 @@ export interface RegisterWithdrawalParams {
   amountCents: number;
   recipient: string;
   justification: string;
+  movementType?: 'in' | 'out';
 }
 
 export abstract class CashierRepository {
+  abstract findOpen(): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract findById(shiftId: string): Promise<Either<Failure, CashierShiftEntity | null>>;
   abstract create(params: OpenShiftParams): Promise<Either<Failure, CashierShiftEntity>>;

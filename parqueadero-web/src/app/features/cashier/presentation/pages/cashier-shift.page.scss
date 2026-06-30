@@ -1,9 +1,10 @@
 .cashier {
       display: flex;
       flex-direction: column;
-      gap: var(--space-5);
+      gap: var(--space-6);
       max-width: var(--content-max-width);
       margin: 0 auto;
+      padding-bottom: var(--space-6);
     }
 
     .cashier__loading {
@@ -15,12 +16,12 @@
 
     // ===== Apertura de turno =====
     .open-shift {
-      max-width: 460px;
+      max-width: 520px;
       margin: var(--space-7) auto;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      padding: var(--space-6);
+      border-radius: var(--radius-lg);
+      padding: var(--space-7);
       display: flex;
       flex-direction: column;
       gap: var(--space-5);
@@ -51,7 +52,7 @@
       font-size: var(--text-xl);
       font-weight: var(--font-weight-bold);
       color: var(--color-text-strong);
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
       margin: 0;
     }
 
@@ -74,6 +75,10 @@
       align-items: flex-end;
       gap: var(--space-4);
       flex-wrap: wrap;
+      padding: var(--space-5);
+      background: linear-gradient(135deg, var(--color-surface), var(--color-bg-subtle));
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
     }
 
     .cashier__title-block { display: flex; flex-direction: column; gap: 2px; }
@@ -83,14 +88,14 @@
       font-weight: var(--font-weight-semibold);
       color: var(--color-success);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0;
     }
 
     .cashier__title {
       font-size: var(--text-2xl);
       font-weight: var(--font-weight-bold);
       color: var(--color-text-strong);
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       margin: 0;
     }
 
@@ -109,7 +114,7 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      padding: var(--space-3) var(--space-5);
+      padding: var(--space-4) var(--space-5);
       background: var(--color-primary);
       color: var(--color-primary-fg);
       border-radius: var(--radius-md);
@@ -120,21 +125,21 @@
       font-size: var(--text-xs);
       opacity: 0.7;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0;
       font-weight: var(--font-weight-semibold);
     }
 
     .cashier__total-amount {
       font-size: var(--text-xl);
       font-weight: var(--font-weight-bold);
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       font-variant-numeric: tabular-nums;
     }
 
     // ===== Layout =====
     .cashier__layout {
       display: grid;
-      grid-template-columns: 1fr 1.5fr 1fr;
+      grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.35fr) minmax(300px, 1fr);
       gap: var(--space-4);
 
       @media (max-width: 1100px) {
@@ -151,7 +156,7 @@
     .card {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       padding: var(--space-5);
       display: flex;
       flex-direction: column;
@@ -240,6 +245,12 @@
       padding: var(--space-3);
       background: var(--color-bg-subtle);
       border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+    }
+
+    .reconcile-row--income {
+      background: var(--color-success-soft);
+      border-color: color-mix(in srgb, var(--color-success) 24%, transparent);
     }
 
     .reconcile-row__left {
@@ -323,7 +334,7 @@
       font-weight: var(--font-weight-semibold);
       color: var(--color-text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0;
       border-bottom: 1px solid var(--color-border);
       white-space: nowrap;
 
@@ -364,7 +375,7 @@
       font-size: 10px;
       font-weight: var(--font-weight-bold);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0;
       font-family: var(--font-sans);
     }
 
@@ -388,7 +399,7 @@
       font-size: 10px;
       font-weight: var(--font-weight-bold);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0;
       white-space: nowrap;
 
       &--void {
@@ -463,7 +474,7 @@
       font-weight: var(--font-weight-regular);
       color: var(--color-danger);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0;
     }
 
     .field__money {
@@ -651,6 +662,12 @@
       color: var(--color-warning-strong);
 
       strong { color: var(--color-warning-strong); }
+    }
+
+    .reconcile-summary__row--income {
+      color: var(--color-success-strong);
+
+      strong { color: var(--color-success-strong); }
     }
 
     .card--withdrawals .card__head--row {

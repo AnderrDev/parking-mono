@@ -22,10 +22,10 @@ export class OpenShiftUseCase extends UseCase<OpenShiftParams, CashierShiftEntit
       return left(new ValidationFailure('El saldo inicial no puede ser negativo'));
     }
 
-    const existing = await this.repo.findOpenByUser(params.userId);
+    const existing = await this.repo.findOpen();
     if (existing.isLeft()) return existing as Either<Failure, CashierShiftEntity>;
     if (existing.value !== null) {
-      return left(new BusinessRuleFailure('Ya tienes un turno abierto. Ciérralo antes de abrir uno nuevo.'));
+      return left(new BusinessRuleFailure('Ya hay una caja abierta. Ciérrala antes de abrir una nueva.'));
     }
 
     return this.repo.create({

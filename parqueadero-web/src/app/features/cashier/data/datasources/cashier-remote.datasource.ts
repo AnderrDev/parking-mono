@@ -21,6 +21,7 @@ interface CashWithdrawalRow {
   amount_cents: number;
   recipient: string;
   justification: string;
+  movement_type?: 'in' | 'out';
   withdrawn_at: string;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,7 @@ function mapWithdrawal(r: CashWithdrawalRow): CashWithdrawalEntity {
     r.recipient,
     r.justification,
     new Date(r.withdrawn_at),
+    r.movement_type ?? 'out',
   );
 }
 
@@ -50,14 +52,15 @@ export class CashierRemoteDataSource extends CashierDataSource {
     super();
   }
 
-  async findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
+  async findOpen(): Promise<Either<Failure, CashierShiftEntity | null>> {
     try {
       const { data, error } = await this.supabase.client
         .from('cashier_shifts')
         .select()
-        .eq('user_id', userId)
         .eq('status', 'open')
         .eq('_deleted', false)
+        .order('opened_at', { ascending: false })
+        .limit(1)
         .maybeSingle<CashierShiftModel>();
 
       if (error) return left(new ServerFailure(error.message));
@@ -65,6 +68,11 @@ export class CashierRemoteDataSource extends CashierDataSource {
     } catch {
       return left(new NetworkFailure());
     }
+  }
+
+  async findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
+    void userId;
+    return this.findOpen();
   }
 
   async findById(shiftId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
@@ -158,6 +166,7 @@ export class CashierRemoteDataSource extends CashierDataSource {
           amount_cents: params.amountCents,
           recipient: params.recipient,
           justification: params.justification,
+          movement_type: params.movementType ?? 'out',
           withdrawn_at: new Date().toISOString(),
         })
         .select()

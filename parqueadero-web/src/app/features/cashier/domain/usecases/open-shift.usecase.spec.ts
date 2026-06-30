@@ -20,11 +20,12 @@ const emptyPagination = { page: 1, pageSize: 25, total: 0, totalPages: 0 };
 // ── Mock repo ─────────────────────────────────────────────────────────────────
 
 class MockCashierRepository extends CashierRepository {
-  findOpenResult: ReturnType<CashierRepository['findOpenByUser']> =
+  findOpenResult: ReturnType<CashierRepository['findOpen']> =
     Promise.resolve(right(null as CashierShiftEntity | null));
   createResult: ReturnType<CashierRepository['create']> =
     Promise.resolve(right(makeShift()));
 
+  async findOpen() { return this.findOpenResult; }
   async findOpenByUser(_userId: string) { return this.findOpenResult; }
   async create(_params: unknown) { return this.createResult; }
   async findById(_id: string) { return Promise.resolve(right(null as CashierShiftEntity | null)); }
@@ -80,13 +81,13 @@ describe('OpenShiftUseCase', () => {
     expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
   });
 
-  it('BusinessRuleFailure: ya hay un turno abierto', async () => {
+  it('BusinessRuleFailure: ya hay una caja abierta', async () => {
     repo.findOpenResult = Promise.resolve(right(makeShift('open') as CashierShiftEntity | null));
     const result = await usecase.execute(baseParams());
     expect(result.isLeft()).toBeTrue();
     const failure = result.fold(f => f, () => null);
     expect(failure).toBeInstanceOf(BusinessRuleFailure);
-    expect(failure!.message).toContain('turno abierto');
+    expect(failure!.message).toContain('caja abierta');
   });
 
   it('propaga Left de findOpenByUser', async () => {

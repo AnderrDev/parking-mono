@@ -637,11 +637,13 @@ export class ParkingLocalDataSource extends ParkingDataSource {
   async getOpenCashierShiftId(
     userId: string,
   ): Promise<Either<Failure, string | null>> {
+    void userId;
     try {
       const row = await this.localDb
         .getDB()
-        .cashier_shifts.where('[user_id+status]')
-        .equals([userId, 'open'])
+        .cashier_shifts.where('status')
+        .equals('open')
+        .filter((s) => s['_deleted'] !== true)
         .first();
       return right(
         (row as LocalCashierShiftModel | undefined)?.['_deleted'] === true
@@ -656,11 +658,13 @@ export class ParkingLocalDataSource extends ParkingDataSource {
   async getOpenShiftSummary(
     userId: string,
   ): Promise<Either<Failure, OpenShiftSummary | null>> {
+    void userId;
     try {
       const row = (await this.localDb
         .getDB()
-        .cashier_shifts.where('[user_id+status]')
-        .equals([userId, 'open'])
+        .cashier_shifts.where('status')
+        .equals('open')
+        .filter((s) => s['_deleted'] !== true)
         .first()) as
         | (LocalCashierShiftModel & {
             opened_at?: string;

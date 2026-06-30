@@ -11,6 +11,7 @@ export class CashWithdrawalEntity extends BaseEntity {
     public readonly recipient: string,
     public readonly justification: string,
     public readonly withdrawnAt: Date,
+    public readonly movementType: 'in' | 'out' = 'out',
   ) {
     super(id, createdAt, updatedAt);
   }

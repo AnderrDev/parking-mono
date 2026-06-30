@@ -3,6 +3,7 @@ import {
   Component,
   EnvironmentInjector,
   Inject,
+  OnDestroy,
   OnInit,
   ViewContainerRef,
   inject,
@@ -59,7 +60,7 @@ const STATUS_LABEL: Record<string, string> = {
   templateUrl: './session-history.page.html',
   styleUrl: './session-history.page.scss',
 })
-export class SessionHistoryPageComponent implements OnInit {
+export class SessionHistoryPageComponent implements OnInit, OnDestroy {
   protected readonly sessions = signal<ParkingSessionEntity[]>([]);
   protected readonly loading = signal(false);
   protected readonly pagination = signal<PaginationMeta | null>(null);

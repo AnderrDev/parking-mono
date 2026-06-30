@@ -242,13 +242,15 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
   }
 
   async getOpenCashierShiftId(userId: string): Promise<Either<Failure, string | null>> {
+    void userId;
     try {
       const { data, error } = await this.supabase.client
         .from('cashier_shifts')
         .select('id')
-        .eq('user_id', userId)
         .eq('status', 'open')
         .eq('_deleted', false)
+        .order('opened_at', { ascending: false })
+        .limit(1)
         .maybeSingle<{ id: string }>();
 
       if (error) return left(new ServerFailure(error.message));
@@ -261,13 +263,15 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
   async getOpenShiftSummary(
     userId: string,
   ): Promise<Either<Failure, OpenShiftSummary | null>> {
+    void userId;
     try {
       const { data, error } = await this.supabase.client
         .from('cashier_shifts')
         .select('id, opened_at, opening_balance_cents')
-        .eq('user_id', userId)
         .eq('status', 'open')
         .eq('_deleted', false)
+        .order('opened_at', { ascending: false })
+        .limit(1)
         .maybeSingle<{
           id: string;
           opened_at: string;
@@ -481,7 +485,7 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
           .limit(limit);
 
         if (error) return left(new ServerFailure(error.message));
-        type ActiveRow = {
+        interface ActiveRow {
           id: string;
           vehicle_plate: string;
           vehicle_type: string;
@@ -489,7 +493,7 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
           brand: string | null;
           entry_at: string;
           updated_at: string;
-        };
+        }
         return right((data ?? []).map((r: ActiveRow) =>
           new VehicleEntity(
             r.id,

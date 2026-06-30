@@ -17,6 +17,7 @@ export interface ReconcileResult {
   cashCountedCents: number | null;
   differenceCents: number | null;
   withdrawalsTotalCents: number;
+  manualIncomeCents: number;
 }
 
 const FREE_METHODS = ['cortesia', 'error', 'mensual'] as const;
@@ -77,9 +78,14 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       () => [],
       (list) => list,
     );
-    const withdrawalsTotal = withdrawals.reduce((acc, w) => acc + w.amountCents, 0);
+    const withdrawalsTotal = withdrawals
+      .filter((w) => w.movementType === 'out')
+      .reduce((acc, w) => acc + w.amountCents, 0);
+    const manualIncome = withdrawals
+      .filter((w) => w.movementType === 'in')
+      .reduce((acc, w) => acc + w.amountCents, 0);
 
-    const cashExpected = shift.openingBalanceCents + cashSum - withdrawalsTotal;
+    const cashExpected = shift.openingBalanceCents + cashSum + manualIncome - withdrawalsTotal;
 
     const result: ReconcileResult = {
       shift,
@@ -90,6 +96,7 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       cashCountedCents: shift.closingBalanceCents,
       differenceCents: shift.isOpen ? null : (shift.closingBalanceCents ?? 0) - cashExpected,
       withdrawalsTotalCents: withdrawalsTotal,
+      manualIncomeCents: manualIncome,
     };
 
     return right(result);

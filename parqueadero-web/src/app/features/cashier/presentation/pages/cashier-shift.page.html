@@ -14,8 +14,8 @@
                 <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4 M3 5v14a2 2 0 0 0 2 2h16v-5 M18 12a2 2 0 0 0 0 4h4v-4Z"/>
               </svg>
             </span>
-            <h1 class="open-shift__title">Inicia tu turno</h1>
-            <p class="open-shift__subtitle">Registra el saldo de apertura para empezar a recibir pagos.</p>
+            <h1 class="open-shift__title">Abrir caja</h1>
+            <p class="open-shift__subtitle">Registra la base inicial para habilitar la operación del parqueadero.</p>
           </div>
 
           <form class="open-shift__form" [formGroup]="openForm" (ngSubmit)="openShift()">
@@ -32,7 +32,7 @@
                 />
                 <span class="field__money-suffix">COP</span>
               </div>
-              <p class="field__hint">Cantidad de efectivo en caja al iniciar el turno.</p>
+              <p class="field__hint">Cantidad de efectivo disponible al iniciar caja.</p>
             </div>
 
             @if (errorMsg()) {
@@ -52,7 +52,7 @@
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                <span>Abrir turno</span>
+                <span>Abrir caja</span>
               }
             </button>
           </form>
@@ -62,11 +62,11 @@
       @if (view() === 'open-shift') {
         <header class="cashier__header">
           <div class="cashier__title-block">
-            <span class="cashier__eyebrow">Turno abierto</span>
-            <h1 class="cashier__title">Caja del turno</h1>
+            <span class="cashier__eyebrow">Caja abierta</span>
+            <h1 class="cashier__title">Control de caja</h1>
             @if (shift()) {
               <p class="cashier__meta">
-                Inició a las {{ shift()!.openedAt | date:'HH:mm' }}
+                Abierta desde las {{ shift()!.openedAt | date:'HH:mm' }}
                 · saldo apertura
                 <strong>{{ shift()!.openingBalanceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
               </p>
@@ -75,7 +75,7 @@
 
           @if (reconcile()) {
             <div class="cashier__total" role="status">
-              <span class="cashier__total-label">Recaudado</span>
+              <span class="cashier__total-label">Recaudado operativo</span>
               <span class="cashier__total-amount mono">
                 {{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
               </span>
@@ -97,9 +97,9 @@
                     <path d="M18 9a9 9 0 0 1-9 9"/>
                   </svg>
                 </span>
-                Cuadre por método
+                Cuadre actual
               </h2>
-              <p class="card__subtitle">Totales en tiempo real.</p>
+              <p class="card__subtitle">Base, cobros y movimientos manuales.</p>
             </div>
 
             @if (reconcile() && reconcile()!.byMethod.length > 0) {
@@ -124,8 +124,14 @@
                 </div>
                 @if (reconcile()!.withdrawalsTotalCents > 0) {
                   <div class="reconcile-summary__row reconcile-summary__row--warning">
-                    <span>Retiros parciales</span>
+                    <span>Salidas manuales</span>
                     <strong class="mono">−{{ reconcile()!.withdrawalsTotalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                  </div>
+                }
+                @if (reconcile()!.manualIncomeCents > 0) {
+                  <div class="reconcile-summary__row reconcile-summary__row--income">
+                    <span>Entradas manuales</span>
+                    <strong class="mono">+{{ reconcile()!.manualIncomeCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
                   </div>
                 }
                 <div class="reconcile-summary__row reconcile-summary__row--accent">
@@ -138,32 +144,34 @@
             }
           </section>
 
-          <!-- HU-039: retiros parciales de efectivo -->
+          <!-- HU-039: movimientos manuales de efectivo -->
           <section class="card card--withdrawals">
             <div class="card__head card__head--row">
               <div>
-                <h2 class="card__title">Retiros parciales</h2>
-                <p class="card__subtitle">Efectivo retirado durante el turno.</p>
+                <h2 class="card__title">Movimientos de caja</h2>
+                <p class="card__subtitle">Entradas y salidas manuales de efectivo.</p>
               </div>
               <button type="button" class="btn btn--secondary" (click)="openWithdrawalDialog()">
-                + Registrar retiro
+                + Movimiento
               </button>
             </div>
 
             @if (withdrawals().length === 0) {
-              <p class="card__empty">Sin retiros registrados.</p>
+              <p class="card__empty">Sin movimientos manuales registrados.</p>
             } @else {
               <ul class="reconcile-list" role="list">
                 @for (w of withdrawals(); track w.id) {
-                  <li class="reconcile-row">
+                  <li class="reconcile-row" [class.reconcile-row--income]="w.movementType === 'in'">
                     <div class="reconcile-row__left">
-                      <span class="reconcile-row__method">{{ w.recipient }}</span>
+                      <span class="reconcile-row__method">
+                        {{ w.movementType === 'in' ? 'Entrada' : 'Salida' }} · {{ w.recipient }}
+                      </span>
                       <span class="reconcile-row__count">
                         {{ w.withdrawnAt | date:'HH:mm' }} · {{ w.justification }}
                       </span>
                     </div>
                     <span class="reconcile-row__amount mono">
-                      −{{ w.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      {{ w.movementType === 'in' ? '+' : '−' }}{{ w.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
                     </span>
                   </li>
                 }
@@ -185,7 +193,7 @@
                   </span>
                   Pagos del turno
                 </h2>
-                <p class="card__subtitle">Movimientos individuales.</p>
+                <p class="card__subtitle">Cobros asociados a salidas de vehículos.</p>
               </div>
               @if (paymentRows().length > 0) {
                 <span class="card__count">{{ paymentRows().length }}</span>
@@ -263,9 +271,9 @@
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
                   </svg>
                 </span>
-                Cerrar turno
+                Cerrar caja
               </h2>
-              <p class="card__subtitle">Compara efectivo contado contra esperado.</p>
+              <p class="card__subtitle">Compara efectivo contado contra el esperado.</p>
             </div>
 
             <form [formGroup]="closeForm" (ngSubmit)="closeShift()">
@@ -364,7 +372,7 @@
                   <app-loading-spinner variant="inverse" />
                   <span>Cerrando…</span>
                 } @else {
-                  <span>Cerrar turno</span>
+                  <span>Cerrar caja</span>
                 }
               </button>
             </form>

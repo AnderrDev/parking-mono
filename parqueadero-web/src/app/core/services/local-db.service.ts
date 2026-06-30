@@ -74,6 +74,7 @@ export interface CashWithdrawalModel {
   amount_cents: number;
   recipient: string;
   justification: string;
+  movement_type?: 'in' | 'out';
   withdrawn_at: string;
   client_op_id?: string | null;
   _sync_status?: string;

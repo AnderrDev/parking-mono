@@ -48,12 +48,14 @@ export class CloseShiftUseCase extends UseCase<CloseShiftParams, CashierShiftEnt
     // retiros del cashExpected mostrado al cajero.
     const withdrawalsResult = await this.cashierRepo.listWithdrawalsByShift(params.shiftId);
     if (withdrawalsResult.isLeft()) return left(withdrawalsResult.value);
-    const withdrawalsTotal = withdrawalsResult.value.reduce(
-      (acc, w) => acc + w.amountCents,
-      0,
-    );
+    const withdrawalsTotal = withdrawalsResult.value
+      .filter((w) => w.movementType === 'out')
+      .reduce((acc, w) => acc + w.amountCents, 0);
+    const manualIncome = withdrawalsResult.value
+      .filter((w) => w.movementType === 'in')
+      .reduce((acc, w) => acc + w.amountCents, 0);
 
-    const expected = shift.openingBalanceCents + cashSum - withdrawalsTotal;
+    const expected = shift.openingBalanceCents + cashSum + manualIncome - withdrawalsTotal;
     const difference = params.closingBalanceCents - expected;
 
     return this.cashierRepo.close({

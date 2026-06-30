@@ -27,6 +27,7 @@ class MockCashierRepository extends CashierRepository {
     return this.withdrawalResult;
   }
 
+  async findOpen() { return Promise.resolve(right(null as CashierShiftEntity | null)); }
   async findOpenByUser(_userId: string) { return Promise.resolve(right(null as CashierShiftEntity | null)); }
   async findById(_id: string) { return Promise.resolve(right(null as CashierShiftEntity | null)); }
   async create(_params: unknown) { return Promise.resolve(right(null as never)); }

@@ -20,6 +20,7 @@ export class CashierForms {
 
   createWithdrawalForm(): FormGroup {
     return this.fb.group({
+      movementType: ['out', [Validators.required]],
       amountCents: [null, [Validators.required, Validators.min(100)]],
       recipient: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(120)]],
       justification: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(500)]],

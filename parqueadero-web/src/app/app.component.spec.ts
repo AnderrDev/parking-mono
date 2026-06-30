@@ -1,11 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { AppComponent } from './app.component';
+import { LOGOUT_USECASE_TOKEN } from './core/di/injection-tokens';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent, RouterModule.forRoot([])],
+      providers: [
+        {
+          provide: LOGOUT_USECASE_TOKEN,
+          useValue: { execute: async () => undefined },
+        },
+      ],
     }).compileComponents();
   });
 

@@ -172,7 +172,7 @@ export class CashierShiftPageComponent implements OnInit {
         return;
       }
 
-      const result = await this.cashierRepo.findOpenByUser(userId);
+      const result = await this.cashierRepo.findOpen();
       result.fold(
         (f) => {
           this.toast.error(`No se pudo verificar el turno: ${f.message}`);
@@ -337,11 +337,13 @@ export class CashierShiftPageComponent implements OnInit {
         amountCents: value.amountCents,
         recipient: value.recipient,
         justification: value.justification,
+        movementType: value.movementType,
       });
       result.fold(
-        (f) => this.toast.error(`No se pudo registrar el retiro: ${f.message}`),
+        (f) => this.toast.error(`No se pudo registrar el movimiento: ${f.message}`),
         () => {
-          this.toast.success(`Retiro de $${value.amountCents.toLocaleString('es-CO')} registrado`);
+          const label = value.movementType === 'in' ? 'Entrada' : 'Salida';
+          this.toast.success(`${label} de $${value.amountCents.toLocaleString('es-CO')} registrada`);
           void this.loadShiftData(shift.id);
         },
       );

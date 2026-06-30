@@ -34,15 +34,20 @@ export class CashierRepositoryImpl extends CashierRepository {
     super();
   }
 
-  async findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
+  async findOpen(): Promise<Either<Failure, CashierShiftEntity | null>> {
     if (!this.networkInfo.isOnline()) {
-      return this.localDs.findOpenByUser(userId);
+      return this.localDs.findOpen();
     }
-    const remote = await this.remoteDs.findOpenByUser(userId);
+    const remote = await this.remoteDs.findOpen();
     if (remote.isLeft() && remote.value instanceof NetworkFailure) {
-      return this.localDs.findOpenByUser(userId);
+      return this.localDs.findOpen();
     }
     return remote;
+  }
+
+  async findOpenByUser(userId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
+    void userId;
+    return this.findOpen();
   }
 
   async findById(shiftId: string): Promise<Either<Failure, CashierShiftEntity | null>> {
