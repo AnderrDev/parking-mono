@@ -29,6 +29,7 @@ export interface FeeBreakdown {
   subtotalCents: number;
   plenaCents: number;
   cappedByPlena: boolean;
+  remainderCappedByPlena: boolean;
   durationMinutes: number;
 }
 
@@ -39,11 +40,10 @@ export interface CalculateParkingFeeResult {
 }
 
 /**
- * Cobro aditivo con tope diario:
- *   horas = floor(duration / 60)
- *   resto = duration % 60
- *   subtotal = horas × per_hour + resto × per_minute
- *   amount = MIN(subtotal, plena)
+ * Cobro aditivo con ciclos de plena de 12 h:
+ *   bloques  = floor(duration / 720)          → cada uno cobra una plena
+ *   fracción = duration % 720                 → horas × per_hour + minutos × per_minute
+ *   amount   = bloques × plena + MIN(fracción, plena)
  *
  * Mensualidad → $0. La gracia se eliminó del producto (2026-05-24).
  * Spec: `parqueadero-backend/specs/tariffs-pricing.spec.md`.
@@ -108,6 +108,7 @@ export class CalculateParkingFeeUseCase extends UseCase<CalculateParkingFeeParam
       subtotalCents: subtotal,
       plenaCents: plena,
       cappedByPlena,
+      remainderCappedByPlena,
       durationMinutes: duration,
     };
 

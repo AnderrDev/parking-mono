@@ -4,7 +4,7 @@
 `parking/calculate-parking-fee`
 
 ## Descripción
-UseCase puro que calcula el monto a cobrar según la duración, la tarifa vigente y el plan mensual. Aplica el **modelo aditivo con tope plena** definido en `parqueadero-backend/specs/tariffs-pricing.spec.md`. NO accede a BD.
+UseCase puro que calcula el monto a cobrar según la duración, la tarifa vigente y el plan mensual. Aplica el **modelo aditivo con ciclos de plena de 12 h** definido en `parqueadero-backend/specs/tariffs-pricing.spec.md`: cada ciclo de 12 h completado cobra una plena; la fracción final se cobra por hora + minuto con la plena como techo del ciclo, y todo se suma. NO accede a BD.
 
 ## Actor
 Sistema (invocado por `register-vehicle-exit`, preview en tiempo real en el dialog de salida, reportes).
@@ -28,20 +28,26 @@ Sistema (invocado por `register-vehicle-exit`, preview en tiempo real en el dial
 type FeeReason = 'monthly' | 'paid';
 
 interface FeeBreakdown {
-  hoursCompleted: number;        // floor(dur / 60)
-  remainderMinutes: number;      // dur % 60
-  perMinuteCents: number;        // snapshot del valor minuto
-  perHourCents: number;          // snapshot del valor hora
-  hoursSubtotalCents: number;    // hoursCompleted × perHourCents
-  minutesSubtotalCents: number;  // remainderMinutes × perMinuteCents
-  subtotalCents: number;         // suma de los dos subtotales
-  plenaCents: number;            // tope de la tarifa
-  cappedByPlena: boolean;        // true si subtotal > plena
+  plenaBlockMinutes: number;           // 720 (constante: 12 h)
+  plenaBlocksCompleted: number;        // floor(dur / 720) — ciclos de 12 h completos
+  remainderAfterPlenaMinutes: number;  // dur % 720 — fracción que no completa ciclo
+  plenaBlocksSubtotalCents: number;    // plenaBlocksCompleted × plenaCents
+  remainderSubtotalCents: number;      // subtotal aditivo de la fracción (sin topar)
+  hoursCompleted: number;              // floor(remainderAfterPlenaMinutes / 60)
+  remainderMinutes: number;            // remainderAfterPlenaMinutes % 60
+  perMinuteCents: number;              // snapshot del valor minuto
+  perHourCents: number;                // snapshot del valor hora
+  hoursSubtotalCents: number;          // hoursCompleted × perHourCents
+  minutesSubtotalCents: number;        // remainderMinutes × perMinuteCents
+  subtotalCents: number;               // plenaBlocksSubtotalCents + remainderSubtotalCents (sin topar)
+  plenaCents: number;                  // precio/tope del ciclo de 12 h
+  cappedByPlena: boolean;              // plenaBlocksCompleted > 0 || remainderCappedByPlena
+  remainderCappedByPlena: boolean;     // true si remainderSubtotalCents > plenaCents
   durationMinutes: number;
 }
 
 interface CalculateParkingFeeResult {
-  amountCents: number;           // min(subtotalCents, plenaCents)
+  amountCents: number;           // plenaBlocksSubtotalCents + min(remainderSubtotalCents, plenaCents)
   reason: FeeReason;
   breakdown: FeeBreakdown;
 }
@@ -57,20 +63,29 @@ interface CalculateParkingFeeResult {
 
 1. **Validación temprana:** `durationMinutes > 0` entero, `tariff` con los 3 `*Cents` definidos y > 0.
 2. **Mensualidad:** Si `isMonthly=true` → `amountCents=0`, `reason='monthly'`. El breakdown se calcula igual para auditoría.
-3. **Cobro aditivo:**
+3. **Ciclos de plena (12 h):**
    ```
-   hoursCompleted   = Math.floor(durationMinutes / 60)
-   remainderMinutes = durationMinutes % 60
-   hoursSubtotal    = hoursCompleted   × perHourCents
-   minutesSubtotal  = remainderMinutes × perMinuteCents
-   subtotal         = hoursSubtotal + minutesSubtotal
+   plenaBlocksCompleted       = Math.floor(durationMinutes / 720)
+   remainderAfterPlenaMinutes = durationMinutes % 720
+   plenaBlocksSubtotal        = plenaBlocksCompleted × plenaCents
    ```
-4. **Tope plena:**
+   Cada ciclo completo cobra exactamente una plena (precio fijo del bloque, no un MIN).
+4. **Cobro aditivo de la fracción:**
    ```
-   amountCents   = min(subtotal, plenaCents)
-   cappedByPlena = subtotal > plenaCents
+   hoursCompleted    = Math.floor(remainderAfterPlenaMinutes / 60)
+   remainderMinutes  = remainderAfterPlenaMinutes % 60
+   hoursSubtotal     = hoursCompleted   × perHourCents
+   minutesSubtotal   = remainderMinutes × perMinuteCents
+   remainderSubtotal = hoursSubtotal + minutesSubtotal
    ```
-5. **Sin redondeo:** los 3 valores son enteros BIGINT en BD; la suma y MIN preservan enteros.
+5. **Tope plena por ciclo y suma:**
+   ```
+   remainderCappedByPlena = remainderSubtotal > plenaCents
+   remainderAmount        = remainderCappedByPlena ? plenaCents : remainderSubtotal
+   amountCents            = plenaBlocksSubtotal + remainderAmount
+   cappedByPlena          = plenaBlocksCompleted > 0 || remainderCappedByPlena
+   ```
+6. **Sin redondeo:** los 3 valores son enteros BIGINT en BD; la suma y MIN preservan enteros.
 
 ## Flujo Principal
 
@@ -89,18 +104,28 @@ calculate(params): Either<Failure, CalculateParkingFeeResult> {
     return left(new ValidationFailure('Tarifa con valores inválidos', 'tariff'));
   }
 
-  const hoursCompleted   = Math.floor(durationMinutes / 60);
-  const remainderMinutes = durationMinutes % 60;
-  const hoursSubtotal    = hoursCompleted   * h;
-  const minutesSubtotal  = remainderMinutes * m;
-  const subtotal         = hoursSubtotal + minutesSubtotal;
-  const cappedByPlena    = subtotal > p;
-  const amount           = cappedByPlena ? p : subtotal;
+  const plenaBlockMinutes          = 12 * 60; // 720
+  const plenaBlocksCompleted       = Math.floor(durationMinutes / plenaBlockMinutes);
+  const remainderAfterPlenaMinutes = durationMinutes % plenaBlockMinutes;
+  const hoursCompleted             = Math.floor(remainderAfterPlenaMinutes / 60);
+  const remainderMinutes           = remainderAfterPlenaMinutes % 60;
+  const hoursSubtotal              = hoursCompleted   * h;
+  const minutesSubtotal            = remainderMinutes * m;
+  const remainderSubtotal          = hoursSubtotal + minutesSubtotal;
+  const plenaBlocksSubtotal        = plenaBlocksCompleted * p;
+  const remainderCappedByPlena     = remainderSubtotal > p;
+  const remainderAmount            = remainderCappedByPlena ? p : remainderSubtotal;
+  const subtotal                   = plenaBlocksSubtotal + remainderSubtotal;
+  const cappedByPlena              = plenaBlocksCompleted > 0 || remainderCappedByPlena;
+  const amount                     = plenaBlocksSubtotal + remainderAmount;
 
-  const breakdown = { hoursCompleted, remainderMinutes, perMinuteCents: m, perHourCents: h,
+  const breakdown = { plenaBlockMinutes, plenaBlocksCompleted, remainderAfterPlenaMinutes,
+                      plenaBlocksSubtotalCents: plenaBlocksSubtotal,
+                      remainderSubtotalCents: remainderSubtotal,
+                      hoursCompleted, remainderMinutes, perMinuteCents: m, perHourCents: h,
                       hoursSubtotalCents: hoursSubtotal, minutesSubtotalCents: minutesSubtotal,
                       subtotalCents: subtotal, plenaCents: p, cappedByPlena,
-                      durationMinutes };
+                      remainderCappedByPlena, durationMinutes };
 
   if (isMonthly) return right({ amountCents: 0, reason: 'monthly', breakdown });
   return right({ amountCents: amount, reason: 'paid', breakdown });
@@ -110,9 +135,12 @@ calculate(params): Either<Failure, CalculateParkingFeeResult> {
 ## Edge Cases
 
 - **Duración exactamente múltiplo de 60:** `remainderMinutes=0`, solo cobra horas.
-- **`subtotal == plena`:** no se considera capped (`cappedByPlena=false`), ambos coinciden numéricamente.
-- **`subtotal > plena`:** `cappedByPlena=true`, `amount=plena`.
+- **Duración exactamente múltiplo de 720:** fracción en 0, cobra solo `N × plena` (720 min → 1 plena; 1440 min → 2 plenas).
+- **`remainderSubtotal == plena`:** no se considera capped (`remainderCappedByPlena=false`), ambos coinciden numéricamente.
+- **`remainderSubtotal > plena`:** `remainderCappedByPlena=true`, la fracción cobra `plena`.
+- **`plenaBlocksCompleted > 0`:** `cappedByPlena=true` siempre (hubo al menos un ciclo a plena).
 - **Discontinuidad en `dur=60`:** intencional. 59 min × $60 = $3.540 > 1 × $2.400 = $2.400. C5 (`per_hour ≤ 60 × per_minute`) garantiza que pasar al cobro por hora es más barato o igual que 60 min sueltos.
+- **Ejemplo 14 h (840 min, moto):** 1 × plena $9.000 + 2h × $2.400 = **$13.800**.
 
 ## Mapping a UI
 
@@ -131,14 +159,40 @@ Detalle del cobro:
                      $6.600
 ```
 
-Cuando aplica plena:
+Cuando la fracción alcanza la plena (`remainderCappedByPlena`):
 
 ```
 Detalle del cobro:
   4 horas × $2.400 = $9.600
   Subtotal           $9.600
-  Tope diario (plena) $9.000   ←
+  Tope plena (12 h)  $9.000   ←
 ```
+
+Cuando hay ciclos de 12 h completos (`plenaBlocksCompleted > 0`), se muestra la línea de
+bloques ANTES de la fracción, y una fila final de total (porque el detalle ya no es una
+sola cifra):
+
+```
+Detalle del cobro:
+  1 × plena (12 h)   $9.000
+  2 horas × $2.400   $4.800
+  Total              $13.800
+```
+
+Si además la fracción se topa (ej: 16 h moto):
+
+```
+Detalle del cobro:
+  1 × plena (12 h)   $9.000
+  4 horas × $2.400   $9.600
+  Subtotal fracción  $9.600
+  Tope plena (12 h)  $9.000   ←
+  Total              $18.000
+```
+
+Regla: las filas Subtotal/Tope solo aparecen si `remainderCappedByPlena` (no basta
+`cappedByPlena`, que también es true por el solo hecho de haber bloques); la fila Total
+solo aparece si `plenaBlocksCompleted > 0`.
 
 **Ticket de entrada (`print-entry-ticket`):** muestra las 3 líneas como referencia:
 
@@ -146,12 +200,11 @@ Detalle del cobro:
 Tarifa Moto: $60/min · $2.400/h · plena $9.000
 ```
 
-## Cambios respecto a la versión anterior
+## Cambios respecto a versiones anteriores
 
-- **Antes (2026-05-20):** MIN-de-tres entre `dur × per_minute`, `ceil(dur/60) × per_hour` y `plena`. El cliente siempre pagaba lo más barato.
-- **Ahora (2026-05-24):** aditivo `floor(dur/60) × per_hour + (dur % 60) × per_minute`, con tope `plena`. Refleja el modelo operativo real del parqueadero.
-- **Eliminado:** concepto de minutos de gracia (campo `graceMinutes` queda en 0 en BD, UI no lo expone). Las estancias muy cortas se cobran al `per_minute`.
-- **Breakdown:** `winner` reemplazado por `cappedByPlena`. `byMinuteCents`/`byHourCents` reemplazados por `hoursSubtotalCents`/`minutesSubtotalCents` + descomposición `hoursCompleted`/`remainderMinutes`.
+- **2026-05-20:** MIN-de-tres entre `dur × per_minute`, `ceil(dur/60) × per_hour` y `plena`. El cliente siempre pagaba lo más barato.
+- **2026-05-24:** aditivo `floor(dur/60) × per_hour + (dur % 60) × per_minute`, con `plena` como tope absoluto de la sesión. Eliminado el concepto de minutos de gracia (campo `graceMinutes` queda en 0 en BD, UI no lo expone).
+- **2026-06-28 (`3c03f07`), documentado 2026-07-04:** la plena pasa a ser tope **por ciclo de 12 h** que se suma: `floor(dur/720) × plena + min(fracción aditiva, plena)`. Breakdown gana `plenaBlockMinutes`, `plenaBlocksCompleted`, `remainderAfterPlenaMinutes`, `plenaBlocksSubtotalCents`, `remainderSubtotalCents` y `remainderCappedByPlena`; `cappedByPlena` pasa a significar "hubo al menos un ciclo topado o completo".
 
 ## Dependencias
 
@@ -159,4 +212,4 @@ Tarifa Moto: $60/min · $2.400/h · plena $9.000
 - Sin dependencias de BD ni red.
 
 ---
-Status: vigente desde 2026-05-24 (reemplaza el modelo MIN-de-tres del 2026-05-20).
+Status: vigente — ciclos de plena de 12 h en código desde 2026-06-28 (`3c03f07`), spec actualizado 2026-07-04.

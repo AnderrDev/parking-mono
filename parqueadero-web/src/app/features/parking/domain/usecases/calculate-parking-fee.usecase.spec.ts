@@ -174,23 +174,47 @@ describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos ×
     });
   });
 
-  it('MOTO 720 min (12h) → $9.000 (cap por plena)', () => {
+  it('MOTO 720 min (12h) → $9.000 (1 ciclo de plena completo)', () => {
     const r = usecase.calculate(baseParams({ durationMinutes: 720 }));
     r.fold(f => fail(f.message), fee => {
       expect(fee.amountCents).toBe(900000);
       expect(fee.breakdown.plenaBlocksCompleted).toBe(1);
       expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(0);
       expect(fee.breakdown.cappedByPlena).toBeTrue();
+      expect(fee.breakdown.remainderCappedByPlena).toBeFalse();
     });
   });
 
-  it('MOTO 1440 min (24h) → $9.000 (cap por plena)', () => {
+  it('MOTO 840 min (14h) → $13.800 (1 plena + 2h × $2.400)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 840 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(1380000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(1);
+      expect(fee.breakdown.plenaBlocksSubtotalCents).toBe(900000);
+      expect(fee.breakdown.hoursCompleted).toBe(2);
+      expect(fee.breakdown.remainderSubtotalCents).toBe(480000);
+      expect(fee.breakdown.remainderCappedByPlena).toBeFalse();
+    });
+  });
+
+  it('MOTO 960 min (16h) → $18.000 (1 plena + fracción de 4h topada a plena)', () => {
+    const r = usecase.calculate(baseParams({ durationMinutes: 960 }));
+    r.fold(f => fail(f.message), fee => {
+      expect(fee.amountCents).toBe(1800000);
+      expect(fee.breakdown.plenaBlocksCompleted).toBe(1);
+      expect(fee.breakdown.remainderSubtotalCents).toBe(960000);
+      expect(fee.breakdown.remainderCappedByPlena).toBeTrue();
+    });
+  });
+
+  it('MOTO 1440 min (24h) → $18.000 (2 ciclos de plena)', () => {
     const r = usecase.calculate(baseParams({ durationMinutes: 1440 }));
     r.fold(f => fail(f.message), fee => {
       expect(fee.amountCents).toBe(1800000);
       expect(fee.breakdown.plenaBlocksCompleted).toBe(2);
       expect(fee.breakdown.remainderAfterPlenaMinutes).toBe(0);
       expect(fee.breakdown.cappedByPlena).toBeTrue();
+      expect(fee.breakdown.remainderCappedByPlena).toBeFalse();
     });
   });
 
@@ -267,7 +291,7 @@ describe('CalculateParkingFeeUseCase — aditivo (horas × per_hour + minutos ×
     });
   });
 
-  it('CARRO 1440 min (24h) → $12.000 (cap)', () => {
+  it('CARRO 780 min (13h) → $15.600 (1 plena + 1h)', () => {
     const r = usecase.calculate(baseParams({
       durationMinutes: 780,
       tariff: makeTariff({ vehicleType: 'carro' }),

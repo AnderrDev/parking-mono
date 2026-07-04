@@ -32,6 +32,15 @@
       <div class="dialog__fee-breakdown">
         <div class="fee-breakdown__title">Detalle del cobro</div>
         <ul class="fee-breakdown__list">
+          @if (data.feeResult.breakdown.plenaBlocksCompleted > 0) {
+            <li>
+              <span class="fee-breakdown__label">
+                {{ data.feeResult.breakdown.plenaBlocksCompleted }}
+                × plena (12 h)
+              </span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.plenaBlocksSubtotalCents) }}</span>
+            </li>
+          }
           @if (data.feeResult.breakdown.hoursCompleted > 0) {
             <li>
               <span class="fee-breakdown__label">
@@ -51,14 +60,20 @@
               <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.minutesSubtotalCents) }}</span>
             </li>
           }
-          @if (data.feeResult.breakdown.cappedByPlena) {
+          @if (data.feeResult.breakdown.remainderCappedByPlena) {
             <li class="fee-breakdown__row--subtotal">
-              <span class="fee-breakdown__label">Subtotal</span>
-              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.subtotalCents) }}</span>
+              <span class="fee-breakdown__label">{{ data.feeResult.breakdown.plenaBlocksCompleted > 0 ? 'Subtotal fracción' : 'Subtotal' }}</span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.remainderSubtotalCents) }}</span>
             </li>
             <li class="fee-breakdown__row--winner">
-              <span class="fee-breakdown__label">Tope diario (plena)</span>
+              <span class="fee-breakdown__label">Tope plena (12 h)</span>
               <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.breakdown.plenaCents) }}</span>
+            </li>
+          }
+          @if (data.feeResult.breakdown.plenaBlocksCompleted > 0) {
+            <li class="fee-breakdown__row--winner">
+              <span class="fee-breakdown__label">Total</span>
+              <span class="fee-breakdown__value">{{ formatCOP(data.feeResult.amountCents) }}</span>
             </li>
           }
         </ul>
