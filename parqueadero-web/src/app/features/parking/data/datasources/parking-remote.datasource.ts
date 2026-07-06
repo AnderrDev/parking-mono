@@ -16,6 +16,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  CorrectSessionVehicleTypeParams,
   OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-session.model';
@@ -357,6 +358,27 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
         session: ParkingSessionMapper.toEntity(sessionData),
         payment: PaymentMapper.toEntity(paymentData),
       });
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async correctSessionVehicleType(
+    params: CorrectSessionVehicleTypeParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>> {
+    try {
+      const { data, error } = await this.supabase.client.rpc(
+        'correct_active_session_vehicle_type',
+        {
+          p_session_id: params.sessionId,
+          p_vehicle_type: params.vehicleType,
+        },
+      );
+
+      if (error) return left(new ServerFailure(error.message));
+      if (!data) return left(new ServerFailure('No se recibió datos de la sesión corregida'));
+
+      return right(ParkingSessionMapper.toEntity(data as ParkingSessionModel));
     } catch {
       return left(new NetworkFailure());
     }

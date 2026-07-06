@@ -6,6 +6,7 @@ import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import {
   PaymentRepository,
   CreatePaymentParams,
+  CorrectPaymentMethodParams,
   ListPaymentsParams,
   ListPaymentsResult,
   VoidPaymentParams,
@@ -37,6 +38,10 @@ export class PaymentRepositoryImpl extends PaymentRepository {
 
   async sumCashByShift(shiftId: string): Promise<Either<Failure, number>> {
     return this.remoteDs.sumCashByShift(shiftId);
+  }
+
+  async correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>> {
+    return this.remoteDs.correctMethod(params);
   }
 
   async voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>> {

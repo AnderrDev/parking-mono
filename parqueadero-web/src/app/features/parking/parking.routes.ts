@@ -13,6 +13,7 @@ import {
   CHECK_MONTHLY_PLAN_TOKEN,
   LIST_SESSIONS_TOKEN,
   CANCEL_SESSION_TOKEN,
+  CORRECT_SESSION_VEHICLE_TYPE_TOKEN,
   GET_OPEN_SHIFT_STATUS_TOKEN,
   GET_VEHICLE_HISTORY_STATS_TOKEN,
   TICKET_RENDERER_TOKEN,
@@ -31,6 +32,7 @@ import { SearchPlateSuggestionsUseCase } from './domain/usecases/search-plate-su
 import { CheckMonthlyPlanUseCase } from './domain/usecases/check-monthly-plan.usecase';
 import { ListSessionsUseCase } from './domain/usecases/list-sessions.usecase';
 import { CancelParkingSessionUseCase } from './domain/usecases/cancel-session.usecase';
+import { CorrectSessionVehicleTypeUseCase } from './domain/usecases/correct-session-vehicle-type.usecase';
 import { GetActiveTariffUseCase } from './domain/usecases/get-active-tariff.usecase';
 import { GetOpenShiftStatusUseCase } from './domain/usecases/get-open-shift-status.usecase';
 import { GetVehicleHistoryStatsUseCase } from './domain/usecases/get-vehicle-history-stats.usecase';
@@ -50,6 +52,7 @@ const parkingProviders = [
   { provide: CHECK_MONTHLY_PLAN_TOKEN, useClass: CheckMonthlyPlanUseCase },
   { provide: LIST_SESSIONS_TOKEN, useClass: ListSessionsUseCase },
   { provide: CANCEL_SESSION_TOKEN, useClass: CancelParkingSessionUseCase },
+  { provide: CORRECT_SESSION_VEHICLE_TYPE_TOKEN, useClass: CorrectSessionVehicleTypeUseCase },
   { provide: GET_ACTIVE_TARIFF_TOKEN, useClass: GetActiveTariffUseCase },
   { provide: GET_OPEN_SHIFT_STATUS_TOKEN, useClass: GetOpenShiftStatusUseCase },
   { provide: GET_VEHICLE_HISTORY_STATS_TOKEN, useClass: GetVehicleHistoryStatsUseCase },

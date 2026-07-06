@@ -5,6 +5,7 @@ import { SupabaseService } from '../../../../core/services/supabase.service';
 import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
 import {
   CloseShiftParams,
+  CorrectOpeningBalanceParams,
   ListShiftsParams,
   ListShiftsResult,
   OpenShiftParams,
@@ -107,6 +108,26 @@ export class CashierRemoteDataSource extends CashierDataSource {
       if (error) return left(new ServerFailure(error.message));
       if (!data) return left(new ServerFailure('No se recibió datos del turno creado'));
       return right(CashierShiftMapper.toEntity(data));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async correctOpeningBalance(
+    params: CorrectOpeningBalanceParams,
+  ): Promise<Either<Failure, CashierShiftEntity>> {
+    try {
+      const { data, error } = await this.supabase.client.rpc(
+        'correct_open_cashier_shift_opening_balance',
+        {
+          p_shift_id: params.shiftId,
+          p_opening_balance_cents: params.openingBalanceCents,
+        },
+      );
+
+      if (error) return left(new ServerFailure(error.message));
+      if (!data) return left(new NotFoundFailure('Turno abierto no encontrado', 'cashier_shift'));
+      return right(CashierShiftMapper.toEntity(data as CashierShiftModel));
     } catch {
       return left(new NetworkFailure());
     }

@@ -69,6 +69,14 @@
                 Abierta desde las {{ shift()!.openedAt | date:'HH:mm' }}
                 · saldo apertura
                 <strong>{{ shift()!.openingBalanceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                <button
+                  type="button"
+                  class="cashier__meta-action"
+                  [disabled]="loading()"
+                  (click)="openCorrectOpeningBalanceDialog()"
+                >
+                  Corregir
+                </button>
               </p>
             }
           </div>
@@ -248,6 +256,11 @@
                         <td class="num mono">{{ row.payment.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
                         <td class="payments-table__actions">
                           @if (row.payment.status === 'completed') {
+                            @if (row.payment.amountCents > 0) {
+                              <button type="button" class="btn-link" (click)="editPaymentMethod(row)">
+                                Editar
+                              </button>
+                            }
                             <button type="button" class="btn-link btn-link--danger" (click)="voidPayment(row)">
                               Anular
                             </button>

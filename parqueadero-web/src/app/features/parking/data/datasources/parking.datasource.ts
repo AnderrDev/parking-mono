@@ -15,6 +15,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  CorrectSessionVehicleTypeParams,
   OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 
@@ -67,6 +68,10 @@ export abstract class ParkingDataSource {
   abstract getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>>;
 
   abstract closeSession(params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>>;
+
+  abstract correctSessionVehicleType(
+    params: CorrectSessionVehicleTypeParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>>;
 
   abstract getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>>;
 

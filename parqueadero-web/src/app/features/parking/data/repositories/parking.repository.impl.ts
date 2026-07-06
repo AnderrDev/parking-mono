@@ -20,6 +20,7 @@ import {
   ListSessionsParams,
   ListSessionsResult,
   CancelSessionParams,
+  CorrectSessionVehicleTypeParams,
   OpenShiftSummary,
 } from '../../domain/repositories/parking.repository';
 import { ParkingDataSource } from '../datasources/parking.datasource';
@@ -96,6 +97,12 @@ export class ParkingRepositoryImpl extends ParkingRepository {
 
   async registerExit(params: RegisterExitParams): Promise<Either<Failure, RegisterExitResult>> {
     return this.remoteDs.closeSession(params);
+  }
+
+  async correctSessionVehicleType(
+    params: CorrectSessionVehicleTypeParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>> {
+    return this.remoteDs.correctSessionVehicleType(params);
   }
 
   async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {

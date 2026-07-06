@@ -51,6 +51,13 @@ export interface RegisterExitParams {
   userId: string;
 }
 
+export interface CorrectSessionVehicleTypeParams {
+  sessionId: string;
+  plate: string;
+  vehicleType: VehicleType;
+  userId: string;
+}
+
 export interface RegisterExitResult {
   session: ParkingSessionEntity;
   payment: PaymentEntity;
@@ -101,6 +108,10 @@ export abstract class ParkingRepository {
   abstract registerExit(
     params: RegisterExitParams,
   ): Promise<Either<Failure, RegisterExitResult>>;
+
+  abstract correctSessionVehicleType(
+    params: CorrectSessionVehicleTypeParams,
+  ): Promise<Either<Failure, ParkingSessionEntity>>;
 
   abstract getActiveTariff(
     vehicleType: VehicleType,

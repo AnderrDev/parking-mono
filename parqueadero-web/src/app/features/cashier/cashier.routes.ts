@@ -5,6 +5,7 @@ import {
   CASHIER_REPOSITORY_TOKEN,
   CASHIER_REMOTE_DATASOURCE_TOKEN,
   OPEN_SHIFT_TOKEN,
+  CORRECT_OPENING_BALANCE_TOKEN,
   CLOSE_SHIFT_TOKEN,
   RECONCILE_SHIFT_TOKEN,
   LIST_SHIFTS_TOKEN,
@@ -12,11 +13,13 @@ import {
   PAYMENT_REPOSITORY_TOKEN,
   PAYMENT_REMOTE_DATASOURCE_TOKEN,
   LIST_PAYMENTS_TOKEN,
+  CORRECT_PAYMENT_METHOD_TOKEN,
   VOID_PAYMENT_TOKEN,
 } from '../../core/di/injection-tokens';
 import { CashierRemoteDataSource } from './data/datasources/cashier-remote.datasource';
 import { CashierRepositoryImpl } from './data/repositories/cashier.repository.impl';
 import { OpenShiftUseCase } from './domain/usecases/open-shift.usecase';
+import { CorrectOpeningBalanceUseCase } from './domain/usecases/correct-opening-balance.usecase';
 import { CloseShiftUseCase } from './domain/usecases/close-shift.usecase';
 import { ReconcileShiftUseCase } from './domain/usecases/reconcile-shift.usecase';
 import { ListShiftsUseCase } from './domain/usecases/list-shifts.usecase';
@@ -24,6 +27,7 @@ import { RegisterCashWithdrawalUseCase } from './domain/usecases/register-withdr
 import { PaymentRemoteDataSource } from '../payments/data/datasources/payment-remote.datasource';
 import { PaymentRepositoryImpl } from '../payments/data/repositories/payment.repository.impl';
 import { ListPaymentsUseCase } from '../payments/domain/usecases/list-payments.usecase';
+import { CorrectPaymentMethodUseCase } from '../payments/domain/usecases/correct-payment-method.usecase';
 import { VoidPaymentUseCase } from '../payments/domain/usecases/void-payment.usecase';
 
 const cashierProviders = [
@@ -32,11 +36,13 @@ const cashierProviders = [
   { provide: PAYMENT_REMOTE_DATASOURCE_TOKEN, useClass: PaymentRemoteDataSource },
   { provide: PAYMENT_REPOSITORY_TOKEN, useClass: PaymentRepositoryImpl },
   { provide: OPEN_SHIFT_TOKEN, useClass: OpenShiftUseCase },
+  { provide: CORRECT_OPENING_BALANCE_TOKEN, useClass: CorrectOpeningBalanceUseCase },
   { provide: CLOSE_SHIFT_TOKEN, useClass: CloseShiftUseCase },
   { provide: RECONCILE_SHIFT_TOKEN, useClass: ReconcileShiftUseCase },
   { provide: LIST_SHIFTS_TOKEN, useClass: ListShiftsUseCase },
   { provide: REGISTER_WITHDRAWAL_TOKEN, useClass: RegisterCashWithdrawalUseCase },
   { provide: LIST_PAYMENTS_TOKEN, useClass: ListPaymentsUseCase },
+  { provide: CORRECT_PAYMENT_METHOD_TOKEN, useClass: CorrectPaymentMethodUseCase },
   { provide: VOID_PAYMENT_TOKEN, useClass: VoidPaymentUseCase },
 ];
 

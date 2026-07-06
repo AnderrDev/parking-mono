@@ -14,9 +14,11 @@ import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import {
   OPEN_SHIFT_TOKEN,
+  CORRECT_OPENING_BALANCE_TOKEN,
   CLOSE_SHIFT_TOKEN,
   RECONCILE_SHIFT_TOKEN,
   LIST_PAYMENTS_TOKEN,
+  CORRECT_PAYMENT_METHOD_TOKEN,
   CASHIER_REPOSITORY_TOKEN,
   REGISTER_WITHDRAWAL_TOKEN,
   VOID_PAYMENT_TOKEN,
@@ -26,12 +28,24 @@ import {
   CashWithdrawalDialogComponent,
   WithdrawalFormValue,
 } from '../components/cash-withdrawal-dialog.component';
+import {
+  CorrectOpeningBalanceDialogComponent,
+  CorrectOpeningBalanceDialogData,
+  CorrectOpeningBalanceDialogResult,
+} from '../components/correct-opening-balance-dialog.component';
+import {
+  CorrectPaymentMethodDialogComponent,
+  CorrectPaymentMethodDialogData,
+  CorrectPaymentMethodDialogResult,
+} from '../components/correct-payment-method-dialog.component';
 import { RegisterCashWithdrawalUseCase } from '../../domain/usecases/register-withdrawal.usecase';
 import { CashWithdrawalEntity } from '../../domain/entities/cash-withdrawal.entity';
 import { OpenShiftUseCase } from '../../domain/usecases/open-shift.usecase';
+import { CorrectOpeningBalanceUseCase } from '../../domain/usecases/correct-opening-balance.usecase';
 import { CloseShiftUseCase } from '../../domain/usecases/close-shift.usecase';
 import { ReconcileShiftUseCase, ReconcileResult } from '../../domain/usecases/reconcile-shift.usecase';
 import { ListPaymentsUseCase } from '../../../payments/domain/usecases/list-payments.usecase';
+import { CorrectPaymentMethodUseCase } from '../../../payments/domain/usecases/correct-payment-method.usecase';
 import { VoidPaymentUseCase } from '../../../payments/domain/usecases/void-payment.usecase';
 import { CashierRepository } from '../../domain/repositories/cashier.repository';
 import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
@@ -123,9 +137,11 @@ export class CashierShiftPageComponent implements OnInit {
     private readonly cashierForms: CashierForms,
     @Inject(CASHIER_REPOSITORY_TOKEN) private readonly cashierRepo: CashierRepository,
     @Inject(OPEN_SHIFT_TOKEN) private readonly openShiftUC: OpenShiftUseCase,
+    @Inject(CORRECT_OPENING_BALANCE_TOKEN) private readonly correctOpeningBalanceUC: CorrectOpeningBalanceUseCase,
     @Inject(CLOSE_SHIFT_TOKEN) private readonly closeShiftUC: CloseShiftUseCase,
     @Inject(RECONCILE_SHIFT_TOKEN) private readonly reconcileUC: ReconcileShiftUseCase,
     @Inject(LIST_PAYMENTS_TOKEN) private readonly listPaymentsUC: ListPaymentsUseCase,
+    @Inject(CORRECT_PAYMENT_METHOD_TOKEN) private readonly correctPaymentMethodUC: CorrectPaymentMethodUseCase,
     @Inject(VOID_PAYMENT_TOKEN) private readonly voidPaymentUC: VoidPaymentUseCase,
     @Inject(REGISTER_WITHDRAWAL_TOKEN) private readonly registerWithdrawalUC: RegisterCashWithdrawalUseCase,
     private readonly toast: ToastService,
@@ -307,6 +323,49 @@ export class CashierShiftPageComponent implements OnInit {
     );
   }
 
+  protected editPaymentMethod(row: ShiftPaymentRow): void {
+    if (row.payment.status !== 'completed' || row.payment.amountCents <= 0) return;
+
+    const ref = this.dialog.open<
+      CorrectPaymentMethodDialogResult | undefined,
+      CorrectPaymentMethodDialogData
+    >(CorrectPaymentMethodDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
+      data: {
+        currentMethod: row.payment.method,
+        label: row.plate ?? this.shortId(row.payment.id),
+      },
+      ariaLabelledBy: 'correct-payment-method-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      hasBackdrop: true,
+    });
+
+    ref.closed.subscribe((value) => {
+      if (!value || value.method === row.payment.method) return;
+      void this.correctPaymentMethod(row.payment.id, value.method);
+    });
+  }
+
+  private async correctPaymentMethod(paymentId: string, method: PaymentEntity['method']): Promise<void> {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return;
+
+    this.loading.set(true);
+    const result = await this.correctPaymentMethodUC.execute({ paymentId, method, userId });
+    this.loading.set(false);
+
+    result.fold(
+      (f) => this.toast.error(`No se pudo corregir pago: ${f.message}`),
+      () => {
+        this.toast.success('Método de pago corregido');
+        const shift = this.shift();
+        if (shift) void this.loadShiftData(shift.id);
+      },
+    );
+  }
+
   // HU-036: actualizar la cantidad de una denominación y aplicar el total
   // automáticamente al campo closingBalanceCents.
   protected onDenominationChange(key: string, event: Event): void {
@@ -348,6 +407,51 @@ export class CashierShiftPageComponent implements OnInit {
         },
       );
     });
+  }
+
+  protected openCorrectOpeningBalanceDialog(): void {
+    const shift = this.shift();
+    if (!shift) return;
+
+    const ref = this.dialog.open<
+      CorrectOpeningBalanceDialogResult | undefined,
+      CorrectOpeningBalanceDialogData
+    >(CorrectOpeningBalanceDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
+      data: { currentBalanceCents: shift.openingBalanceCents },
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      hasBackdrop: true,
+    });
+
+    ref.closed.subscribe((value) => {
+      if (!value || value.openingBalanceCents === shift.openingBalanceCents) return;
+      void this.correctOpeningBalance(value.openingBalanceCents);
+    });
+  }
+
+  private async correctOpeningBalance(openingBalanceCents: number): Promise<void> {
+    const shift = this.shift();
+    const userId = this.auth.currentUser()?.id;
+    if (!shift || !userId) return;
+
+    this.loading.set(true);
+    const result = await this.correctOpeningBalanceUC.execute({
+      shiftId: shift.id,
+      userId,
+      openingBalanceCents,
+    });
+    this.loading.set(false);
+
+    result.fold(
+      (f) => this.toast.error(`No se pudo corregir apertura: ${f.message}`),
+      (updated) => {
+        this.shift.set(updated);
+        this.toast.success('Saldo de apertura corregido');
+        void this.loadShiftData(updated.id);
+      },
+    );
   }
 
   async openShift(): Promise<void> {

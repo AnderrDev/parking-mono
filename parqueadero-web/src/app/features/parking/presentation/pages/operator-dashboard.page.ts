@@ -31,6 +31,7 @@ import {
   GET_VEHICLE_HISTORY_STATS_TOKEN,
   LIST_MONTHLY_PLANS_TOKEN,
   TICKET_RENDERER_TOKEN,
+  CORRECT_SESSION_VEHICLE_TYPE_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -82,6 +83,11 @@ import {
   VehicleExitDialogData,
   ExitFormValue,
 } from '../components/vehicle-exit-dialog.component';
+import {
+  CorrectVehicleTypeDialogComponent,
+  CorrectVehicleTypeDialogData,
+  CorrectVehicleTypeDialogResult,
+} from '../components/correct-vehicle-type-dialog.component';
 import { ShiftStatusBannerComponent, ShiftBannerState } from '../components/shift-status-banner.component';
 import { TariffsBarComponent } from '../components/tariffs-bar.component';
 import { VehicleHistoryPanelComponent } from '../components/vehicle-history-panel.component';
@@ -89,6 +95,7 @@ import { MonthlyPlansPanelComponent } from '../components/monthly-plans-panel.co
 import { formatDuration } from '../../../../shared/utils/date.utils';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 import { ExitReceiptPrintData, TicketRendererPort } from '../../domain/services/ticket-renderer.port';
+import { CorrectSessionVehicleTypeUseCase } from '../../domain/usecases/correct-session-vehicle-type.usecase';
 
 const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
   carro: 'Carro',
@@ -117,6 +124,7 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
   readonly monthlyPlanWarning = signal<string | null>(null);
   readonly reprintingEntryTicket = signal<string | null>(null);
   readonly exitDialogSessionId = signal<string | null>(null);
+  readonly correctingSessionId = signal<string | null>(null);
 
 
   // Estado de la caja del operador. Se carga al ngOnInit y bloquea la entrada
@@ -234,6 +242,8 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     private readonly getOpenShiftStatus: GetOpenShiftStatusUseCase,
     @Inject(GET_VEHICLE_HISTORY_STATS_TOKEN)
     private readonly getVehicleHistoryStats: GetVehicleHistoryStatsUseCase,
+    @Inject(CORRECT_SESSION_VEHICLE_TYPE_TOKEN)
+    private readonly correctSessionVehicleType: CorrectSessionVehicleTypeUseCase,
     @Inject(LIST_MONTHLY_PLANS_TOKEN)
     private readonly listMonthlyPlans: ListMonthlyPlansUseCase,
     private readonly _calculateFee: CalculateParkingFeeUseCase,
@@ -696,6 +706,71 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
     } finally {
       this.reprintingEntryTicket.set(null);
     }
+  }
+
+  protected openCorrectVehicleTypeDialog(session: ParkingSessionEntity): void {
+    if (this.correctingSessionId()) return;
+    const availableTypes = this.availableTypesForEntry() ?? this.visibleTariffTypes;
+    const ref = this.dialog.open<
+      CorrectVehicleTypeDialogResult | undefined,
+      CorrectVehicleTypeDialogData
+    >(CorrectVehicleTypeDialogComponent, {
+      injector: this.envInjector,
+      viewContainerRef: this.vcr,
+      data: {
+        plate: session.vehiclePlate,
+        currentType: session.vehicleType,
+        availableTypes,
+      },
+      ariaLabelledBy: 'correct-type-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      hasBackdrop: true,
+    });
+
+    ref.closed.subscribe((result) => {
+      if (!result || result.vehicleType === session.vehicleType) return;
+      void this.correctVehicleType(session, result.vehicleType);
+    });
+  }
+
+  private async correctVehicleType(
+    session: ParkingSessionEntity,
+    vehicleType: VehicleType,
+  ): Promise<void> {
+    const user = this.authState.currentUser();
+    if (!user) {
+      this.toast.error('Sesión expirada. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    this.correctingSessionId.set(session.id);
+    const result = await this.correctSessionVehicleType.execute({
+      sessionId: session.id,
+      plate: session.vehiclePlate,
+      vehicleType,
+      userId: user.id,
+    });
+    this.correctingSessionId.set(null);
+
+    result.fold(
+      (failure) => this.toast.error(`No se pudo corregir: ${failure.message}`),
+      (updated) => {
+        this.activeSessions.update((sessions) =>
+          sessions.map((s) => (s.id === updated.id ? updated : s)),
+        );
+        const currentSearch = this.plateSearchResult();
+        if (currentSearch) {
+          this.plateSearchResult.set({
+            ...currentSearch,
+            activeSessions: currentSearch.activeSessions.map((s) =>
+              s.id === updated.id ? updated : s,
+            ),
+          });
+        }
+        this.toast.success(`Tipo corregido a ${this.vehicleLabel(updated.vehicleType)}`);
+      },
+    );
   }
 
 

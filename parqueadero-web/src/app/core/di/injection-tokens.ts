@@ -15,6 +15,7 @@ import type { SearchPlateSuggestionsUseCase } from '../../features/parking/domai
 import type { CheckMonthlyPlanUseCase } from '../../features/parking/domain/usecases/check-monthly-plan.usecase';
 import type { ListSessionsUseCase } from '../../features/parking/domain/usecases/list-sessions.usecase';
 import type { CancelParkingSessionUseCase } from '../../features/parking/domain/usecases/cancel-session.usecase';
+import type { CorrectSessionVehicleTypeUseCase } from '../../features/parking/domain/usecases/correct-session-vehicle-type.usecase';
 import type { GetActiveTariffUseCase } from '../../features/parking/domain/usecases/get-active-tariff.usecase';
 import type { GetOpenShiftStatusUseCase } from '../../features/parking/domain/usecases/get-open-shift-status.usecase';
 import type { GetVehicleHistoryStatsUseCase } from '../../features/parking/domain/usecases/get-vehicle-history-stats.usecase';
@@ -47,6 +48,7 @@ import type { DeactivateVehicleUseCase } from '../../features/vehicles/domain/us
 import type { CashierRepository } from '../../features/cashier/domain/repositories/cashier.repository';
 import type { CashierDataSource } from '../../features/cashier/data/datasources/cashier.datasource';
 import type { OpenShiftUseCase } from '../../features/cashier/domain/usecases/open-shift.usecase';
+import type { CorrectOpeningBalanceUseCase } from '../../features/cashier/domain/usecases/correct-opening-balance.usecase';
 import type { CloseShiftUseCase } from '../../features/cashier/domain/usecases/close-shift.usecase';
 import type { ReconcileShiftUseCase } from '../../features/cashier/domain/usecases/reconcile-shift.usecase';
 import type { ListShiftsUseCase } from '../../features/cashier/domain/usecases/list-shifts.usecase';
@@ -55,6 +57,7 @@ import type { PaymentRepository } from '../../features/payments/domain/repositor
 import type { PaymentDataSource } from '../../features/payments/data/datasources/payment.datasource';
 import type { RegisterPaymentUseCase } from '../../features/payments/domain/usecases/register-payment.usecase';
 import type { ListPaymentsUseCase } from '../../features/payments/domain/usecases/list-payments.usecase';
+import type { CorrectPaymentMethodUseCase } from '../../features/payments/domain/usecases/correct-payment-method.usecase';
 import type { VoidPaymentUseCase } from '../../features/payments/domain/usecases/void-payment.usecase';
 import type { ReportRepository } from '../../features/reports/domain/repositories/report.repository';
 import type { ReportDataSource } from '../../features/reports/data/datasources/report.datasource';
@@ -97,6 +100,7 @@ export const SEARCH_PLATE_SUGGESTIONS_TOKEN = new InjectionToken<SearchPlateSugg
 export const CHECK_MONTHLY_PLAN_TOKEN = new InjectionToken<CheckMonthlyPlanUseCase>('CheckMonthlyPlanUseCase');
 export const LIST_SESSIONS_TOKEN = new InjectionToken<ListSessionsUseCase>('ListSessionsUseCase');
 export const CANCEL_SESSION_TOKEN = new InjectionToken<CancelParkingSessionUseCase>('CancelParkingSessionUseCase');
+export const CORRECT_SESSION_VEHICLE_TYPE_TOKEN = new InjectionToken<CorrectSessionVehicleTypeUseCase>('CorrectSessionVehicleTypeUseCase');
 export const GET_ACTIVE_TARIFF_TOKEN = new InjectionToken<GetActiveTariffUseCase>('GetActiveTariffUseCase');
 export const GET_OPEN_SHIFT_STATUS_TOKEN = new InjectionToken<GetOpenShiftStatusUseCase>('GetOpenShiftStatusUseCase');
 export const GET_VEHICLE_HISTORY_STATS_TOKEN = new InjectionToken<GetVehicleHistoryStatsUseCase>('GetVehicleHistoryStatsUseCase');
@@ -139,6 +143,7 @@ export const DEACTIVATE_VEHICLE_TOKEN = new InjectionToken<DeactivateVehicleUseC
 export const CASHIER_REPOSITORY_TOKEN = new InjectionToken<CashierRepository>('CashierRepository');
 export const CASHIER_REMOTE_DATASOURCE_TOKEN = new InjectionToken<CashierDataSource>('CashierRemoteDataSource');
 export const OPEN_SHIFT_TOKEN = new InjectionToken<OpenShiftUseCase>('OpenShiftUseCase');
+export const CORRECT_OPENING_BALANCE_TOKEN = new InjectionToken<CorrectOpeningBalanceUseCase>('CorrectOpeningBalanceUseCase');
 export const CLOSE_SHIFT_TOKEN = new InjectionToken<CloseShiftUseCase>('CloseShiftUseCase');
 export const RECONCILE_SHIFT_TOKEN = new InjectionToken<ReconcileShiftUseCase>('ReconcileShiftUseCase');
 export const LIST_SHIFTS_TOKEN = new InjectionToken<ListShiftsUseCase>('ListShiftsUseCase');
@@ -149,6 +154,7 @@ export const PAYMENT_REPOSITORY_TOKEN = new InjectionToken<PaymentRepository>('P
 export const PAYMENT_REMOTE_DATASOURCE_TOKEN = new InjectionToken<PaymentDataSource>('PaymentRemoteDataSource');
 export const REGISTER_PAYMENT_TOKEN = new InjectionToken<RegisterPaymentUseCase>('RegisterPaymentUseCase');
 export const LIST_PAYMENTS_TOKEN = new InjectionToken<ListPaymentsUseCase>('ListPaymentsUseCase');
+export const CORRECT_PAYMENT_METHOD_TOKEN = new InjectionToken<CorrectPaymentMethodUseCase>('CorrectPaymentMethodUseCase');
 export const VOID_PAYMENT_TOKEN = new InjectionToken<VoidPaymentUseCase>('VoidPaymentUseCase');
 
 // ── Reports ───────────────────────────────────────────────────────────────────

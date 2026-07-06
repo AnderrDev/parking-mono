@@ -6,6 +6,7 @@ import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
 import {
   CashierRepository,
   CloseShiftParams,
+  CorrectOpeningBalanceParams,
   ListShiftsParams,
   ListShiftsResult,
   OpenShiftParams,
@@ -40,6 +41,12 @@ export class CashierRepositoryImpl extends CashierRepository {
 
   async create(params: OpenShiftParams): Promise<Either<Failure, CashierShiftEntity>> {
     return this.remoteDs.create(params);
+  }
+
+  async correctOpeningBalance(
+    params: CorrectOpeningBalanceParams,
+  ): Promise<Either<Failure, CashierShiftEntity>> {
+    return this.remoteDs.correctOpeningBalance(params);
   }
 
   async close(params: CloseShiftParams): Promise<Either<Failure, CashierShiftEntity>> {

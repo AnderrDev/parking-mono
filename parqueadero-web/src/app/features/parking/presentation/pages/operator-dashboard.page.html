@@ -168,6 +168,13 @@
               <span class="search-result__label">Entró:</span>
               <span class="search-result__value">{{ formatTimeShort(active.entryAt) }} · {{ formatDuration(active.durationMinutes) }}</span>
             </div>
+            <div class="search-result__row">
+              <span class="search-result__label">Tipo:</span>
+              <span class="search-result__value">{{ vehicleLabel(active.vehicleType) }}</span>
+            </div>
+            <button type="button" class="correct-btn" (click)="openCorrectVehicleTypeDialog(active)">
+              Corregir tipo
+            </button>
             <button type="button" class="exit-btn" (click)="openExitDialog(active)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -279,6 +286,15 @@
                 </div>
               </div>
               <div class="session-card__actions">
+                <button
+                  type="button"
+                  class="correct-btn"
+                  (click)="openCorrectVehicleTypeDialog(session)"
+                  [disabled]="correctingSessionId() === session.id"
+                  [attr.aria-label]="'Corregir tipo de ' + session.vehiclePlate"
+                >
+                  {{ correctingSessionId() === session.id ? 'Guardando…' : 'Corregir' }}
+                </button>
                 <button
                   type="button"
                   class="ticket-btn"
