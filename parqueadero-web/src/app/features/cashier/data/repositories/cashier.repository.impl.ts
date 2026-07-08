@@ -10,6 +10,7 @@ import {
   ListShiftsParams,
   ListShiftsResult,
   OpenShiftParams,
+  OperatorOption,
   RegisterWithdrawalParams,
 } from '../../domain/repositories/cashier.repository';
 import { CashWithdrawalEntity } from '../../domain/entities/cash-withdrawal.entity';
@@ -55,6 +56,10 @@ export class CashierRepositoryImpl extends CashierRepository {
 
   async listShifts(params: ListShiftsParams): Promise<Either<Failure, ListShiftsResult>> {
     return this.remoteDs.listShifts(params);
+  }
+
+  async listOperators(): Promise<Either<Failure, OperatorOption[]>> {
+    return this.remoteDs.listOperators();
   }
 
   async registerWithdrawal(

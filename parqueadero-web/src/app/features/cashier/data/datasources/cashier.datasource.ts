@@ -8,6 +8,7 @@ import {
   ListShiftsParams,
   ListShiftsResult,
   OpenShiftParams,
+  OperatorOption,
   RegisterWithdrawalParams,
 } from '../../domain/repositories/cashier.repository';
 
@@ -21,6 +22,7 @@ export abstract class CashierDataSource {
   ): Promise<Either<Failure, CashierShiftEntity>>;
   abstract close(params: CloseShiftParams): Promise<Either<Failure, CashierShiftEntity>>;
   abstract listShifts(params: ListShiftsParams): Promise<Either<Failure, ListShiftsResult>>;
+  abstract listOperators(): Promise<Either<Failure, OperatorOption[]>>;
   abstract registerWithdrawal(
     params: RegisterWithdrawalParams,
   ): Promise<Either<Failure, CashWithdrawalEntity>>;

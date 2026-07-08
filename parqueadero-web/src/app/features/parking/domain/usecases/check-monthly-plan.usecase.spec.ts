@@ -30,6 +30,9 @@ const makePlan = (
 // ── Mock repo ─────────────────────────────────────────────────────────────────
 
 class MockParkingRepository extends ParkingRepository {
+  async correctSessionVehicleType(_params: unknown) {
+    return Promise.resolve(right(null as never as ParkingSessionEntity));
+  }
   planResult: ReturnType<ParkingRepository['getActivePlanByPlate']> =
     Promise.resolve(right(null));
   lastQueriedPlate = '';

@@ -9,6 +9,7 @@ import {
   ListShiftsParams,
   ListShiftsResult,
   OpenShiftParams,
+  OperatorOption,
   RegisterWithdrawalParams,
 } from '../../domain/repositories/cashier.repository';
 import { CashWithdrawalEntity } from '../../domain/entities/cash-withdrawal.entity';
@@ -218,6 +219,23 @@ export class CashierRemoteDataSource extends CashierDataSource {
     }
   }
 
+  async listOperators(): Promise<Either<Failure, OperatorOption[]>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('users')
+        .select('id, nombre')
+        .eq('is_active', true)
+        .eq('_deleted', false)
+        .order('nombre', { ascending: true })
+        .returns<OperatorOption[]>();
+
+      if (error) return left(new ServerFailure(error.message));
+      return right(data ?? []);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
   async close(params: CloseShiftParams): Promise<Either<Failure, CashierShiftEntity>> {
     try {
       const { data, error } = await this.supabase.client
@@ -228,6 +246,14 @@ export class CashierRemoteDataSource extends CashierDataSource {
           expected_balance_cents: params.expectedBalanceCents,
           difference_cents: params.differenceCents,
           justification: params.justification,
+          cash_collected_cents: params.cashCollectedCents,
+          digital_collected_cents: params.digitalCollectedCents,
+          digital_verified_cents: params.digitalVerifiedCents,
+          totals_by_method: params.totalsByMethod.map((t) => ({
+            method: t.method,
+            count: t.count,
+            amount_cents: t.amountCents,
+          })),
           closed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

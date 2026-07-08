@@ -14,6 +14,8 @@ export class CashierForms {
   createCloseShiftForm(): FormGroup {
     return this.fb.group({
       closingBalanceCents: [null, [Validators.required, Validators.min(0)]],
+      // Opcional: total digital verificado en cuentas/apps al cierre.
+      digitalVerifiedCents: [null, [Validators.min(0)]],
       justification: [''],
     });
   }
@@ -31,6 +33,8 @@ export class CashierForms {
     return this.fb.group({
       dateFrom: [defaults.dateFrom],
       dateTo: [defaults.dateTo],
+      // '' = todos los operadores.
+      operatorId: [''],
       onlyWithDiff: [defaults.onlyWithDiff],
     });
   }

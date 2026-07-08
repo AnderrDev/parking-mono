@@ -39,6 +39,10 @@ class MockCashierRepository extends CashierRepository {
   async listWithdrawalsByShift(_shiftId: string) {
     return Promise.resolve(right([] as CashWithdrawalEntity[]));
   }
+  async listOperators() { return Promise.resolve(right([])); }
+  async correctOpeningBalance(_params: unknown) {
+    return Promise.resolve(right(null as never as CashierShiftEntity));
+  }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

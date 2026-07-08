@@ -19,6 +19,9 @@ const emptyPagination = { page: 1, pageSize: 25, total: 0, totalPages: 0 };
 // ── Mock repo ─────────────────────────────────────────────────────────────────
 
 class MockParkingRepository extends ParkingRepository {
+  async correctSessionVehicleType(_params: unknown) {
+    return Promise.resolve(right(null as never as ParkingSessionEntity));
+  }
   cancelResult: ReturnType<ParkingRepository['cancelSession']> =
     Promise.resolve(right(makeSession()));
   capturedParams: CancelSessionParams | null = null;

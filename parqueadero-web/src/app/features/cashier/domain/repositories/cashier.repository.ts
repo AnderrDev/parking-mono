@@ -1,7 +1,7 @@
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
-import { CashierShiftEntity } from '../entities/cashier-shift.entity';
+import { CashierShiftEntity, ShiftMethodTotal } from '../entities/cashier-shift.entity';
 import { CashWithdrawalEntity } from '../entities/cash-withdrawal.entity';
 
 export interface OpenShiftParams {
@@ -21,6 +21,12 @@ export interface CloseShiftParams {
   expectedBalanceCents: number;
   differenceCents: number;
   justification: string | null;
+  /** Desglose por canal al cierre (spec close-shift). */
+  cashCollectedCents: number;
+  digitalCollectedCents: number;
+  /** null = el operador no verificó las cuentas (distinto de $0). */
+  digitalVerifiedCents: number | null;
+  totalsByMethod: ShiftMethodTotal[];
 }
 
 export interface ListShiftsParams {
@@ -42,6 +48,12 @@ export interface ListShiftsResult {
   pagination: PaginationMeta;
 }
 
+/** Opción del filtro de operador en el historial de turnos. */
+export interface OperatorOption {
+  id: string;
+  nombre: string;
+}
+
 export interface RegisterWithdrawalParams {
   shiftId: string;
   userId: string;
@@ -61,6 +73,8 @@ export abstract class CashierRepository {
   ): Promise<Either<Failure, CashierShiftEntity>>;
   abstract close(params: CloseShiftParams): Promise<Either<Failure, CashierShiftEntity>>;
   abstract listShifts(params: ListShiftsParams): Promise<Either<Failure, ListShiftsResult>>;
+  /** Operadores activos para el filtro del historial (solo admin/contador). */
+  abstract listOperators(): Promise<Either<Failure, OperatorOption[]>>;
   abstract registerWithdrawal(
     params: RegisterWithdrawalParams,
   ): Promise<Either<Failure, CashWithdrawalEntity>>;

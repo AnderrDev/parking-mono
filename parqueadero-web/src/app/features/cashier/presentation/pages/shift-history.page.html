@@ -2,11 +2,19 @@
   <header class="page__header">
     <div>
       <h1 class="page__title">Historial de turnos</h1>
-      <p class="page__subtitle">Auditoría de cierres de caja con diferencias resaltadas.</p>
+      <p class="page__subtitle">Auditoría de cierres: efectivo, digital y diferencias por turno.</p>
     </div>
   </header>
 
   <form class="filters" [formGroup]="filterForm" (ngSubmit)="onApplyFilters()">
+    <div class="filter filter--presets" role="group" aria-label="Rangos rápidos">
+      <span class="filter__label">Rango</span>
+      <div class="presets">
+        <button type="button" class="preset" [class.preset--active]="isPresetActive('today')" (click)="applyPreset('today')">Hoy</button>
+        <button type="button" class="preset" [class.preset--active]="isPresetActive('7d')" (click)="applyPreset('7d')">7 días</button>
+        <button type="button" class="preset" [class.preset--active]="isPresetActive('30d')" (click)="applyPreset('30d')">30 días</button>
+      </div>
+    </div>
     <label class="filter">
       <span class="filter__label">Desde</span>
       <input type="date" class="filter__input" formControlName="dateFrom" />
@@ -14,6 +22,15 @@
     <label class="filter">
       <span class="filter__label">Hasta</span>
       <input type="date" class="filter__input" formControlName="dateTo" />
+    </label>
+    <label class="filter">
+      <span class="filter__label">Operador</span>
+      <select class="filter__input" formControlName="operatorId" [attr.disabled]="operatorsFailed() ? '' : null">
+        <option value="">Todos</option>
+        @for (op of operators(); track op.id) {
+          <option [value]="op.id">{{ op.nombre }}</option>
+        }
+      </select>
     </label>
     <label class="filter filter--checkbox">
       <input type="checkbox" formControlName="onlyWithDiff" />
@@ -25,57 +42,126 @@
   @if (loading()) {
     <p class="state-msg">Cargando…</p>
   } @else if (shifts().length === 0) {
-    <p class="state-msg state-msg--empty">Sin turnos cerrados en el rango seleccionado.</p>
+    <p class="state-msg state-msg--empty">Sin turnos en el rango seleccionado — amplía las fechas o quita filtros.</p>
   } @else {
     <section class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Operario</th>
-            <th>Apertura</th>
-            <th>Cierre</th>
-            <th class="num">Base</th>
-            <th class="num">Esperado</th>
-            <th class="num">Real</th>
-            <th class="num">Diferencia</th>
-            <th>Detalle</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of shifts(); track item.shift.id) {
-            <tr [class.row--large-diff]="isLargeDiff(item.shift.differenceCents)">
-              <td>{{ item.operatorName }}</td>
-              <td>{{ item.shift.openedAt | date:'dd/MM/yy HH:mm' }}</td>
-              <td>{{ item.shift.closedAt ? (item.shift.closedAt | date:'dd/MM/yy HH:mm') : '—' }}</td>
-              <td class="num">{{ item.shift.openingBalanceCents | currencyCop }}</td>
-              <td class="num">{{ item.shift.expectedBalanceCents !== null ? (item.shift.expectedBalanceCents | currencyCop) : '—' }}</td>
-              <td class="num">{{ item.shift.closingBalanceCents !== null ? (item.shift.closingBalanceCents | currencyCop) : '—' }}</td>
-              <td class="num diff" [class.diff--positive]="(item.shift.differenceCents ?? 0) > 0" [class.diff--negative]="(item.shift.differenceCents ?? 0) < 0">
-                {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
-              </td>
-              <td>
-                <button type="button" class="btn-link" (click)="toggleExpand(item.shift.id)">
-                  {{ expandedId() === item.shift.id ? 'Ocultar' : 'Ver' }}
-                </button>
-              </td>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Operario</th>
+              <th>Apertura</th>
+              <th>Cierre</th>
+              <th class="num">Base</th>
+              <th class="num">Efectivo esperado</th>
+              <th class="num">Efectivo contado</th>
+              <th class="num">Diferencia</th>
+              <th class="num">Digital</th>
+              <th>Detalle</th>
             </tr>
-            @if (expandedId() === item.shift.id) {
-              <tr class="row-detail">
-                <td colspan="8">
-                  <div class="detail">
-                    @if (item.shift.justification) {
-                      <p><strong>Justificación:</strong> {{ item.shift.justification }}</p>
-                    } @else {
-                      <p class="muted">Sin observaciones registradas.</p>
-                    }
-                    <p class="muted">ID: {{ item.shift.id }}</p>
-                  </div>
+          </thead>
+          <tbody>
+            @for (item of shifts(); track item.shift.id) {
+              <tr [class.row--large-diff]="isLargeDiff(item.shift.differenceCents)">
+                <td>{{ item.operatorName }}</td>
+                <td>{{ item.shift.openedAt | date:'dd/MM/yy HH:mm' }}</td>
+                <td>{{ item.shift.closedAt ? (item.shift.closedAt | date:'dd/MM/yy HH:mm') : '—' }}</td>
+                <td class="num">{{ item.shift.openingBalanceCents | currencyCop }}</td>
+                <td class="num">{{ item.shift.expectedBalanceCents !== null ? (item.shift.expectedBalanceCents | currencyCop) : '—' }}</td>
+                <td class="num">{{ item.shift.closingBalanceCents !== null ? (item.shift.closingBalanceCents | currencyCop) : '—' }}</td>
+                <td class="num diff" [class.diff--positive]="(item.shift.differenceCents ?? 0) > 0" [class.diff--negative]="(item.shift.differenceCents ?? 0) < 0">
+                  {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
+                </td>
+                <td class="num">
+                  {{ item.shift.digitalCollectedCents !== null ? (item.shift.digitalCollectedCents | currencyCop) : '—' }}
+                </td>
+                <td>
+                  <button type="button" class="btn-link" (click)="toggleExpand(item.shift.id)">
+                    {{ expandedId() === item.shift.id ? 'Ocultar' : 'Ver' }}
+                  </button>
                 </td>
               </tr>
+              @if (expandedId() === item.shift.id) {
+                <tr class="row-detail">
+                  <td colspan="9">
+                    <div class="detail">
+                      @if (item.shift.hasBreakdown) {
+                        <div class="detail__channels">
+                          <!-- Efectivo -->
+                          <div class="detail-channel detail-channel--cash">
+                            <h3 class="detail-channel__title">Efectivo</h3>
+                            @for (row of channelRows(item.shift, 'cash'); track row.method) {
+                              <p class="detail-channel__row">
+                                <span>{{ methodLabel(row.method) }} · {{ row.count }} tx</span>
+                                <strong class="num">{{ row.amountCents | currencyCop }}</strong>
+                              </p>
+                            } @empty {
+                              <p class="muted">Sin cobros en efectivo.</p>
+                            }
+                          </div>
+
+                          <!-- Digital -->
+                          <div class="detail-channel detail-channel--digital">
+                            <h3 class="detail-channel__title">Digital</h3>
+                            @for (row of channelRows(item.shift, 'digital'); track row.method) {
+                              <p class="detail-channel__row">
+                                <span>{{ methodLabel(row.method) }} · {{ row.count }} tx</span>
+                                <strong class="num">{{ row.amountCents | currencyCop }}</strong>
+                              </p>
+                            } @empty {
+                              <p class="muted">Sin pagos digitales.</p>
+                            }
+                            @if (item.shift.digitalVerifiedCents !== null) {
+                              <p class="detail-channel__row detail-channel__row--verify">
+                                <span>Verificado en cuentas</span>
+                                <strong class="num">{{ item.shift.digitalVerifiedCents! | currencyCop }}</strong>
+                              </p>
+                              <p
+                                class="detail-channel__row"
+                                [class.diff--positive]="(item.shift.digitalDifferenceCents ?? 0) > 0"
+                                [class.diff--negative]="(item.shift.digitalDifferenceCents ?? 0) < 0"
+                              >
+                                <span>Diferencia digital</span>
+                                <strong class="num">{{ item.shift.digitalDifferenceCents! | currencyCop }}</strong>
+                              </p>
+                            } @else {
+                              <p class="muted">El operador no verificó las cuentas al cierre.</p>
+                            }
+                          </div>
+
+                          <!-- Sin cobro -->
+                          @if (channelRows(item.shift, 'free').length > 0) {
+                            <div class="detail-channel detail-channel--free">
+                              <h3 class="detail-channel__title">Sin cobro</h3>
+                              @for (row of channelRows(item.shift, 'free'); track row.method) {
+                                <p class="detail-channel__row">
+                                  <span>{{ methodLabel(row.method) }}</span>
+                                  <strong>{{ row.count }} tx</strong>
+                                </p>
+                              }
+                            </div>
+                          }
+                        </div>
+                      } @else if (item.shift.closedAt) {
+                        <p class="muted">Turno cerrado antes del desglose por método — sin detalle disponible.</p>
+                      } @else {
+                        <p class="muted">Turno aún abierto — el desglose se registra al cierre.</p>
+                      }
+
+                      @if (item.shift.justification) {
+                        <p><strong>Justificación:</strong> {{ item.shift.justification }}</p>
+                      } @else {
+                        <p class="muted">Sin observaciones registradas.</p>
+                      }
+                      <p class="muted">ID: {{ item.shift.id }}</p>
+                    </div>
+                  </td>
+                </tr>
+              }
             }
-          }
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       @if (pagination(); as p) {
         <div class="pagination">

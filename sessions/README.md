@@ -8,6 +8,7 @@ Nombre: `YYYY-MM-DD-<slug>.md`. Plantilla en `TEMPLATE.md`. Una entrada por sesi
 
 Mantén actualizado el índice cronológico abajo (más reciente arriba):
 
+- [2026-07-08 — Caja: desglose efectivo/digital en cierre + historial con filtros](./2026-07-08-caja-desglose-efectivo-digital.md)
 - [2026-05-20 — Tarifa unificada min/hora/plena (feature)](./2026-05-20-tariff-tiered-pricing.md)
 - [2026-05-20 — Wipe de seed en el dev DB remoto](./2026-05-20-wipe-seed-dev.md)
 - [2026-05-20 — Deploy del frontend a Firebase Hosting](./2026-05-20-deploy-firebase-hosting.md)

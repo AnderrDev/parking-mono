@@ -38,6 +38,15 @@ import {
   CorrectPaymentMethodDialogData,
   CorrectPaymentMethodDialogResult,
 } from '../components/correct-payment-method-dialog.component';
+import {
+  CloseShiftSummaryDialogComponent,
+  CloseShiftSummaryDialogData,
+  CloseShiftSummaryDialogResult,
+} from '../components/close-shift-summary-dialog.component';
+import {
+  paymentChannel,
+  paymentMethodLabel,
+} from '../../../../shared/utils/payment-method.utils';
 import { RegisterCashWithdrawalUseCase } from '../../domain/usecases/register-withdrawal.usecase';
 import { CashWithdrawalEntity } from '../../domain/entities/cash-withdrawal.entity';
 import { OpenShiftUseCase } from '../../domain/usecases/open-shift.usecase';
@@ -115,11 +124,24 @@ export class CashierShiftPageComponent implements OnInit {
   openForm!: FormGroup;
   closeForm!: FormGroup;
 
+  // Espejo reactivo de los campos del form de cierre: los `computed` de
+  // signals no rastrean lecturas de FormControl.value.
+  private readonly closingValue = signal<number | null>(null);
+  private readonly digitalVerifiedValue = signal<number | null>(null);
+
   differenceDisplay = computed<number | null>(() => {
-    const closing = this.closeForm?.get('closingBalanceCents')?.value;
+    const closing = this.closingValue();
     const rec = this.reconcile();
-    if (closing === null || closing === undefined || closing === '' || !rec) return null;
-    return Number(closing) - rec.cashExpectedCents;
+    if (closing === null || !rec) return null;
+    return closing - rec.cashExpectedCents;
+  });
+
+  /** Diferencia digital en vivo (verificado − recibido); null si no digitó. */
+  digitalDifferenceDisplay = computed<number | null>(() => {
+    const verified = this.digitalVerifiedValue();
+    const rec = this.reconcile();
+    if (verified === null || !rec) return null;
+    return verified - rec.digitalCollectedCents;
   });
 
   showJustification = computed(() => {
@@ -129,8 +151,22 @@ export class CashierShiftPageComponent implements OnInit {
 
   isDiffLarge = computed(() => {
     const diff = this.differenceDisplay();
-    return diff !== null && diff !== 0;
+    return diff !== null && Math.abs(diff) > 500_000;
   });
+
+  /** Justificación obligatoria por spec cuando |diferencia efectivo| > $5.000. */
+  justificationRequired = computed(() => this.isDiffLarge());
+
+  // Breakdown por canal para la card "Cuadre actual" (spec reconcile).
+  cashRows = computed(() =>
+    (this.reconcile()?.byMethod ?? []).filter((r) => paymentChannel(r.method) === 'cash'),
+  );
+  digitalRows = computed(() =>
+    (this.reconcile()?.byMethod ?? []).filter((r) => paymentChannel(r.method) === 'digital'),
+  );
+  freeRows = computed(() =>
+    (this.reconcile()?.byMethod ?? []).filter((r) => paymentChannel(r.method) === 'free'),
+  );
 
   constructor(
     private readonly auth: AuthStateService,
@@ -157,22 +193,19 @@ export class CashierShiftPageComponent implements OnInit {
   ngOnInit(): void {
     this.openForm = this.cashierForms.createOpenShiftForm();
     this.closeForm = this.cashierForms.createCloseShiftForm();
+
+    this.closeForm.get('closingBalanceCents')!.valueChanges.subscribe((v) => {
+      this.closingValue.set(v === null || v === undefined || v === '' ? null : Number(v));
+    });
+    this.closeForm.get('digitalVerifiedCents')!.valueChanges.subscribe((v) => {
+      this.digitalVerifiedValue.set(v === null || v === undefined || v === '' ? null : Number(v));
+    });
+
     this.loadShiftState();
   }
 
   protected methodLabel(method: string): string {
-    const map: Record<string, string> = {
-      efectivo: 'Efectivo',
-      tarjeta_credito: 'Tarjeta crédito',
-      tarjeta_debito: 'Tarjeta débito',
-      transferencia: 'Transferencia',
-      nequi: 'Nequi',
-      daviplata: 'Daviplata',
-      cortesia: 'Cortesía',
-      error: 'Error',
-      mensual: 'Plan mensual',
-    };
-    return map[method] ?? method;
+    return paymentMethodLabel(method);
   }
 
   protected shortId(id: string | null): string {
@@ -402,7 +435,7 @@ export class CashierShiftPageComponent implements OnInit {
         (f) => this.toast.error(`No se pudo registrar el movimiento: ${f.message}`),
         () => {
           const label = value.movementType === 'in' ? 'Entrada' : 'Salida';
-          this.toast.success(`${label} de $${value.amountCents.toLocaleString('es-CO')} registrada`);
+          this.toast.success(`${label} de $${Math.round(value.amountCents / 100).toLocaleString('es-CO')} registrada`);
           void this.loadShiftData(shift.id);
         },
       );
@@ -474,45 +507,98 @@ export class CashierShiftPageComponent implements OnInit {
         this.shift.set(shift);
         this.view.set('open-shift');
         this.loading.set(false);
-        this.toast.success(`Turno abierto con saldo de $${(openingBalanceCents).toLocaleString('es-CO')}`);
+        this.toast.success(`Turno abierto con saldo de $${Math.round(openingBalanceCents / 100).toLocaleString('es-CO')}`);
         this.loadShiftData(shift.id);
       },
     );
   }
 
-  async closeShift(): Promise<void> {
+  /**
+   * Abre el modal "Resumen de cierre" (spec close-shift). El cierre real solo
+   * se ejecuta al confirmar dentro del modal; los errores del backend se
+   * muestran inline sin cerrarlo.
+   */
+  closeShift(): void {
     if (this.closeForm.invalid) return;
     const shift = this.shift();
-    if (!shift) return;
+    const rec = this.reconcile();
+    if (!shift || !rec) return;
 
-    this.loading.set(true);
     this.errorMsg.set(null);
 
-    const userId = this.auth.currentUser()?.id ?? '';
     const closingBalanceCents = Number(this.closeForm.value.closingBalanceCents);
+    const rawVerified = this.closeForm.value.digitalVerifiedCents;
+    const digitalVerifiedCents =
+      rawVerified === null || rawVerified === undefined || rawVerified === ''
+        ? null
+        : Number(rawVerified);
     const justification = (this.closeForm.value.justification as string)?.trim() || null;
 
-    const result = await this.closeShiftUC.execute({
-      shiftId: shift.id,
-      userId,
-      closingBalanceCents,
-      justification,
-    });
+    // Regla spec: |diferencia efectivo| > $5.000 exige justificación. Se valida
+    // antes de abrir el modal para que el operador corrija sin perder contexto.
+    const difference = closingBalanceCents - rec.cashExpectedCents;
+    if (Math.abs(difference) > 500_000 && !justification) {
+      this.errorMsg.set('La diferencia supera $5.000. Ingresa una justificación.');
+      return;
+    }
 
-    result.fold(
-      (f) => {
-        this.errorMsg.set(f.message);
-        this.toast.error(f.message);
-        this.loading.set(false);
-      },
-      () => {
-        this.shift.set(null);
-        this.view.set('no-shift');
-        this.loading.set(false);
-        this.openForm.reset({ openingBalanceCents: 0 });
-        this.closeForm.reset();
-        this.toast.success('Turno cerrado correctamente');
+    const userId = this.auth.currentUser()?.id ?? '';
+    const data: CloseShiftSummaryDialogData = {
+      openingBalanceCents: shift.openingBalanceCents,
+      byMethod: rec.byMethod,
+      cashCollectedCents: rec.cashCollectedCents,
+      manualIncomeCents: rec.manualIncomeCents,
+      withdrawalsTotalCents: rec.withdrawalsTotalCents,
+      cashExpectedCents: rec.cashExpectedCents,
+      cashCountedCents: closingBalanceCents,
+      digitalCollectedCents: rec.digitalCollectedCents,
+      digitalVerifiedCents,
+      totalRevenueCents: rec.totalRevenueCents,
+      totalSessions: rec.totalSessions,
+      justification,
+      onConfirm: () =>
+        this.closeShiftUC.execute({
+          shiftId: shift.id,
+          userId,
+          closingBalanceCents,
+          digitalVerifiedCents,
+          justification,
+        }),
+    };
+
+    const ref = this.dialog.open<CloseShiftSummaryDialogResult, CloseShiftSummaryDialogData>(
+      CloseShiftSummaryDialogComponent,
+      {
+        injector: this.envInjector,
+        viewContainerRef: this.vcr,
+        data,
+        ariaLabelledBy: 'close-shift-summary-title',
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        hasBackdrop: true,
+        disableClose: true,
       },
     );
+
+    ref.closed.subscribe((result) => {
+      if (result !== 'closed') return;
+
+      this.shift.set(null);
+      this.reconcile.set(null);
+      this.view.set('no-shift');
+      this.openForm.reset({ openingBalanceCents: 0 });
+      this.closeForm.reset();
+      this.closingValue.set(null);
+      this.digitalVerifiedValue.set(null);
+      this.denominationCounts.set({});
+      this.showDenominationGrid.set(false);
+
+      const sign = difference > 0 ? '+' : difference < 0 ? '−' : '';
+      const diffLabel =
+        difference === 0
+          ? 'caja cuadrada'
+          : `diferencia efectivo ${sign}$${Math.round(Math.abs(difference) / 100).toLocaleString('es-CO')}`;
+      this.toast.success(`Caja cerrada — ${diffLabel}`);
+    });
   }
 }

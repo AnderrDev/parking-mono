@@ -89,6 +89,10 @@ class MockCashierRepository extends CashierRepository {
   async listShifts(_params: unknown) { return Promise.resolve(right({ data: [], pagination: emptyPagination })); }
   async registerWithdrawal(_params: unknown) { return Promise.resolve(right(null as never)); }
   async listWithdrawalsByShift(_id: string) { return Promise.resolve(right([])); }
+  async listOperators() { return Promise.resolve(right([])); }
+  async correctOpeningBalance(_params: unknown) {
+    return Promise.resolve(right(null as never as CashierShiftEntity));
+  }
 }
 
 class MockPaymentRepository extends PaymentRepository {
@@ -101,6 +105,7 @@ class MockPaymentRepository extends PaymentRepository {
   async listByShift(_id: string) { return Promise.resolve(right([] as PaymentEntity[])); }
   async sumCashByShift(_id: string) { return Promise.resolve(right(0)); }
   async voidPayment(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
+  async correctMethod(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

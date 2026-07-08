@@ -254,6 +254,11 @@ opening_balance_cents BIGINT NOT NULL DEFAULT 0
 closing_balance_cents BIGINT DEFAULT 0
 expected_balance_cents BIGINT DEFAULT 0
 difference_cents BIGINT DEFAULT 0
+justification TEXT                        -- motivo de la diferencia al cierre (00006)
+cash_collected_cents BIGINT               -- Σ pagos 'efectivo' completed al cierre (00033)
+digital_collected_cents BIGINT            -- Σ pagos digitales completed al cierre (00033)
+digital_verified_cents BIGINT             -- total digital verificado por el operador; NULL = no verificado (00033)
+totals_by_method JSONB                    -- snapshot [{method, count, amount_cents}] al cierre (00033)
 status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'pending_sync'))
 created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -264,6 +269,14 @@ INDEXES:
   - INDEX(status)
   - INDEX(opened_at DESC)
 ```
+
+**Desglose por método al cierre (00033):** las 4 columnas de desglose se llenan
+solo al cerrar el turno (spec `parqueadero-web/specs/features/cashier/close-shift.spec.md`).
+Métodos digitales: `transferencia`, `nequi`, `daviplata`, `tarjeta_credito`,
+`tarjeta_debito`. Turnos cerrados antes de la migración quedan en `NULL`
+(la UI muestra "—", no $0). `difference_cents` sigue siendo solo de efectivo;
+la diferencia digital (`digital_verified_cents − digital_collected_cents`) se
+calcula en cliente y no se persiste.
 
 ### 11. `audit_log` (APPEND-ONLY)
 ```sql

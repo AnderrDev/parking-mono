@@ -82,11 +82,25 @@
           </div>
 
           @if (reconcile()) {
-            <div class="cashier__total" role="status">
-              <span class="cashier__total-label">Recaudado operativo</span>
-              <span class="cashier__total-amount mono">
-                {{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
-              </span>
+            <div class="cashier__stats" role="status">
+              <div class="stat">
+                <span class="stat__label">Recaudado</span>
+                <span class="stat__amount mono">
+                  {{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                </span>
+              </div>
+              <div class="stat stat--cash">
+                <span class="stat__label">Efectivo esperado</span>
+                <span class="stat__amount mono">
+                  {{ reconcile()!.cashExpectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                </span>
+              </div>
+              <div class="stat stat--digital">
+                <span class="stat__label">Digital en cuentas</span>
+                <span class="stat__amount mono">
+                  {{ reconcile()!.digitalCollectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                </span>
+              </div>
             </div>
           }
         </header>
@@ -107,44 +121,107 @@
                 </span>
                 Cuadre actual
               </h2>
-              <p class="card__subtitle">Base, cobros y movimientos manuales.</p>
+              <p class="card__subtitle">Separado por canal: lo que está en el cajón y lo que llegó a cuentas.</p>
             </div>
 
-            @if (reconcile() && reconcile()!.byMethod.length > 0) {
-              <ul class="reconcile-list" role="list">
-                @for (row of reconcile()!.byMethod; track row.method) {
+            @if (reconcile()) {
+              <!-- Efectivo en caja -->
+              <div class="reconcile-group reconcile-group--cash">
+                <h3 class="reconcile-group__title">Efectivo en caja</h3>
+                <ul class="reconcile-list" role="list">
                   <li class="reconcile-row">
                     <div class="reconcile-row__left">
-                      <span class="reconcile-row__method">{{ methodLabel(row.method) }}</span>
-                      <span class="reconcile-row__count">{{ row.count }} tx</span>
+                      <span class="reconcile-row__method">Base de apertura</span>
                     </div>
                     <span class="reconcile-row__amount mono">
-                      {{ row.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      {{ shift()!.openingBalanceCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
                     </span>
                   </li>
+                  @for (row of cashRows(); track row.method) {
+                    <li class="reconcile-row">
+                      <div class="reconcile-row__left">
+                        <span class="reconcile-row__method">Cobros en efectivo</span>
+                        <span class="reconcile-row__count">{{ row.count }} tx</span>
+                      </div>
+                      <span class="reconcile-row__amount mono">
+                        +{{ row.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      </span>
+                    </li>
+                  }
+                  @if (reconcile()!.manualIncomeCents > 0) {
+                    <li class="reconcile-row reconcile-row--income">
+                      <div class="reconcile-row__left">
+                        <span class="reconcile-row__method">Entradas manuales</span>
+                      </div>
+                      <span class="reconcile-row__amount mono">
+                        +{{ reconcile()!.manualIncomeCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      </span>
+                    </li>
+                  }
+                  @if (reconcile()!.withdrawalsTotalCents > 0) {
+                    <li class="reconcile-row reconcile-row--warning">
+                      <div class="reconcile-row__left">
+                        <span class="reconcile-row__method">Salidas manuales</span>
+                      </div>
+                      <span class="reconcile-row__amount mono">
+                        −{{ reconcile()!.withdrawalsTotalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                      </span>
+                    </li>
+                  }
+                </ul>
+                <div class="reconcile-group__subtotal">
+                  <span>Debe haber en el cajón</span>
+                  <strong class="mono">{{ reconcile()!.cashExpectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </div>
+              </div>
+
+              <!-- Digital en cuentas -->
+              <div class="reconcile-group reconcile-group--digital">
+                <h3 class="reconcile-group__title">Digital en cuentas</h3>
+                @if (digitalRows().length > 0) {
+                  <ul class="reconcile-list" role="list">
+                    @for (row of digitalRows(); track row.method) {
+                      <li class="reconcile-row">
+                        <div class="reconcile-row__left">
+                          <span class="reconcile-row__method">{{ methodLabel(row.method) }}</span>
+                          <span class="reconcile-row__count">{{ row.count }} tx</span>
+                        </div>
+                        <span class="reconcile-row__amount mono">
+                          {{ row.amountCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                  <div class="reconcile-group__subtotal">
+                    <span>Debe estar en cuentas</span>
+                    <strong class="mono">{{ reconcile()!.digitalCollectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+                  </div>
+                } @else {
+                  <p class="reconcile-group__empty">Sin pagos digitales aún.</p>
                 }
-              </ul>
+              </div>
+
+              <!-- Sin cobro -->
+              @if (freeRows().length > 0) {
+                <div class="reconcile-group reconcile-group--free">
+                  <h3 class="reconcile-group__title">Sin cobro</h3>
+                  <ul class="reconcile-list" role="list">
+                    @for (row of freeRows(); track row.method) {
+                      <li class="reconcile-row">
+                        <div class="reconcile-row__left">
+                          <span class="reconcile-row__method">{{ methodLabel(row.method) }}</span>
+                        </div>
+                        <span class="reconcile-row__count">{{ row.count }} tx</span>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
 
               <div class="reconcile-summary">
-                <div class="reconcile-summary__row">
+                <div class="reconcile-summary__row reconcile-summary__row--accent">
                   <span>Total recaudado</span>
                   <strong class="mono">{{ reconcile()!.totalRevenueCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
-                </div>
-                @if (reconcile()!.withdrawalsTotalCents > 0) {
-                  <div class="reconcile-summary__row reconcile-summary__row--warning">
-                    <span>Salidas manuales</span>
-                    <strong class="mono">−{{ reconcile()!.withdrawalsTotalCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
-                  </div>
-                }
-                @if (reconcile()!.manualIncomeCents > 0) {
-                  <div class="reconcile-summary__row reconcile-summary__row--income">
-                    <span>Entradas manuales</span>
-                    <strong class="mono">+{{ reconcile()!.manualIncomeCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
-                  </div>
-                }
-                <div class="reconcile-summary__row reconcile-summary__row--accent">
-                  <span>Efectivo esperado</span>
-                  <strong class="mono">{{ reconcile()!.cashExpectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
                 </div>
               </div>
             } @else {
@@ -286,10 +363,20 @@
                 </span>
                 Cerrar caja
               </h2>
-              <p class="card__subtitle">Compara efectivo contado contra el esperado.</p>
+              <p class="card__subtitle">1. Cuenta el efectivo del cajón · 2. Verifica lo digital en las apps · 3. Revisa el resumen.</p>
             </div>
 
             <form [formGroup]="closeForm" (ngSubmit)="closeShift()">
+              <div class="close-step">
+                <span class="close-step__badge">1</span>
+                <span class="close-step__label">Efectivo del cajón</span>
+                @if (reconcile()) {
+                  <span class="close-step__hint mono">
+                    esperado {{ reconcile()!.cashExpectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                  </span>
+                }
+              </div>
+
               <!-- HU-036: conteo asistido por denominación -->
               <div class="denom-toggle">
                 <button type="button" class="btn-link" (click)="toggleDenominationGrid()">
@@ -344,14 +431,59 @@
               @if (differenceDisplay() !== null) {
                 <div
                   class="diff"
-                  [class.diff--alert]="isDiffLarge()"
-                  [class.diff--ok]="!isDiffLarge() && differenceDisplay() === 0"
+                  [class.diff--alert]="differenceDisplay() !== 0"
+                  [class.diff--ok]="differenceDisplay() === 0"
                   role="status"
                   aria-live="polite"
                 >
-                  <span class="diff__label">Diferencia</span>
+                  <span class="diff__label">Diferencia efectivo</span>
                   <span class="diff__value mono">
                     {{ differenceDisplay()! >= 0 ? '+' : '' }}{{ differenceDisplay()! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                  </span>
+                </div>
+              }
+
+              <!-- Verificación digital (spec close-shift): opcional, informativa -->
+              <div class="close-step">
+                <span class="close-step__badge">2</span>
+                <span class="close-step__label">Digital en cuentas</span>
+                @if (reconcile()) {
+                  <span class="close-step__hint mono">
+                    esperado {{ reconcile()!.digitalCollectedCents / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
+                  </span>
+                }
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="digital-verified">
+                  Digital verificado
+                  <span class="field__required">opcional</span>
+                </label>
+                <div class="field__money">
+                  <span class="field__money-prefix">$</span>
+                  <input
+                    id="digital-verified"
+                    appCurrencyInput
+                    class="field__input"
+                    formControlName="digitalVerifiedCents"
+                    placeholder="0"
+                  />
+                  <span class="field__money-suffix">COP</span>
+                </div>
+                <p class="field__hint">Suma lo recibido en Nequi, Daviplata, transferencias y datáfono tal como aparece en las apps.</p>
+              </div>
+
+              @if (digitalDifferenceDisplay() !== null) {
+                <div
+                  class="diff"
+                  [class.diff--alert]="digitalDifferenceDisplay() !== 0"
+                  [class.diff--ok]="digitalDifferenceDisplay() === 0"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span class="diff__label">Diferencia digital</span>
+                  <span class="diff__value mono">
+                    {{ digitalDifferenceDisplay()! >= 0 ? '+' : '' }}{{ digitalDifferenceDisplay()! / 100 | currency:'COP':'symbol-narrow':'1.0-0' }}
                   </span>
                 </div>
               }
@@ -360,7 +492,9 @@
                 <div class="field">
                   <label class="field__label" for="justification">
                     Justificación
-                    <span class="field__required">opcional</span>
+                    <span class="field__required" [class.field__required--strong]="justificationRequired()">
+                      {{ justificationRequired() ? 'requerida (diferencia > $5.000)' : 'opcional' }}
+                    </span>
                   </label>
                   <textarea
                     id="justification"
@@ -385,7 +519,7 @@
                   <app-loading-spinner variant="inverse" />
                   <span>Cerrando…</span>
                 } @else {
-                  <span>Cerrar caja</span>
+                  <span>Revisar y cerrar caja</span>
                 }
               </button>
             </form>

@@ -18,6 +18,9 @@ const makeSession = (): ParkingSessionEntity =>
   );
 
 class MockParkingRepository extends ParkingRepository {
+  async correctSessionVehicleType(_params: unknown) {
+    return Promise.resolve(right(null as never as ParkingSessionEntity));
+  }
   sessionsResult: ReturnType<ParkingRepository['getActiveSessions']> =
     Promise.resolve(right({ data: [], pagination: emptyPagination }));
   capturedFilter: unknown = null;

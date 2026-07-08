@@ -6,13 +6,20 @@ import { CASHIER_REPOSITORY_TOKEN, PAYMENT_REPOSITORY_TOKEN } from '../../../../
 import { CashierShiftEntity } from '../entities/cashier-shift.entity';
 import { PaymentRepository } from '../../../payments/domain/repositories/payment.repository';
 import { CashierRepository } from '../repositories/cashier.repository';
-import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
+import {
+  DIGITAL_PAYMENT_METHODS,
+  PaymentEntity,
+} from '../../../parking/domain/entities/payment.entity';
 
 export interface ReconcileResult {
   shift: CashierShiftEntity;
   totalSessions: number;
   totalRevenueCents: number;
   byMethod: { method: string; count: number; amountCents: number }[];
+  /** Σ pagos método 'efectivo' (lo que debe estar en el cajón, sin base). */
+  cashCollectedCents: number;
+  /** Σ pagos digitales (transferencia/nequi/daviplata/tarjetas). */
+  digitalCollectedCents: number;
   cashExpectedCents: number;
   cashCountedCents: number | null;
   differenceCents: number | null;
@@ -72,6 +79,10 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       .filter((p) => p.method === 'efectivo')
       .reduce((acc, p) => acc + p.amountCents, 0);
 
+    const digitalSum = completed
+      .filter((p) => (DIGITAL_PAYMENT_METHODS as readonly string[]).includes(p.method))
+      .reduce((acc, p) => acc + p.amountCents, 0);
+
     // HU-039: restar retiros parciales del efectivo esperado.
     const withdrawalsResult = await this.cashierRepo.listWithdrawalsByShift(params.shiftId);
     const withdrawals = withdrawalsResult.fold(
@@ -92,6 +103,8 @@ export class ReconcileShiftUseCase extends UseCase<ReconcileShiftParams, Reconci
       totalSessions: completed.length,
       totalRevenueCents,
       byMethod,
+      cashCollectedCents: cashSum,
+      digitalCollectedCents: digitalSum,
       cashExpectedCents: cashExpected,
       cashCountedCents: shift.closingBalanceCents,
       differenceCents: shift.isOpen ? null : (shift.closingBalanceCents ?? 0) - cashExpected,

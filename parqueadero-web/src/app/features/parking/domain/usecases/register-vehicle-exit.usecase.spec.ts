@@ -93,6 +93,9 @@ const makeExitResult = (): RegisterExitResult => ({
 // ── Mock repo ─────────────────────────────────────────────────────────────────
 
 class MockParkingRepository extends ParkingRepository {
+  async correctSessionVehicleType(_params: unknown) {
+    return Promise.resolve(right(null as never as ParkingSessionEntity));
+  }
   shiftId: string | null = 'shift-id-1';
   session: ParkingSessionEntity | null = makeSession();
   tariff: TariffEntity | null = makeTariff();
