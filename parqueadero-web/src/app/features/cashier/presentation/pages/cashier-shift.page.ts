@@ -66,6 +66,7 @@ import { ErrorDisplayComponent } from '../../../../shared/components/error-displ
 import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
 import { SupabaseService } from '../../../../core/services/supabase.service';
+import { TicketRendererService } from '../../../parking/data/services/ticket-renderer.service';
 
 type PageView = 'loading' | 'no-shift' | 'open-shift';
 
@@ -88,6 +89,7 @@ interface ShiftPaymentRow {
 export class CashierShiftPageComponent implements OnInit {
   view = signal<PageView>('loading');
   loading = signal(false);
+  openingDrawer = signal(false);
   errorMsg = signal<string | null>(null);
 
   shift = signal<CashierShiftEntity | null>(null);
@@ -182,6 +184,7 @@ export class CashierShiftPageComponent implements OnInit {
     @Inject(REGISTER_WITHDRAWAL_TOKEN) private readonly registerWithdrawalUC: RegisterCashWithdrawalUseCase,
     private readonly toast: ToastService,
     private readonly supabase: SupabaseService,
+    private readonly ticketPrinter: TicketRendererService,
     private readonly dialog: Dialog,
     /** Anclar overlay del dialog. */
     private readonly vcr: ViewContainerRef,
@@ -511,6 +514,26 @@ export class CashierShiftPageComponent implements OnInit {
         this.loadShiftData(shift.id);
       },
     );
+  }
+
+  async openCashDrawer(): Promise<void> {
+    if (this.openingDrawer()) return;
+
+    this.ticketPrinter.invalidateCache();
+    this.openingDrawer.set(true);
+    try {
+      const result = await this.ticketPrinter.openCashDrawer();
+      if (result.ok) {
+        this.toast.success('Pulso enviado a la caja monedero');
+      } else {
+        this.toast.error(result.message ?? 'No se pudo abrir la caja monedero');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo abrir la caja monedero';
+      this.toast.error(message);
+    } finally {
+      this.openingDrawer.set(false);
+    }
   }
 
   /**

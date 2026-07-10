@@ -140,6 +140,10 @@
       gap: var(--space-2);
     }
 
+    .cashier__drawer-btn {
+      flex-shrink: 0;
+    }
+
     .stat {
       display: flex;
       flex-direction: column;
@@ -220,6 +224,11 @@
         flex-direction: row;
         align-items: flex-start;
         justify-content: space-between;
+        gap: var(--space-3);
+
+        @media (max-width: 520px) {
+          flex-direction: column;
+        }
       }
     }
 

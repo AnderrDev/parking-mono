@@ -353,17 +353,38 @@
 
           <!-- Cerrar turno -->
           <section class="card card--close">
-            <div class="card__head">
-              <h2 class="card__title">
-                <span class="card__title-icon card__title-icon--danger" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+            <div class="card__head card__head--row">
+              <div>
+                <h2 class="card__title">
+                  <span class="card__title-icon card__title-icon--danger" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"/>
+                    </svg>
+                  </span>
+                  Cerrar caja
+                </h2>
+                <p class="card__subtitle">1. Cuenta el efectivo del cajón · 2. Verifica lo digital en las apps · 3. Revisa el resumen.</p>
+              </div>
+              <button
+                type="button"
+                class="btn btn--secondary cashier__drawer-btn"
+                [disabled]="openingDrawer()"
+                (click)="openCashDrawer()"
+              >
+                @if (openingDrawer()) {
+                  <app-loading-spinner />
+                  <span>Abriendo…</span>
+                } @else {
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 10h18v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9Z"/>
+                    <path d="M7 10V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5"/>
+                    <path d="M8 15h8"/>
                   </svg>
-                </span>
-                Cerrar caja
-              </h2>
-              <p class="card__subtitle">1. Cuenta el efectivo del cajón · 2. Verifica lo digital en las apps · 3. Revisa el resumen.</p>
+                  <span>Abrir cajón</span>
+                }
+              </button>
             </div>
 
             <form [formGroup]="closeForm" (ngSubmit)="closeShift()">
