@@ -96,12 +96,15 @@ el trigger de auditoría registró before/after con `user_id` del admin.
   monto 0 → `invalid_amount`, pago de caja cerrada → `editable_payment_not_found`.
 - **Nota operativa**: la caja del 2026-07-10/11 se cerró a las 23:20 UTC — el
   ciclo completo (salida nocturna + cierre) quedó funcionando en producción.
-- **Pendiente**: deploy del web a Firebase Hosting para que la UI nueva llegue
-  al dispositivo (la parte backend ya está activa).
+- **Desplegado**: `git push` a main (`1115dee`, `5e542d1`) + `firebase deploy`
+  a parqueadero-web.web.app. Verificado que el bundle desplegado contiene el
+  RPC nuevo y el diálogo de corrección (crawl de los 88 chunks).
 
 ## Next Steps
 - [x] Salida de OCK216 registrada (operador vía app) y monto corregido a $26.000.
 - [ ] Revocar los dos PAT expuestos y limpiar `~/.supabase/access-token*`.
 - [ ] Fase 10: migrar `closeSession` al RPC atómico (o SECURITY DEFINER).
 - [x] Fix cierre de caja multi-rol (`cashier_shifts`) — migración 00035 aplicada.
-- [ ] Commit de specs + migraciones 00034/00035 + bitácora (pendiente de orden del usuario).
+- [x] Commits + push + deploy Firebase — todo en producción y verificado.
+- [ ] Revocar los dos PAT de Supabase expuestos en el chat y limpiar
+      `~/.supabase/access-token*` (único pendiente).
