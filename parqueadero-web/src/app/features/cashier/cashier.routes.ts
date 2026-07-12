@@ -14,6 +14,7 @@ import {
   PAYMENT_REMOTE_DATASOURCE_TOKEN,
   LIST_PAYMENTS_TOKEN,
   CORRECT_PAYMENT_METHOD_TOKEN,
+  CORRECT_PAYMENT_AMOUNT_TOKEN,
   VOID_PAYMENT_TOKEN,
 } from '../../core/di/injection-tokens';
 import { CashierRemoteDataSource } from './data/datasources/cashier-remote.datasource';
@@ -28,6 +29,7 @@ import { PaymentRemoteDataSource } from '../payments/data/datasources/payment-re
 import { PaymentRepositoryImpl } from '../payments/data/repositories/payment.repository.impl';
 import { ListPaymentsUseCase } from '../payments/domain/usecases/list-payments.usecase';
 import { CorrectPaymentMethodUseCase } from '../payments/domain/usecases/correct-payment-method.usecase';
+import { CorrectPaymentAmountUseCase } from '../payments/domain/usecases/correct-payment-amount.usecase';
 import { VoidPaymentUseCase } from '../payments/domain/usecases/void-payment.usecase';
 
 const cashierProviders = [
@@ -43,6 +45,7 @@ const cashierProviders = [
   { provide: REGISTER_WITHDRAWAL_TOKEN, useClass: RegisterCashWithdrawalUseCase },
   { provide: LIST_PAYMENTS_TOKEN, useClass: ListPaymentsUseCase },
   { provide: CORRECT_PAYMENT_METHOD_TOKEN, useClass: CorrectPaymentMethodUseCase },
+  { provide: CORRECT_PAYMENT_AMOUNT_TOKEN, useClass: CorrectPaymentAmountUseCase },
   { provide: VOID_PAYMENT_TOKEN, useClass: VoidPaymentUseCase },
 ];
 

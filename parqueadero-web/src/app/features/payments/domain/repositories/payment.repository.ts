@@ -39,11 +39,19 @@ export interface CorrectPaymentMethodParams {
   userId: string;
 }
 
+export interface CorrectPaymentAmountParams {
+  paymentId: string;
+  amountCents: number;
+  reason: string;
+  userId: string;
+}
+
 export abstract class PaymentRepository {
   abstract create(params: CreatePaymentParams): Promise<Either<Failure, PaymentEntity>>;
   abstract list(params: ListPaymentsParams): Promise<Either<Failure, ListPaymentsResult>>;
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
   abstract correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>>;
+  abstract correctAmount(params: CorrectPaymentAmountParams): Promise<Either<Failure, PaymentEntity>>;
   abstract voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>>;
 }

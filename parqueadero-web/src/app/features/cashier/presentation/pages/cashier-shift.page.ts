@@ -19,6 +19,7 @@ import {
   RECONCILE_SHIFT_TOKEN,
   LIST_PAYMENTS_TOKEN,
   CORRECT_PAYMENT_METHOD_TOKEN,
+  CORRECT_PAYMENT_AMOUNT_TOKEN,
   CASHIER_REPOSITORY_TOKEN,
   REGISTER_WITHDRAWAL_TOKEN,
   VOID_PAYMENT_TOKEN,
@@ -34,10 +35,10 @@ import {
   CorrectOpeningBalanceDialogResult,
 } from '../components/correct-opening-balance-dialog.component';
 import {
-  CorrectPaymentMethodDialogComponent,
-  CorrectPaymentMethodDialogData,
-  CorrectPaymentMethodDialogResult,
-} from '../components/correct-payment-method-dialog.component';
+  CorrectPaymentDialogComponent,
+  CorrectPaymentDialogData,
+  CorrectPaymentDialogResult,
+} from '../components/correct-payment-dialog.component';
 import {
   CloseShiftSummaryDialogComponent,
   CloseShiftSummaryDialogData,
@@ -55,6 +56,7 @@ import { CloseShiftUseCase } from '../../domain/usecases/close-shift.usecase';
 import { ReconcileShiftUseCase, ReconcileResult } from '../../domain/usecases/reconcile-shift.usecase';
 import { ListPaymentsUseCase } from '../../../payments/domain/usecases/list-payments.usecase';
 import { CorrectPaymentMethodUseCase } from '../../../payments/domain/usecases/correct-payment-method.usecase';
+import { CorrectPaymentAmountUseCase } from '../../../payments/domain/usecases/correct-payment-amount.usecase';
 import { VoidPaymentUseCase } from '../../../payments/domain/usecases/void-payment.usecase';
 import { CashierRepository } from '../../domain/repositories/cashier.repository';
 import { CashierShiftEntity } from '../../domain/entities/cashier-shift.entity';
@@ -180,6 +182,7 @@ export class CashierShiftPageComponent implements OnInit {
     @Inject(RECONCILE_SHIFT_TOKEN) private readonly reconcileUC: ReconcileShiftUseCase,
     @Inject(LIST_PAYMENTS_TOKEN) private readonly listPaymentsUC: ListPaymentsUseCase,
     @Inject(CORRECT_PAYMENT_METHOD_TOKEN) private readonly correctPaymentMethodUC: CorrectPaymentMethodUseCase,
+    @Inject(CORRECT_PAYMENT_AMOUNT_TOKEN) private readonly correctPaymentAmountUC: CorrectPaymentAmountUseCase,
     @Inject(VOID_PAYMENT_TOKEN) private readonly voidPaymentUC: VoidPaymentUseCase,
     @Inject(REGISTER_WITHDRAWAL_TOKEN) private readonly registerWithdrawalUC: RegisterCashWithdrawalUseCase,
     private readonly toast: ToastService,
@@ -362,44 +365,53 @@ export class CashierShiftPageComponent implements OnInit {
   protected editPaymentMethod(row: ShiftPaymentRow): void {
     if (row.payment.status !== 'completed' || row.payment.amountCents <= 0) return;
 
-    const ref = this.dialog.open<
-      CorrectPaymentMethodDialogResult | undefined,
-      CorrectPaymentMethodDialogData
-    >(CorrectPaymentMethodDialogComponent, {
+    this.dialog.open<void, CorrectPaymentDialogData>(CorrectPaymentDialogComponent, {
       injector: this.envInjector,
       viewContainerRef: this.vcr,
       data: {
         currentMethod: row.payment.method,
+        currentAmountCents: row.payment.amountCents,
         label: row.plate ?? this.shortId(row.payment.id),
+        onSubmit: (value) => this.correctPayment(row.payment, value),
       },
-      ariaLabelledBy: 'correct-payment-method-title',
+      ariaLabelledBy: 'correct-payment-title',
       autoFocus: 'first-tabbable',
       restoreFocus: true,
       hasBackdrop: true,
     });
-
-    ref.closed.subscribe((value) => {
-      if (!value || value.method === row.payment.method) return;
-      void this.correctPaymentMethod(row.payment.id, value.method);
-    });
   }
 
-  private async correctPaymentMethod(paymentId: string, method: PaymentEntity['method']): Promise<void> {
+  /** Aplica corrección de método y/o monto; retorna mensaje de error inline o null. */
+  private async correctPayment(
+    payment: PaymentEntity,
+    value: CorrectPaymentDialogResult,
+  ): Promise<string | null> {
     const userId = this.auth.currentUser()?.id;
-    if (!userId) return;
+    if (!userId) return 'Sesión expirada. Vuelve a iniciar sesión.';
 
-    this.loading.set(true);
-    const result = await this.correctPaymentMethodUC.execute({ paymentId, method, userId });
-    this.loading.set(false);
+    if (value.method !== payment.method) {
+      const result = await this.correctPaymentMethodUC.execute({
+        paymentId: payment.id,
+        method: value.method,
+        userId,
+      });
+      if (result.isLeft()) return `No se pudo corregir el método: ${result.value.message}`;
+    }
 
-    result.fold(
-      (f) => this.toast.error(`No se pudo corregir pago: ${f.message}`),
-      () => {
-        this.toast.success('Método de pago corregido');
-        const shift = this.shift();
-        if (shift) void this.loadShiftData(shift.id);
-      },
-    );
+    if (value.amountCents !== payment.amountCents) {
+      const result = await this.correctPaymentAmountUC.execute({
+        paymentId: payment.id,
+        amountCents: value.amountCents,
+        reason: value.reason,
+        userId,
+      });
+      if (result.isLeft()) return `No se pudo corregir el monto: ${result.value.message}`;
+    }
+
+    this.toast.success('Pago corregido');
+    const shift = this.shift();
+    if (shift) void this.loadShiftData(shift.id);
+    return null;
   }
 
   // HU-036: actualizar la cantidad de una denominación y aplicar el total

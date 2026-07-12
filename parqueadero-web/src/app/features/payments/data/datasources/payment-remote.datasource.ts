@@ -7,6 +7,7 @@ import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { PaymentMapper, PaymentModel } from '../../../parking/data/models/payment.model';
 import {
   CreatePaymentParams,
+  CorrectPaymentAmountParams,
   CorrectPaymentMethodParams,
   ListPaymentsParams,
   ListPaymentsResult,
@@ -137,6 +138,22 @@ export class PaymentRemoteDataSource extends PaymentDataSource {
       const { data, error } = await this.supabase.client.rpc('correct_shift_payment_method', {
         p_payment_id: params.paymentId,
         p_method: params.method,
+      });
+
+      if (error) return left(new ServerFailure(error.message));
+      if (!data) return left(new ServerFailure('No se recibió el pago corregido'));
+      return right(PaymentMapper.toEntity(data as PaymentModel));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async correctAmount(params: CorrectPaymentAmountParams): Promise<Either<Failure, PaymentEntity>> {
+    try {
+      const { data, error } = await this.supabase.client.rpc('correct_shift_payment_amount', {
+        p_payment_id: params.paymentId,
+        p_amount_cents: params.amountCents,
+        p_reason: params.reason,
       });
 
       if (error) return left(new ServerFailure(error.message));

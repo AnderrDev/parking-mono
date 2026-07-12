@@ -3,6 +3,7 @@ import { Failure } from '../../../../core/either/failures';
 import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import {
   CreatePaymentParams,
+  CorrectPaymentAmountParams,
   CorrectPaymentMethodParams,
   ListPaymentsParams,
   ListPaymentsResult,
@@ -15,5 +16,6 @@ export abstract class PaymentDataSource {
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
   abstract correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>>;
+  abstract correctAmount(params: CorrectPaymentAmountParams): Promise<Either<Failure, PaymentEntity>>;
   abstract voidPayment(params: VoidPaymentParams): Promise<Either<Failure, PaymentEntity>>;
 }
