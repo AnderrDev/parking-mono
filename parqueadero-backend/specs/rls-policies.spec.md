@@ -63,7 +63,7 @@ FOR SELECT USING (auth.jwt() ->> 'role' = 'contador' AND is_active = TRUE);
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Sus propias sesiones de hoy | Sí (entrada) | Su salida | No |
+| operador | Sus sesiones de hoy + las que él cerró | Sí (entrada) | Su salida | No |
 | contador | Todas (lectura) | No | No | No |
 
 **Políticas:**
@@ -84,6 +84,19 @@ FOR SELECT USING (
   AND DATE(entry_at) = CURRENT_DATE
 );
 
+-- Operador ve las sesiones que él mismo cerró (cualquier fecha de entrada).
+-- IMPRESCINDIBLE para registrar salidas: Postgres exige que la fila resultante
+-- de un UPDATE con WHERE/RETURNING siga siendo visible por alguna política
+-- SELECT del rol. Sin esta política, un carro que entró un día anterior (o que
+-- ingresó otro operador) no se puede sacar: la fila pasa a status='completed'
+-- y deja de estar cubierta por read_own_today y por read_active →
+-- `42501 new row violates row-level security policy` (bug OCK216, 2026-07-11).
+CREATE POLICY "sessions_operador_read_own_exits" ON parking_sessions
+FOR SELECT USING (
+  (auth.jwt() ->> 'user_role') = 'operador'
+  AND exit_user_id = auth.uid()
+);
+
 -- Contador y admin leen todo
 CREATE POLICY "admin_contador_read_all" ON parking_sessions
 FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
@@ -94,27 +107,43 @@ FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Su turno actual | Sí (abrir) | Cerrar el propio | No |
-| contador | Todos (lectura) | No | No | No |
+| operador | Todas (lectura) | Sí (abrir a su nombre) | Cerrar la caja abierta | No |
+| contador | Todas (lectura) | No | Cerrar la caja abierta | No |
+
+> Modelo de **caja global** (migración 00031): solo existe una caja abierta en todo
+> el parqueadero. **Cualquier rol autenticado puede cerrarla** (regla de negocio
+> 2026-07-11), sin importar quién la abrió. `user_id` conserva quién la abrió.
 
 **Políticas:**
 ```sql
--- Operador abre su turno
-CREATE POLICY "operador_open_shift" ON cashier_shifts
-FOR INSERT WITH CHECK (user_id = auth.uid());
+-- Operador abre su turno (a su nombre). Abrir sigue siendo solo operador/admin.
+CREATE POLICY "shifts_operador_open_own" ON cashier_shifts
+FOR INSERT WITH CHECK (
+  (auth.jwt() ->> 'user_role') = 'operador'
+  AND user_id = auth.uid()
+);
 
--- Operador cierra su turno abierto
-CREATE POLICY "operador_close_own_shift" ON cashier_shifts
-FOR UPDATE USING (user_id = auth.uid() AND status = 'open')
-WITH CHECK (user_id = auth.uid());
+-- Cualquier rol cierra la caja abierta (caja global: no exige ser quien la abrió)
+CREATE POLICY "shifts_operational_close_open" ON cashier_shifts
+FOR UPDATE USING (
+  (auth.jwt() ->> 'user_role') IN ('admin', 'operador', 'contador')
+  AND status = 'open'
+)
+WITH CHECK (
+  (auth.jwt() ->> 'user_role') IN ('admin', 'operador', 'contador')
+);
 
--- Operador ve su turno actual
-CREATE POLICY "operador_read_own_shift" ON cashier_shifts
-FOR SELECT USING (user_id = auth.uid() AND status IN ('open', 'pending_sync'));
-
--- Contador y admin leen todo
-CREATE POLICY "admin_contador_read_shifts" ON cashier_shifts
-FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
+-- Cualquier rol lee todas las cajas (abiertas e historial).
+-- IMPRESCINDIBLE para el cierre: Postgres exige que la fila resultante del
+-- UPDATE (status='closed') siga siendo SELECT-visible para el rol (misma clase
+-- de bug 42501 que sessions_operador_read_own_exits en parking_sessions).
+-- Con la política anterior (user_id = yo OR status='open'), cerrar una caja
+-- abierta por OTRO usuario fallaba con "new row violates row-level security".
+-- Reemplaza a shifts_operador_read_own y shifts_contador_read.
+CREATE POLICY "shifts_operational_read" ON cashier_shifts
+FOR SELECT USING (
+  (auth.jwt() ->> 'user_role') IN ('admin', 'operador', 'contador')
+);
 ```
 
 ## Tabla: `invoices`
