@@ -184,9 +184,6 @@ export class ReportsPageComponent implements OnInit {
     (this.operatorPerf()?.operators ?? []).reduce((s, o) => s + o.cashDifferenceCents, 0),
   );
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
-  protected readonly isAdmin = computed(() => this.auth.role() === 'admin');
-
   constructor(
     private readonly reportsForms: ReportsForms,
     private readonly auth: AuthStateService,
@@ -207,8 +204,7 @@ export class ReportsPageComponent implements OnInit {
       compare: false,
     });
 
-    // Tab default según rol
-    this.tab.set(this.isAdmin() ? 'accounting' : 'revenue');
+    this.tab.set('accounting');
 
     void this.loadReport();
   }
@@ -286,16 +282,12 @@ export class ReportsPageComponent implements OnInit {
       (r) => this.sessionsByType.set(r),
     );
 
-    // ── Operadores (admin) ──
-    if (role === 'admin') {
-      const opRes = await this.operatorUC.execute({ dateFrom: from, dateTo: to, userRole: role });
-      opRes.fold(
-        (f) => this.toast.error(`Error en operadores: ${f.message}`),
-        (r) => this.operatorPerf.set(r),
-      );
-    } else {
-      this.operatorPerf.set(null);
-    }
+    // ── Operadores ──
+    const opRes = await this.operatorUC.execute({ dateFrom: from, dateTo: to, userRole: role });
+    opRes.fold(
+      (f) => this.toast.error(`Error en operadores: ${f.message}`),
+      (r) => this.operatorPerf.set(r),
+    );
 
     // ── Comparativa con período previo ──
     if (compare) {

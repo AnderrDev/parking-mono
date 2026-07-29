@@ -38,7 +38,6 @@ const ROLE_LABEL: Record<AppRole, string> = {
 const NAV_ROLES: Record<string, AppRole[]> = {
   '/dashboard':       ['admin', 'contador'],
   '/payments':        ['admin', 'contador', 'operador'],
-  '/reports':         ['admin', 'contador'],
   '/tariffs':         ['admin', 'operador'],
   '/cashier/history': ['admin', 'contador'],
   '/audit':           ['admin', 'contador'],

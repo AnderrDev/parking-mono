@@ -66,7 +66,7 @@ Rango actual = "Últimos 30 días" → anterior = "30 días previos a esos".
 
 ## Tabs
 
-### 1. Resumen contable (default; admin only)
+### 1. Resumen contable (default)
 
 KPIs principales con delta:
 - **Total cobrado** (suma de `payments.amount_cents` en el período).
@@ -78,8 +78,6 @@ Gráficos:
 - Stack horizontal "Por método de pago": efectivo / tarjeta / transferencia /
   gratis con % y monto absoluto.
 <!-- Sección "Estado DIAN" eliminada el 2026-05-20: facturación electrónica descartada del alcance. -->
-
-Si no hay role admin → tab oculto.
 
 ### 2. Ingresos
 
@@ -105,7 +103,7 @@ monto recaudado.
 
 Tabla detallada al pie con: tipo, sesiones, duración promedio, ingresos, %.
 
-### 4. Operadores (admin only)
+### 4. Operadores
 
 KPIs:
 - **Operador con más turnos**.
@@ -114,8 +112,6 @@ KPIs:
 
 Tabla: operador, turnos, horas, sesiones, ingresos, diferencia caja.
 Filas con diferencia > $5.000 destacadas.
-
-Si no hay role admin → tab oculto.
 
 ## Lenguaje humano (mappings)
 

@@ -22,8 +22,8 @@ export class ExportCsvUseCase extends UseCase<ExportCsvUseCaseParams, ExportCsvR
   }
 
   async execute(params: ExportCsvUseCaseParams): Promise<Either<Failure, ExportCsvResult>> {
-    if (!['admin', 'contador'].includes(params.userRole)) {
-      return left(new UnauthorizedFailure('Solo admin o contador pueden exportar reportes'));
+    if (!['admin', 'contador', 'operador'].includes(params.userRole)) {
+      return left(new UnauthorizedFailure('No tienes permiso para exportar reportes'));
     }
     if (params.dateTo < params.dateFrom) {
       return left(new ValidationFailure('dateTo debe ser ≥ dateFrom'));

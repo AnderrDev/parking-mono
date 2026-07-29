@@ -24,8 +24,8 @@ export class GetOperatorPerformanceUseCase extends UseCase<OperatorPerformanceUs
   }
 
   async execute(params: OperatorPerformanceUseCaseParams): Promise<Either<Failure, OperatorPerformanceResult>> {
-    if (params.userRole !== 'admin') {
-      return left(new UnauthorizedFailure('Solo administradores pueden ver el rendimiento de operadores'));
+    if (!['admin', 'contador', 'operador'].includes(params.userRole)) {
+      return left(new UnauthorizedFailure('No tienes permiso para ver el rendimiento de operadores'));
     }
     if (params.dateTo < params.dateFrom) {
       return left(new ValidationFailure('dateTo debe ser ≥ dateFrom'));

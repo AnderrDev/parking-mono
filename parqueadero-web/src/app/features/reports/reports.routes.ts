@@ -29,7 +29,7 @@ export const reportsRoutes: Routes = [
   {
     path: '',
     providers: reportsProviders,
-    canActivate: [authGuard, requireRole('admin', 'contador')],
+    canActivate: [authGuard, requireRole('admin', 'contador', 'operador')],
     loadComponent: () =>
       import('./presentation/pages/reports.page').then((m) => m.ReportsPageComponent),
     data: { title: 'Reportes' },

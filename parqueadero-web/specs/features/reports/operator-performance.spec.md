@@ -7,10 +7,10 @@
 UseCase que retorna el rendimiento de cada operador (sesiones atendidas, ingresos gestionados, turnos trabajados) para un rango de fechas. Útil para gerencia y nómina.
 
 ## Actor
-Admin. (Contador puede ver solo ingresos, no evaluar rendimiento individualmente — se define con RLS.)
+Admin, Contador, Operador. (Regla de negocio 2026-07-29: Reportes se habilita para los 3 roles, incluyendo el desempeño por operador.)
 
 ## Pre-condiciones
-- Usuario autenticado con rol `admin`.
+- Cualquier usuario autenticado (`admin`, `contador`, `operador`).
 
 ## Input (Params)
 
@@ -25,7 +25,6 @@ Admin. (Contador puede ver solo ingresos, no evaluar rendimiento individualmente
 | Caso | Tipo | Descripción |
 |---|---|---|
 | Éxito | `Right<OperatorPerformanceResult>` | Lista de operadores con sus métricas |
-| Sin acceso | `Left<UnauthorizedFailure>` | Contador o Operador intentan acceder |
 | Fechas inválidas | `Left<ValidationFailure>` | — |
 | Error servidor | `Left<ServerFailure>` | — |
 
@@ -54,12 +53,11 @@ interface OperatorRow {
 2. `totalHoursWorked` = Σ(closed_at - opened_at). Turnos abiertos usan `now()` como cierre provisional.
 3. `revenueCents` incluye solo pagos en turnos del operador, `status='completed'`, método no libre.
 4. `cashDifferenceCents` es suma de valores absolutos de `difference_cents` (indicador de disciplina).
-5. Solo admin ve este reporte (guard + RLS en `v_operator_performance` view).
+5. Los 3 roles ven este reporte (guard + RLS en `v_operator_performance` view).
 
 ## Flujo Principal
 
-1. Validar rol = 'admin'.
-2. Validar fechas.
+1. Validar fechas.
 3. Consultar `v_operator_performance` con filtro de rango (y operadorId si aplica).
 4. Retornar `Right(result)`.
 
@@ -75,4 +73,4 @@ interface OperatorRow {
 ## Mapping a UI
 - **Invocación**: `ReportsPage` → pestaña "Operadores".
 - **Columnas**: Nombre | Turnos | Horas | Sesiones | Ingresos | Diferencia caja.
-- **Solo visible para admin** (guard `requireRole('admin')`).
+- **Visible para los 3 roles** (guard `requireRole('admin', 'contador', 'operador')`).

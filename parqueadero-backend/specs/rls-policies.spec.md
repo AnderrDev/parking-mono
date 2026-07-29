@@ -63,7 +63,7 @@ FOR SELECT USING (auth.jwt() ->> 'role' = 'contador' AND is_active = TRUE);
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Sus sesiones de hoy + las que él cerró | Sí (entrada) | Su salida | No |
+| operador | Todas (lectura, para Reportes) + sus sesiones de hoy + las que él cerró | Sí (entrada) | Su salida | No |
 | contador | Todas (lectura) | No | No | No |
 
 **Políticas:**
@@ -95,6 +95,15 @@ CREATE POLICY "sessions_operador_read_own_exits" ON parking_sessions
 FOR SELECT USING (
   (auth.jwt() ->> 'user_role') = 'operador'
   AND exit_user_id = auth.uid()
+);
+
+-- Operador lee todo el histórico para la sección de Reportes (regla de negocio
+-- 2026-07-29: Reportes se habilita para los 3 roles). Es ADITIVA a
+-- read_own_shift y read_own_exits (Postgres combina policies SELECT con OR),
+-- no las reemplaza — el uso operativo diario no cambia.
+CREATE POLICY "sessions_operador_read_reports" ON parking_sessions
+FOR SELECT USING (
+  (auth.jwt() ->> 'user_role') = 'operador'
 );
 
 -- Contador y admin leen todo
@@ -173,7 +182,7 @@ FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Sus pagos del turno | Sí | No | No |
+| operador | Todos (lectura, para Reportes) + sus pagos del turno | Sí | No | No |
 | contador | Todo (lectura) | No | No | No |
 
 ```sql
@@ -193,6 +202,13 @@ FOR SELECT USING (
     SELECT 1 FROM cashier_shifts cs
     WHERE cs.id = payments.cashier_shift_id AND cs.user_id = auth.uid()
   )
+);
+
+-- Operador lee todos los pagos para la sección de Reportes (regla de negocio
+-- 2026-07-29). Aditiva a read_shift_payments, no la reemplaza.
+CREATE POLICY "payments_operador_read_reports" ON payments
+FOR SELECT USING (
+  (auth.jwt() ->> 'user_role') = 'operador'
 );
 
 -- Contador y admin leen todo

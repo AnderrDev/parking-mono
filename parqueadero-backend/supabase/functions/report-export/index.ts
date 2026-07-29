@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
     .eq('id', user.id)
     .single<{ role: string }>();
 
-  if (!userData || !['admin', 'contador'].includes(userData.role)) {
+  if (!userData || !['admin', 'contador', 'operador'].includes(userData.role)) {
     return new Response('Forbidden', { status: 403 });
   }
 

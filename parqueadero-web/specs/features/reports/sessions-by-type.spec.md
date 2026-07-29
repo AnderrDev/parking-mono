@@ -7,10 +7,10 @@
 UseCase que retorna el conteo y duración promedio de sesiones agrupadas por tipo de vehículo, para un rango de fechas. Permite detectar el mix de vehículos atendidos y optimizar capacidad.
 
 ## Actor
-Admin, Contador.
+Admin, Contador, Operador.
 
 ## Pre-condiciones
-- Usuario autenticado con rol `admin` o `contador`.
+- Cualquier usuario autenticado (`admin`, `contador`, `operador`).
 
 ## Input (Params)
 

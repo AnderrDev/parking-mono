@@ -60,16 +60,14 @@
 
   <!-- ── TABS ── -->
   <nav class="tabs" role="tablist" aria-label="Categorías de reporte">
-    @if (isAdmin()) {
-      <button
-        role="tab"
-        type="button"
-        [attr.aria-selected]="tab() === 'accounting'"
-        [class.tabs__btn--active]="tab() === 'accounting'"
-        class="tabs__btn"
-        (click)="setTab('accounting')"
-      >📒 Resumen contable</button>
-    }
+    <button
+      role="tab"
+      type="button"
+      [attr.aria-selected]="tab() === 'accounting'"
+      [class.tabs__btn--active]="tab() === 'accounting'"
+      class="tabs__btn"
+      (click)="setTab('accounting')"
+    >📒 Resumen contable</button>
     <button
       role="tab"
       type="button"
@@ -86,23 +84,21 @@
       class="tabs__btn"
       (click)="setTab('vehicles')"
     >🚗 Vehículos</button>
-    @if (isAdmin()) {
-      <button
-        role="tab"
-        type="button"
-        [attr.aria-selected]="tab() === 'operators'"
-        [class.tabs__btn--active]="tab() === 'operators'"
-        class="tabs__btn"
-        (click)="setTab('operators')"
-      >👥 Operadores</button>
-    }
+    <button
+      role="tab"
+      type="button"
+      [attr.aria-selected]="tab() === 'operators'"
+      [class.tabs__btn--active]="tab() === 'operators'"
+      class="tabs__btn"
+      (click)="setTab('operators')"
+    >👥 Operadores</button>
   </nav>
 
   <!-- ── CONTENIDO (aria-live para anunciar cambios al filtrar) ── -->
   <div class="results" aria-live="polite">
 
     <!-- ============ TAB: RESUMEN CONTABLE ============ -->
-    @if (tab() === 'accounting' && isAdmin()) {
+    @if (tab() === 'accounting') {
       <section class="panel">
         <div class="kpi-grid">
           <article class="kpi" data-variant="success" aria-label="Total cobrado en el período">
@@ -356,7 +352,7 @@
     }
 
     <!-- ============ TAB: OPERADORES ============ -->
-    @if (tab() === 'operators' && isAdmin() && operatorPerf()) {
+    @if (tab() === 'operators' && operatorPerf()) {
       <section class="panel">
         <div class="kpi-grid">
           @if (topOperatorByShifts()) {

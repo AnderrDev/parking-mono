@@ -7,10 +7,10 @@
 UseCase que retorna el resumen de ingresos (totales y por método de pago) para un rango de fechas. Soporta agrupación diaria, semanal o mensual. Base para el dashboard financiero del admin/contador.
 
 ## Actor
-Admin, Contador. (Operador NO tiene acceso a esta ruta.)
+Admin, Contador, Operador.
 
 ## Pre-condiciones
-- Usuario autenticado con rol `admin` o `contador`.
+- Cualquier usuario autenticado (`admin`, `contador`, `operador`).
 
 ## Input (Params)
 
@@ -28,7 +28,6 @@ Admin, Contador. (Operador NO tiene acceso a esta ruta.)
 |---|---|---|
 | Éxito | `Right<RevenueReportResult>` | Resumen financiero agrupado |
 | Fechas inválidas | `Left<ValidationFailure>` | dateTo < dateFrom o rango > 12 meses |
-| Sin acceso | `Left<UnauthorizedFailure>` | Operador intenta acceder |
 | Error servidor | `Left<ServerFailure>` | — |
 
 ```typescript
@@ -56,16 +55,15 @@ interface RevenuePeriod {
 2. Métodos `cortesia`, `error`, `mensual`: se incluyen en el conteo de sesiones pero **no** en `totalRevenueCents` ni en `byMethod.amountCents`.
 3. Agrupación `'day'` → label `YYYY-MM-DD`. `'week'` → label `YYYY-Www` (ISO 8601). `'month'` → label `YYYY-MM`.
 4. Períodos sin pagos **no** aparecen en `byPeriod` (omitir huecos).
-5. RLS: contador ve todos los turnos; operador bloqueado a nivel de guard.
+5. RLS: los 3 roles (`admin`, `contador`, `operador`) ven todos los turnos para reportes.
 
 ## Flujo Principal
 
 1. Validar fechas y rango máximo.
-2. Verificar rol del usuario.
-3. Consultar view `v_revenue_daily` filtrando por rango (+ operador y tipo si aplica).
-4. Agrupar en memoria según `groupBy`.
-5. Calcular `byMethod` sumando los resultados.
-6. Retornar `Right(result)`.
+2. Consultar view `v_revenue_daily` filtrando por rango (+ operador y tipo si aplica).
+3. Agrupar en memoria según `groupBy`.
+4. Calcular `byMethod` sumando los resultados.
+5. Retornar `Right(result)`.
 
 ## Edge Cases
 

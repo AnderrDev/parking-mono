@@ -7,10 +7,10 @@
 UseCase que solicita la generación de un CSV de pagos o sesiones a través de la Edge Function `report-export`. La función genera el archivo server-side, lo sube a Supabase Storage y retorna una URL firmada de descarga (válida 15 min).
 
 ## Actor
-Admin, Contador.
+Admin, Contador, Operador.
 
 ## Pre-condiciones
-- Usuario autenticado con rol `admin` o `contador`.
+- Cualquier usuario autenticado (`admin`, `contador`, `operador`).
 
 ## Input (Params)
 
@@ -27,7 +27,6 @@ Admin, Contador.
 |---|---|---|
 | Éxito | `Right<{ downloadUrl: string; expiresAt: Date }>` | URL firmada (15 min) |
 | Rango > 3 meses | `Left<ValidationFailure>` | "El rango máximo para CSV es 3 meses" |
-| Sin acceso | `Left<UnauthorizedFailure>` | Operador intenta exportar |
 | Timeout/Error servidor | `Left<ServerFailure>` | Edge Function falló o tardó > 30 s |
 
 ## Reglas de Negocio
