@@ -55,6 +55,11 @@ Admin, Contador, Operador.
 - `ReportRepository.requestCsvExport(params)` → invoca Edge Function via `SupabaseService.functions.invoke('report-export')`
 
 ## Mapping a UI
-- **Invocación**: `ReportsPage` → botón "Exportar CSV" en cada pestaña.
-- **Feedback**: spinner + "Generando CSV…" → al recibir URL, descarga automática vía `<a href download>`.
-- **Error**: toast con mensaje del failure.
+- **Sin punto de entrada en la UI actualmente** (2026-07-29): `ReportsPage` quitó
+  el botón "Descargar CSV" en la revisión de calidad/UX de esa pantalla — se
+  priorizó reducir ruido visual sobre una función de uso raro. El UseCase, el
+  token DI (`EXPORT_CSV_TOKEN`) y la Edge Function `report-export` **siguen
+  existiendo e intactos** (provider aún declarado en `dashboard.routes.ts`) para
+  no perder la capacidad; si se quiere reactivar, ver esta spec para el contrato.
+- **Feedback esperado si se reconecta a UI**: spinner + "Generando CSV…" → al
+  recibir URL, descarga automática vía `<a href download>`; error con toast.

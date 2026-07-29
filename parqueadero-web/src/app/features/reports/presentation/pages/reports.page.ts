@@ -8,18 +8,25 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import {
+  LucideAngularModule, LUCIDE_ICONS, LucideIconProvider,
+  ClipboardList, CircleDollarSign, Car, Users, History,
+  CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
+} from 'lucide-angular';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ReportsForms, DateRangePreset, DateRange } from '../forms/reports.forms';
 import {
   GET_REVENUE_BY_PERIOD_TOKEN,
   GET_SESSIONS_BY_TYPE_TOKEN,
   GET_OPERATOR_PERFORMANCE_TOKEN,
-  EXPORT_CSV_TOKEN,
+  LIST_SHIFTS_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { GetRevenueByPeriodUseCase } from '../../domain/usecases/get-revenue-by-period.usecase';
 import { GetSessionsByTypeUseCase } from '../../domain/usecases/get-sessions-by-type.usecase';
 import { GetOperatorPerformanceUseCase } from '../../domain/usecases/get-operator-performance.usecase';
-import { ExportCsvUseCase } from '../../domain/usecases/export-csv.usecase';
+import { ListShiftsUseCase } from '../../../cashier/domain/usecases/list-shifts.usecase';
+import { ShiftWithOperator } from '../../../cashier/domain/repositories/cashier.repository';
 import {
   RevenueReportResult,
   SessionsByTypeResult,
@@ -29,10 +36,12 @@ import {
 import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { barWidth as calcBarWidth, pctOf } from '../../../../shared/utils/chart.utils';
-import { formatBogotaDay } from '../../../../shared/utils/date.utils';
+import { formatBogotaDay, formatDateBogota, formatTimeBogota, durationMinutes, formatDuration } from '../../../../shared/utils/date.utils';
 import { PaymentMethodStackComponent } from '../components/payment-method-stack.component';
 
-type Tab = 'accounting' | 'revenue' | 'vehicles' | 'operators';
+const LARGE_DIFF_CENTS = 500_000;
+
+type Tab = 'accounting' | 'revenue' | 'vehicles' | 'operators' | 'shifts';
 
 interface Delta {
   /** Cambio porcentual (+12 = subió 12%, −5 = bajó 5%, null = sin previo). */
@@ -50,8 +59,20 @@ interface Delta {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
     CurrencyCopPipe,
     PaymentMethodStackComponent,
+    LucideAngularModule,
+  ],
+  providers: [
+    {
+      provide: LUCIDE_ICONS,
+      useValue: new LucideIconProvider({
+        ClipboardList, CircleDollarSign, Car, Users, History,
+        CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
+      }),
+      multi: true,
+    },
   ],
   templateUrl: './reports.page.html',
   styleUrl: './reports.page.scss',
@@ -66,6 +87,7 @@ export class ReportsPageComponent implements OnInit {
   protected readonly revenue = signal<RevenueReportResult | null>(null);
   protected readonly sessionsByType = signal<SessionsByTypeResult | null>(null);
   protected readonly operatorPerf = signal<OperatorPerformanceResult | null>(null);
+  protected readonly shiftClosures = signal<ShiftWithOperator[] | null>(null);
   // Datos del rango previo (cuando "Comparar" está activo)
   protected readonly revenuePrev = signal<RevenueReportResult | null>(null);
   protected readonly sessionsPrev = signal<SessionsByTypeResult | null>(null);
@@ -101,7 +123,21 @@ export class ReportsPageComponent implements OnInit {
   ];
 
   // ── Computed: KPIs ──────────────────────────────────────────────────────────
-  protected readonly compareEnabled = computed(() => !!this.filterForm?.value?.compare);
+  // NOTA: compareEnabled/dateRangeInvalid son métodos planos (no computed()) porque
+  // leen filterForm.value, que no es un signal — un computed() que solo lee estado
+  // no-signal se memoriza en su primer valor y nunca se vuelve a evaluar. Como
+  // métodos, Angular los reinvoca en cada ciclo de detección de cambios (OnPush
+  // sigue re-chequeando el componente en los eventos de su propia plantilla).
+  protected compareEnabled(): boolean {
+    return !!this.filterForm?.value?.compare;
+  }
+
+  /** true cuando el rango de fechas del formulario no es consultable (vacío o desde > hasta). */
+  protected dateRangeInvalid(): boolean {
+    const v = this.filterForm?.value as { dateFrom?: string; dateTo?: string } | undefined;
+    if (!v?.dateFrom || !v?.dateTo) return true;
+    return v.dateFrom > v.dateTo;
+  }
 
   protected readonly totalRevenueCents = computed(() => this.revenue()?.totalRevenueCents ?? 0);
   protected readonly totalSessions = computed(() => this.revenue()?.totalSessions ?? 0);
@@ -184,13 +220,35 @@ export class ReportsPageComponent implements OnInit {
     (this.operatorPerf()?.operators ?? []).reduce((s, o) => s + o.cashDifferenceCents, 0),
   );
 
+  // Entradas por hora del día (tab Vehículos)
+  protected readonly maxHourCount = computed(() =>
+    Math.max(1, ...(this.sessionsByType()?.byHour ?? []).map((h) => h.count)),
+  );
+
+  // Cierres de caja: extras
+  protected readonly closedShifts = computed(() =>
+    (this.shiftClosures() ?? []).filter((s) => s.shift.status === 'closed'),
+  );
+  protected readonly shiftsClosedCount = computed(() => this.closedShifts().length);
+  protected readonly totalShiftDiffCents = computed(() =>
+    this.closedShifts().reduce((s, item) => s + Math.abs(item.shift.differenceCents ?? 0), 0),
+  );
+  protected readonly largeDiffShiftsCount = computed(() =>
+    this.closedShifts().filter((item) => Math.abs(item.shift.differenceCents ?? 0) > LARGE_DIFF_CENTS).length,
+  );
+
+  /** `/cashier/history` está restringida a admin/contador (requireRole en cashier.routes.ts) — el link solo se muestra si el rol actual puede entrar. */
+  protected readonly canViewFullShiftHistory = computed(() =>
+    ['admin', 'contador'].includes(this.auth.role() ?? ''),
+  );
+
   constructor(
     private readonly reportsForms: ReportsForms,
     private readonly auth: AuthStateService,
     @Inject(GET_REVENUE_BY_PERIOD_TOKEN) private readonly revenueUC: GetRevenueByPeriodUseCase,
     @Inject(GET_SESSIONS_BY_TYPE_TOKEN) private readonly sessionTypesUC: GetSessionsByTypeUseCase,
     @Inject(GET_OPERATOR_PERFORMANCE_TOKEN) private readonly operatorUC: GetOperatorPerformanceUseCase,
-    @Inject(EXPORT_CSV_TOKEN) private readonly exportUC: ExportCsvUseCase,
+    @Inject(LIST_SHIFTS_TOKEN) private readonly listShiftsUC: ListShiftsUseCase,
     private readonly toast: ToastService,
   ) {}
 
@@ -247,6 +305,10 @@ export class ReportsPageComponent implements OnInit {
   // ── Carga ──────────────────────────────────────────────────────────────────
   async loadReport(): Promise<void> {
     if (!this.filterForm || this.filterForm.invalid) return;
+    if (this.dateRangeInvalid()) {
+      this.errorMsg.set('La fecha "Desde" debe ser anterior o igual a "Hasta".');
+      return;
+    }
     this.loading.set(true);
     this.errorMsg.set(null);
 
@@ -261,9 +323,10 @@ export class ReportsPageComponent implements OnInit {
     const { from, to } = this.toUtcRange(range);
 
     // ── Always load revenue + vehicles (cheap, used by accounting too) ──
-    const [revRes, vehRes] = await Promise.all([
+    const [revRes, vehRes, shiftsRes] = await Promise.all([
       this.revenueUC.execute({ dateFrom: from, dateTo: to, groupBy }),
       this.sessionTypesUC.execute({ dateFrom: from, dateTo: to }),
+      this.listShiftsUC.execute({ dateFrom: from, dateTo: to, page: 1, pageSize: 100 }),
     ]);
 
     revRes.fold(
@@ -280,6 +343,13 @@ export class ReportsPageComponent implements OnInit {
         this.sessionsByType.set(null);
       },
       (r) => this.sessionsByType.set(r),
+    );
+    shiftsRes.fold(
+      (f) => {
+        this.toast.error(`Error en cierres de caja: ${f.message}`);
+        this.shiftClosures.set(null);
+      },
+      (r) => this.shiftClosures.set(r.data),
     );
 
     // ── Operadores ──
@@ -304,36 +374,6 @@ export class ReportsPageComponent implements OnInit {
       this.sessionsPrev.set(null);
     }
 
-    this.loading.set(false);
-  }
-
-  // ── Export ──────────────────────────────────────────────────────────────────
-  async exportCsv(): Promise<void> {
-    if (!this.filterForm || this.filterForm.invalid) return;
-    this.loading.set(true);
-
-    const range: DateRange = {
-      dateFrom: this.filterForm.value.dateFrom,
-      dateTo: this.filterForm.value.dateTo,
-    };
-    const { from, to } = this.toUtcRange(range);
-    const role = this.auth.role() ?? 'operador';
-    const entity = this.tab() === 'vehicles' ? 'sessions' : 'payments';
-
-    const result = await this.exportUC.execute({ entity, dateFrom: from, dateTo: to, userRole: role });
-    result.fold(
-      (f) => {
-        this.errorMsg.set(f.message);
-        this.toast.error(`Exportación falló: ${f.message}`);
-      },
-      ({ downloadUrl }) => {
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = '';
-        a.click();
-        this.toast.success('CSV descargándose');
-      },
-    );
     this.loading.set(false);
   }
 
@@ -372,6 +412,20 @@ export class ReportsPageComponent implements OnInit {
 
   protected formatBogotaDay(label: string): string {
     return formatBogotaDay(label);
+  }
+
+  // ── Cierres de caja: fecha/hora separadas para que se lea de un vistazo
+  // cuándo empezó/terminó cada turno, sin confundir turnos consecutivos con
+  // cajas simultáneas (la regla de negocio es caja global: un turno cierra y
+  // el siguiente abre casi al instante) ──
+  protected shiftDateLabel(date: Date): string {
+    return formatDateBogota(date, 'EEE dd/MM');
+  }
+  protected shiftTimeLabel(date: Date): string {
+    return formatTimeBogota(date);
+  }
+  protected shiftDurationLabel(item: ShiftWithOperator): string {
+    return formatDuration(durationMinutes(item.shift.openedAt, item.shift.closedAt!));
   }
 
   /** True cuando "más es mejor" (verde si delta positivo). */

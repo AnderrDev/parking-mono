@@ -4,9 +4,6 @@
       <h1>Reportes</h1>
       <p class="subtitle">Vista contable y estadística del parqueadero.</p>
     </div>
-    <button type="button" class="btn-export" (click)="exportCsv()" [disabled]="loading()">
-      ⬇ Descargar CSV del tab actual
-    </button>
   </header>
 
   <!-- ── FILTROS (sticky) ── -->
@@ -25,11 +22,21 @@
     <div class="filters__row">
       <label class="field">
         <span>Desde</span>
-        <input type="date" formControlName="dateFrom" (change)="onCustomDateChange()" />
+        <input
+          type="date"
+          formControlName="dateFrom"
+          [attr.aria-invalid]="dateRangeInvalid() ? 'true' : null"
+          (change)="onCustomDateChange()"
+        />
       </label>
       <label class="field">
         <span>Hasta</span>
-        <input type="date" formControlName="dateTo" (change)="onCustomDateChange()" />
+        <input
+          type="date"
+          formControlName="dateTo"
+          [attr.aria-invalid]="dateRangeInvalid() ? 'true' : null"
+          (change)="onCustomDateChange()"
+        />
       </label>
       <label class="field">
         <span>Agrupar por</span>
@@ -39,7 +46,7 @@
           <option value="month">Mes</option>
         </select>
       </label>
-      <button type="button" class="btn-primary" (click)="loadReport()" [disabled]="loading()">
+      <button type="button" class="btn-primary" (click)="loadReport()" [disabled]="loading() || dateRangeInvalid()">
         {{ loading() ? 'Cargando…' : 'Consultar' }}
       </button>
 
@@ -53,8 +60,10 @@
       </label>
     </div>
 
-    @if (errorMsg()) {
-      <p class="error">{{ errorMsg() }}</p>
+    @if (dateRangeInvalid()) {
+      <p class="error" role="alert">La fecha "Desde" debe ser anterior o igual a "Hasta".</p>
+    } @else if (errorMsg()) {
+      <p class="error" role="alert">{{ errorMsg() }}</p>
     }
   </section>
 
@@ -67,7 +76,7 @@
       [class.tabs__btn--active]="tab() === 'accounting'"
       class="tabs__btn"
       (click)="setTab('accounting')"
-    >📒 Resumen contable</button>
+    ><lucide-angular name="ClipboardList" [size]="16" /> Resumen contable</button>
     <button
       role="tab"
       type="button"
@@ -75,7 +84,7 @@
       [class.tabs__btn--active]="tab() === 'revenue'"
       class="tabs__btn"
       (click)="setTab('revenue')"
-    >💰 Ingresos</button>
+    ><lucide-angular name="CircleDollarSign" [size]="16" /> Ingresos</button>
     <button
       role="tab"
       type="button"
@@ -83,7 +92,7 @@
       [class.tabs__btn--active]="tab() === 'vehicles'"
       class="tabs__btn"
       (click)="setTab('vehicles')"
-    >🚗 Vehículos</button>
+    ><lucide-angular name="Car" [size]="16" /> Vehículos</button>
     <button
       role="tab"
       type="button"
@@ -91,7 +100,15 @@
       [class.tabs__btn--active]="tab() === 'operators'"
       class="tabs__btn"
       (click)="setTab('operators')"
-    >👥 Operadores</button>
+    ><lucide-angular name="Users" [size]="16" /> Operadores</button>
+    <button
+      role="tab"
+      type="button"
+      [attr.aria-selected]="tab() === 'shifts'"
+      [class.tabs__btn--active]="tab() === 'shifts'"
+      class="tabs__btn"
+      (click)="setTab('shifts')"
+    ><lucide-angular name="History" [size]="16" /> Cierres de caja</button>
   </nav>
 
   <!-- ── CONTENIDO (aria-live para anunciar cambios al filtrar) ── -->
@@ -104,14 +121,16 @@
           <article class="kpi" data-variant="success" aria-label="Total cobrado en el período">
             <span class="kpi__label">
               Total cobrado
-              <span class="kpi__hint" title="Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia).">?</span>
+              <button type="button" class="kpi__hint" aria-label="Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia)." title="Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia).">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
                 @if (revenueDelta().isNew) { Nuevo período }
                 @else if (revenueDelta().pct !== null) {
-                  {{ revenueDelta().pct! >= 0 ? '▲' : '▼' }}
+                  <lucide-angular [name]="revenueDelta().pct! >= 0 ? 'TrendingUp' : 'TrendingDown'" [size]="14" />
                   {{ revenueDelta().pct! >= 0 ? '+' : '' }}{{ revenueDelta().pct }}% ({{ revenueDelta().abs | currencyCop }})
                 }
               </span>
@@ -121,14 +140,16 @@
           <article class="kpi" aria-label="Ticket promedio por sesión">
             <span class="kpi__label">
               Ticket promedio
-              <span class="kpi__hint" title="Promedio de plata recaudada por sesión cerrada.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Promedio de plata recaudada por sesión cerrada." title="Promedio de plata recaudada por sesión cerrada.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ avgTicketCents() | currencyCop }}</strong>
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(avgTicketDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(avgTicketDelta(), true)">
                 @if (avgTicketDelta().isNew) { Nuevo período }
                 @else if (avgTicketDelta().pct !== null) {
-                  {{ avgTicketDelta().pct! >= 0 ? '▲' : '▼' }}
+                  <lucide-angular [name]="avgTicketDelta().pct! >= 0 ? 'TrendingUp' : 'TrendingDown'" [size]="14" />
                   {{ avgTicketDelta().pct! >= 0 ? '+' : '' }}{{ avgTicketDelta().pct }}%
                 }
               </span>
@@ -138,7 +159,9 @@
           <article class="kpi" aria-label="Día con mayor recaudo">
             <span class="kpi__label">
               Día más fuerte
-              <span class="kpi__hint" title="Día con mayor recaudo dentro del período.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Día con mayor recaudo dentro del período." title="Día con mayor recaudo dentro del período.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             @if (bestDay()) {
               <strong class="kpi__value">{{ bestDay()!.revenueCents | currencyCop }}</strong>
@@ -167,14 +190,16 @@
           <article class="kpi" data-variant="success" aria-label="Total ingresos">
             <span class="kpi__label">
               Total ingresos
-              <span class="kpi__hint" title="Suma de todos los pagos confirmados en el período.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Suma de todos los pagos confirmados en el período." title="Suma de todos los pagos confirmados en el período.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
                 @if (revenueDelta().isNew) { Nuevo período }
                 @else if (revenueDelta().pct !== null) {
-                  {{ revenueDelta().pct! >= 0 ? '▲' : '▼' }}
+                  <lucide-angular [name]="revenueDelta().pct! >= 0 ? 'TrendingUp' : 'TrendingDown'" [size]="14" />
                   {{ revenueDelta().pct! >= 0 ? '+' : '' }}{{ revenueDelta().pct }}% ({{ revenueDelta().abs | currencyCop }})
                 }
               </span>
@@ -184,14 +209,16 @@
           <article class="kpi" aria-label="Sesiones cobradas">
             <span class="kpi__label">
               Sesiones cobradas
-              <span class="kpi__hint" title="Cantidad de sesiones que generaron un pago.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Cantidad de sesiones que generaron un pago." title="Cantidad de sesiones que generaron un pago.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ totalSessions() }}</strong>
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(sessionsDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(sessionsDelta(), true)">
                 @if (sessionsDelta().isNew) { Nuevo período }
                 @else if (sessionsDelta().pct !== null) {
-                  {{ sessionsDelta().pct! >= 0 ? '▲' : '▼' }}
+                  <lucide-angular [name]="sessionsDelta().pct! >= 0 ? 'TrendingUp' : 'TrendingDown'" [size]="14" />
                   {{ sessionsDelta().pct! >= 0 ? '+' : '' }}{{ sessionsDelta().pct }}%
                 }
               </span>
@@ -201,14 +228,16 @@
           <article class="kpi" aria-label="Ticket promedio">
             <span class="kpi__label">
               Ticket promedio
-              <span class="kpi__hint" title="Promedio de plata recaudada por sesión.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Promedio de plata recaudada por sesión." title="Promedio de plata recaudada por sesión.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ avgTicketCents() | currencyCop }}</strong>
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(avgTicketDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(avgTicketDelta(), true)">
                 @if (avgTicketDelta().isNew) { Nuevo período }
                 @else if (avgTicketDelta().pct !== null) {
-                  {{ avgTicketDelta().pct! >= 0 ? '▲' : '▼' }}
+                  <lucide-angular [name]="avgTicketDelta().pct! >= 0 ? 'TrendingUp' : 'TrendingDown'" [size]="14" />
                   {{ avgTicketDelta().pct! >= 0 ? '+' : '' }}{{ avgTicketDelta().pct }}%
                 }
               </span>
@@ -219,7 +248,9 @@
             <article class="kpi" aria-label="Método dominante">
               <span class="kpi__label">
                 Método dominante
-                <span class="kpi__hint" title="El método de pago con mayor monto recaudado.">?</span>
+                <button type="button" class="kpi__hint" aria-label="El método de pago con mayor monto recaudado." title="El método de pago con mayor monto recaudado.">
+                  <lucide-angular name="CircleHelp" [size]="14" />
+                </button>
               </span>
               <strong class="kpi__value kpi__value--text">{{ dominantMethod()!.label }}</strong>
               <span class="kpi__detail">{{ dominantMethod()!.pct }}% del total</span>
@@ -279,7 +310,9 @@
           <article class="kpi" aria-label="Total sesiones cerradas">
             <span class="kpi__label">
               Total sesiones cerradas
-              <span class="kpi__hint" title="Sesiones que ya finalizaron en el período.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Sesiones que ya finalizaron en el período." title="Sesiones que ya finalizaron en el período.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ sessionsByType()!.totalSessions }}</strong>
           </article>
@@ -288,7 +321,9 @@
             <article class="kpi" data-variant="primary" aria-label="Tipo dominante">
               <span class="kpi__label">
                 Tipo dominante
-                <span class="kpi__hint" title="El tipo de vehículo con más sesiones.">?</span>
+                <button type="button" class="kpi__hint" aria-label="El tipo de vehículo con más sesiones." title="El tipo de vehículo con más sesiones.">
+                  <lucide-angular name="CircleHelp" [size]="14" />
+                </button>
               </span>
               <strong class="kpi__value kpi__value--text">{{ dominantVehicle()!.label }}</strong>
               <span class="kpi__detail">{{ dominantVehicle()!.pct }}% del total</span>
@@ -298,7 +333,9 @@
           <article class="kpi" aria-label="Duración promedio global">
             <span class="kpi__label">
               Duración promedio
-              <span class="kpi__hint" title="Tiempo promedio que un vehículo permanece estacionado.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Tiempo promedio que un vehículo permanece estacionado." title="Tiempo promedio que un vehículo permanece estacionado.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ avgDurationGlobal() }} min</strong>
           </article>
@@ -348,6 +385,29 @@
             </tbody>
           </table>
         </details>
+
+        <!-- Gráfico: entradas por hora del día -->
+        <article class="card" aria-label="Entradas por hora del día">
+          <header class="card__head">
+            <h2><lucide-angular name="Clock" [size]="16" /> Entradas por hora del día</h2>
+            <p class="card__hint">Cuántos vehículos entraron en cada hora, sumado en todo el rango — útil para identificar las horas pico.</p>
+          </header>
+          @if (sessionsByType()!.byHour.length === 0 || sessionsByType()!.totalSessions === 0) {
+            <p class="empty">Sin datos para el período seleccionado.</p>
+          } @else {
+            <ul class="bars bars--hours" role="list">
+              @for (h of sessionsByType()!.byHour; track h.hour) {
+                <li class="bar-row bar-row--hour" [attr.aria-label]="h.hour + ':00 — ' + h.count + ' entradas'">
+                  <span class="bar-row__label mono">{{ h.hour | number:'2.0-0' }}:00</span>
+                  <div class="bar-row__track">
+                    <div class="bar-row__fill bar-row__fill--alt" [style.width.%]="barWidth(h.count, maxHourCount())"></div>
+                  </div>
+                  <span class="bar-row__value mono">{{ h.count }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </article>
       </section>
     }
 
@@ -372,11 +432,13 @@
           <article class="kpi" [attr.data-variant]="totalCashDiff() > 500000 ? 'warning' : 'default'" aria-label="Diferencia caja acumulada">
             <span class="kpi__label">
               Diferencia caja total
-              <span class="kpi__hint" title="Suma de faltantes y sobrantes (en valor absoluto) reportados al cerrar turno.">?</span>
+              <button type="button" class="kpi__hint" aria-label="Suma de faltantes y sobrantes (en valor absoluto) reportados al cerrar turno." title="Suma de faltantes y sobrantes (en valor absoluto) reportados al cerrar turno.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
             </span>
             <strong class="kpi__value">{{ totalCashDiff() | currencyCop }}</strong>
             @if (totalCashDiff() > 500000) {
-              <span class="kpi__detail kpi__detail--warn">⚠️ Revisar arqueos</span>
+              <span class="kpi__detail kpi__detail--warn"><lucide-angular name="TriangleAlert" [size]="14" /> Revisar arqueos</span>
             }
           </article>
         </div>
@@ -417,6 +479,90 @@
               </tbody>
             </table>
           </article>
+        }
+      </section>
+    }
+
+    <!-- ============ TAB: CIERRES DE CAJA ============ -->
+    @if (tab() === 'shifts') {
+      <section class="panel">
+        <div class="kpi-grid">
+          <article class="kpi" aria-label="Turnos cerrados en el período">
+            <span class="kpi__label">Turnos cerrados</span>
+            <strong class="kpi__value">{{ shiftsClosedCount() }}</strong>
+          </article>
+          <article class="kpi" [attr.data-variant]="totalShiftDiffCents() > 500000 ? 'warning' : 'default'" aria-label="Diferencia de caja acumulada en el período">
+            <span class="kpi__label">
+              Diferencia de caja total
+              <button type="button" class="kpi__hint" aria-label="Suma de faltantes y sobrantes (en valor absoluto) de todos los cierres del período." title="Suma de faltantes y sobrantes (en valor absoluto) de todos los cierres del período.">
+                <lucide-angular name="CircleHelp" [size]="14" />
+              </button>
+            </span>
+            <strong class="kpi__value">{{ totalShiftDiffCents() | currencyCop }}</strong>
+          </article>
+          <article class="kpi" [attr.data-variant]="largeDiffShiftsCount() > 0 ? 'warning' : 'default'" aria-label="Turnos con diferencia grande">
+            <span class="kpi__label">Con diferencia &gt; $5.000</span>
+            <strong class="kpi__value">{{ largeDiffShiftsCount() }}</strong>
+            @if (largeDiffShiftsCount() > 0) {
+              <span class="kpi__detail kpi__detail--warn"><lucide-angular name="TriangleAlert" [size]="14" /> Revisar arqueos</span>
+            }
+          </article>
+        </div>
+
+        @if (closedShifts().length === 0) {
+          <p class="empty">Sin cierres de caja en el período seleccionado.</p>
+        } @else {
+          <article class="card" aria-label="Cierres de caja del período">
+            <header class="card__head">
+              <h2>Detalle de cierres</h2>
+              <p class="card__hint">Últimos {{ closedShifts().length }} cierres del período. Filas con diferencia superior a $5.000 marcadas en ámbar.</p>
+            </header>
+            <table class="table table--shifts">
+              <caption class="visually-hidden">Cierres de caja por operador</caption>
+              <thead>
+                <tr>
+                  <th>Operador</th>
+                  <th>Apertura</th>
+                  <th>Cierre</th>
+                  <th class="num">Duración</th>
+                  <th class="num">Base apertura</th>
+                  <th class="num">Base cierre</th>
+                  <th class="num">Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of closedShifts(); track item.shift.id) {
+                  <tr [class.row--alert]="(item.shift.differenceCents ?? 0) > 500000 || (item.shift.differenceCents ?? 0) < -500000">
+                    <td>{{ item.operatorName }}</td>
+                    <td class="mono">
+                      <div class="shift-time">
+                        <span class="shift-time__date">{{ shiftDateLabel(item.shift.openedAt) }}</span>
+                        <span class="shift-time__hour">{{ shiftTimeLabel(item.shift.openedAt) }}</span>
+                      </div>
+                    </td>
+                    <td class="mono">
+                      @if (item.shift.closedAt) {
+                        <div class="shift-time">
+                          <span class="shift-time__date">{{ shiftDateLabel(item.shift.closedAt) }}</span>
+                          <span class="shift-time__hour">{{ shiftTimeLabel(item.shift.closedAt) }}</span>
+                        </div>
+                      } @else { — }
+                    </td>
+                    <td class="num mono">{{ shiftDurationLabel(item) }}</td>
+                    <td class="num mono">{{ item.shift.openingBalanceCents | currencyCop }}</td>
+                    <td class="num mono">{{ item.shift.closingBalanceCents !== null ? (item.shift.closingBalanceCents | currencyCop) : '—' }}</td>
+                    <td class="num mono" [class.diff-alert]="(item.shift.differenceCents ?? 0) > 500000 || (item.shift.differenceCents ?? 0) < -500000">
+                      {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </article>
+        }
+
+        @if (canViewFullShiftHistory()) {
+          <a routerLink="/cashier/history" class="btn-link">Ver historial completo de caja →</a>
         }
       </section>
     }

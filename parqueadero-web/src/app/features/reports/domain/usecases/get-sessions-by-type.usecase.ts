@@ -9,8 +9,10 @@ import {
   SessionsByTypeResult,
   VehicleTypeRow,
   SessionsByTypeRow,
+  HourBucket,
 } from '../repositories/report.repository';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
+import { formatTimeBogota } from '../../../../shared/utils/date.utils';
 
 const MAX_RANGE_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -51,6 +53,12 @@ export class GetSessionsByTypeUseCase extends UseCase<SessionsByTypeParams, Sess
       percentOfTotal: total > 0 ? Math.round((v.count / total) * 100) : 0,
     }));
 
-    return right({ dateFrom: params.dateFrom, dateTo: params.dateTo, totalSessions: total, byType });
+    const byHour: HourBucket[] = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+    for (const row of rows) {
+      const hour = Number(formatTimeBogota(new Date(row.entry_at), 'H'));
+      byHour[hour]!.count++;
+    }
+
+    return right({ dateFrom: params.dateFrom, dateTo: params.dateTo, totalSessions: total, byType, byHour });
   }
 }

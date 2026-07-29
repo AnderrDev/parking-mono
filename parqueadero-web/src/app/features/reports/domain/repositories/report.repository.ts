@@ -46,11 +46,18 @@ export interface VehicleTypeRow {
   percentOfTotal: number;
 }
 
+/** Conteo de entradas para una hora del día (0-23), zona Bogotá. */
+export interface HourBucket {
+  hour: number;
+  count: number;
+}
+
 export interface SessionsByTypeResult {
   dateFrom: Date;
   dateTo: Date;
   totalSessions: number;
   byType: VehicleTypeRow[];
+  byHour: HourBucket[];
 }
 
 // ── Operator performance ───────────────────────────────────────────────────────

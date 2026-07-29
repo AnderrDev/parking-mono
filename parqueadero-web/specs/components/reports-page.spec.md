@@ -25,21 +25,26 @@ desnudos, gráficos antes que tablas, descargas para llevar a contador externo.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Reportes                                  [⬇ Descargar CSV] │
+│ Reportes                                                     │
 ├─────────────────────────────────────────────────────────────┤
-│ FILTROS (sticky)                                            │
-│ Presets: [Hoy] [Semana] [Mes] [Mes pasado] [30 días] [📅]  │
-│ Personalizado: Desde [date] Hasta [date] · Agrupar: [▼]    │
-│ ☐ Comparar con período anterior                             │
+│ FILTROS (sticky)                                             │
+│ Presets: [Hoy] [Semana] [Mes] [Mes pasado] [30 días] [📅]   │
+│ Personalizado: Desde [date] Hasta [date] · Agrupar: [▼]     │
+│ ☐ Comparar con período anterior                              │
 ├─────────────────────────────────────────────────────────────┤
-│ Tabs: [Resumen contable] [Ingresos] [Vehículos] [Operadores]│
+│ Tabs: [Contable][Ingresos][Vehículos][Operadores][Caja]     │
 ├─────────────────────────────────────────────────────────────┤
-│  Contenido del tab activo                                   │
-│  - KPIs con delta vs período anterior                       │
-│  - Gráficos (CSS bars / stack)                              │
-│  - Tabla detallada (siempre disponible al final)            │
+│  Contenido del tab activo                                    │
+│  - KPIs con delta vs período anterior                        │
+│  - Gráficos (CSS bars / stack)                               │
+│  - Tabla detallada (siempre disponible al final)             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **Nota (2026-07-29)**: se quitó el botón "Descargar CSV" del header (ver
+> sección "Exportar CSV" más abajo) y se reemplazaron los emoji usados como
+> iconos de tabs/hints/deltas por el paquete `lucide-angular` (ya era
+> dependencia del proyecto, sin uso previo) — ver sección "Iconografía".
 
 ## Filtros
 
@@ -70,7 +75,6 @@ Rango actual = "Últimos 30 días" → anterior = "30 días previos a esos".
 
 KPIs principales con delta:
 - **Total cobrado** (suma de `payments.amount_cents` en el período).
-- **Total tickets** (suma de `invoices.total_cents` emitidos en el período).
 - **Ticket promedio** (cobrado / sesiones).
 - **Día más fuerte** (label + monto).
 
@@ -103,6 +107,12 @@ monto recaudado.
 
 Tabla detallada al pie con: tipo, sesiones, duración promedio, ingresos, %.
 
+**Entradas por hora del día** (agregado 2026-07-29): histograma de 24 barras
+(hora `00:00`..`23:00`, zona Bogotá) con el conteo de entradas de todo el rango
+seleccionado — identifica horas pico. Fuente: `SessionsByTypeResult.byHour`
+(ver `specs/features/reports/sessions-by-type.spec.md`), derivado 100% en el
+UseCase a partir de `entry_at`, sin consulta adicional al backend.
+
 ### 4. Operadores
 
 KPIs:
@@ -112,6 +122,40 @@ KPIs:
 
 Tabla: operador, turnos, horas, sesiones, ingresos, diferencia caja.
 Filas con diferencia > $5.000 destacadas.
+
+### 5. Cierres de caja (agregado 2026-07-29)
+
+Reutiliza `ListShiftsUseCase` de la feature `cashier` (mismo patrón de reuso
+cross-feature que ya usa `dashboard.routes.ts` con los UseCases de `reports`)
+filtrado por el mismo rango de fechas de la pantalla — sin paginación propia
+(cap de 100 turnos; para historial completo con filtros y paginación, link a
+`/cashier/history`).
+
+KPIs:
+- **Turnos cerrados** en el período.
+- **Diferencia de caja total** (suma de valores absolutos).
+- **Turnos con diferencia > $5.000** (con badge ámbar si > 0).
+
+Tabla: operador, apertura, cierre, duración, base apertura, base cierre,
+diferencia.
+- **Apertura/cierre**: fecha (`EEE dd/MM`, chica y muted) sobre hora (`HH:mm`,
+  grande y en negrita) en dos líneas — no un solo string `dd/MM/yy HH:mm`
+  plano. Feedback de usuario (2026-07-29): con todo en una línea era difícil
+  de leer y turnos consecutivos (mismo día, un cierre y la apertura siguiente
+  casi al mismo minuto — regla de caja global) se confundían con cajas
+  simultáneas. Separar fecha/hora + agregar duración explícita resuelve la
+  ambigüedad sin tener que restar mentalmente dos timestamps.
+- **Duración**: `formatDuration(durationMinutes(openedAt, closedAt))` —
+  mismos helpers de `shared/utils/date.utils.ts` usados en el resto de la app.
+
+Filas con diferencia > $5.000 destacadas (mismo umbral y estilo `.row--alert`
+que el tab "Operadores"). Pie de página con link "Ver historial completo de
+caja →" hacia `/cashier/history` — **visible solo para admin/contador**
+(`canViewFullShiftHistory`), porque esa ruta tiene
+`requireRole('admin', 'contador')` en `cashier.routes.ts` (restricción
+preexistente, no forma parte de la apertura de Reportes a los 3 roles). Un
+operador ve la tabla resumida de esta pestaña pero no el link, para no llevarlo
+a una ruta que el guard le va a rechazar.
 
 ## Lenguaje humano (mappings)
 
@@ -131,33 +175,30 @@ Filas con diferencia > $5.000 destacadas.
 | `bicicleta`  | Bicicleta   |
 | `otro`       | Otro        |
 
-### dianStatus
-| valor crudo   | etiqueta UI         |
-|---------------|---------------------|
-| `accepted`    | Aceptada            |
-| `sent`        | Enviada             |
-| `pending`     | Pendiente           |
-| `rejected`    | Rechazada           |
-| `contingency` | Contingencia        |
+> Nota: no hay mapping de `dianStatus` — facturación electrónica DIAN está
+> fuera de alcance (descartada 2026-05-20, ver `CLAUDE.md` raíz del monorepo).
 
 ## Comparativa de período
 
 El tab activo, cuando "Comparar" está ON, recalcula:
 1. Rango anterior = mismo tamaño, terminando justo antes de `dateFrom`.
 2. Llama a los mismos UseCases con el rango anterior.
-3. Muestra delta debajo del KPI: `▲ +12% ($45.000)` o `▼ −5% (−$8.000)`.
+3. Muestra delta debajo del KPI con icono `TrendingUp`/`TrendingDown` (Lucide)
+   + `+12% ($45.000)` o `−5% (−$8.000)`.
 
 Reglas visuales del delta:
-- Para métricas "más es mejor" (ingresos, sesiones, ticket): verde si ▲, rojo si ▼.
+- Para métricas "más es mejor" (ingresos, sesiones, ticket): verde si sube, rojo si baja.
 - Para métricas "menos es mejor" (diferencias caja): invertido.
 - Si período anterior = 0: mostrar "Nuevo" en lugar de % infinito.
 
 ## KPIs con tooltip
 
-Cada KPI tiene un ícono `?` (o `aria-describedby`) con explicación corta:
+Cada KPI tiene un botón `<button aria-label="...">` con icono `CircleHelp`
+(Lucide) — antes era un `<span title="...">` no accesible por teclado; ahora
+es un elemento enfocable con nombre accesible real, con `title` como fallback
+de hover:
 
 - **Total cobrado**: "Suma de todos los pagos confirmados en el período (efectivo, tarjeta y transferencia)."
-- **Total tickets**: "Suma del total de los tickets POS emitidos en el período."
 - **Ticket promedio**: "Promedio de plata recaudada por sesión cerrada."
 - **Día más fuerte**: "Día con mayor recaudo dentro del período."
 - **Diferencia caja**: "Suma de faltantes y sobrantes reportados al cerrar turno (en valor absoluto)."
@@ -182,19 +223,38 @@ Cuando el rango no devuelve datos:
 
 ## Performance
 
-- Disparar consultas en paralelo (`Promise.all`) por tab activo.
-- Tab "contable" suma 2 consultas extra (invoices); ejecutar solo cuando se
-  selecciona ese tab por primera vez (lazy por tab).
-- Comparativa: cuando se activa el toggle, dispara 1× extra del use case
-  actual con el rango anterior; cachear en memoria por (tab, rango).
+- `loadReport()` dispara ingresos + vehículos + cierres de caja en paralelo
+  (`Promise.all`) en cada carga — el tab "contable" reutiliza los datos de
+  ingresos/vehículos ya cargados, no dispara consultas propias.
+- Operadores se carga siempre (no lazy por tab) porque sus KPIs alimentan el
+  tab "Operadores" sin bloquear el resto.
+- Comparativa: cuando se activa el toggle, dispara 1× extra de ingresos y
+  vehículos con el rango anterior.
 - Skeleton mientras carga, no spinner bloqueante.
 
 ## Exportar CSV
 
-Botón en header: descarga el dataset del **tab activo** + período actual.
-- Tab Ingresos / Resumen contable → entity `payments`.
-- Tab Vehículos → entity `sessions`.
-- Tab Operadores → no expone CSV (futuro).
+Ver `specs/features/reports/export-csv.spec.md` — el botón se quitó de esta
+página (2026-07-29); el UseCase y la Edge Function siguen existiendo.
+
+## Iconografía
+
+Paquete `lucide-angular` (`LucideAngularModule.pick({...})` vía
+`importProvidersFrom` en los `providers` del componente, `LucideAngularModule`
+en `imports` para declarar `<lucide-angular>`). Sin emojis como iconos
+estructurales en ningún punto de la página:
+
+| Elemento | Icono |
+|---|---|
+| Tab Resumen contable | `ClipboardList` |
+| Tab Ingresos | `CircleDollarSign` |
+| Tab Vehículos | `Car` |
+| Tab Operadores | `Users` |
+| Tab Cierres de caja | `History` (mismo icono que el link del sidebar a `/cashier/history`) |
+| Hint de KPI (antes "?") | `CircleHelp` |
+| Delta positivo/negativo (antes ▲/▼) | `TrendingUp` / `TrendingDown` |
+| Alerta de diferencia de caja (antes ⚠️) | `TriangleAlert` |
+| Card "Entradas por hora del día" | `Clock` |
 
 ## Errores
 

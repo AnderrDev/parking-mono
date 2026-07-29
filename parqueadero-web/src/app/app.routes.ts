@@ -52,7 +52,7 @@ export const routes: Routes = [
   },
   {
     path: 'reports',
-    canActivate: [authGuard, requireRole('admin', 'contador')],
+    canActivate: [authGuard, requireRole('admin', 'contador', 'operador')],
     loadChildren: () =>
       import('./features/reports/reports.routes').then((m) => m.reportsRoutes),
   },

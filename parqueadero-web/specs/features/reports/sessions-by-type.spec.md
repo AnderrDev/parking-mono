@@ -33,6 +33,7 @@ interface SessionsByTypeResult {
   dateTo: Date;
   totalSessions: number;
   byType: VehicleTypeRow[];
+  byHour: HourBucket[];               // 24 buckets, hora 0-23, zona Bogotá
 }
 
 interface VehicleTypeRow {
@@ -41,6 +42,11 @@ interface VehicleTypeRow {
   avgDurationMinutes: number;
   revenueCents: number;
   percentOfTotal: number;             // porcentaje sobre totalSessions
+}
+
+interface HourBucket {
+  hour: number;                       // 0-23
+  count: number;                      // entradas registradas en esa hora
 }
 ```
 
@@ -51,17 +57,24 @@ interface VehicleTypeRow {
 3. `revenueCents` excluye métodos libres (`cortesia`, `error`, `mensual`).
 4. Los tipos de vehículo sin sesiones en el período **no** aparecen en `byType`.
 5. `percentOfTotal` se calcula sobre el total de sesiones de todos los tipos.
+6. `byHour` siempre trae los 24 buckets (0..23), incluso con `count = 0` — no se
+   omiten horas sin entradas (a diferencia de `byType`/`byPeriod`), porque la UI
+   grafica un histograma continuo de 24 horas.
+7. El bucket de cada fila se calcula a partir de `entry_at` convertido a hora
+   local de Bogotá (`America/Bogota`, UTC-5 fijo, sin DST) — no la hora UTC cruda.
 
 ## Flujo Principal
 
 1. Validar fechas.
 2. Consultar view `v_sessions_by_type` con filtro de rango.
 3. Calcular `totalSessions` y `percentOfTotal` por fila.
-4. Retornar `Right(result)`.
+4. Bucketizar cada fila por hora Bogotá de `entry_at` → `byHour`.
+5. Retornar `Right(result)`.
 
 ## Edge Cases
 
-- Sin sesiones en el período: `totalSessions = 0`, `byType = []`.
+- Sin sesiones en el período: `totalSessions = 0`, `byType = []`, `byHour` con
+  los 24 buckets en `count = 0`.
 - Solo un tipo de vehículo: `percentOfTotal = 100`.
 
 ## Dependencias
@@ -69,4 +82,5 @@ interface VehicleTypeRow {
 
 ## Mapping a UI
 - **Invocación**: `ReportsPage` → pestaña "Vehículos".
-- **Visualización**: tabla con columnas Tipo | Sesiones | Duración promedio | Ingresos | %.
+- **Visualización**: tabla con columnas Tipo | Sesiones | Duración promedio | Ingresos | %,
+  más un histograma de barras "Entradas por hora del día" (24 filas, hora `HH:00`).
