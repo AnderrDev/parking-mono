@@ -272,6 +272,18 @@ lucide-angular {
 }
 .muted-note { margin-left: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); font-style: italic; }
 
+// Movimientos: métodos que NO cuentan para el cuadre de efectivo (Esperado/
+// Contado) se atenúan + llevan un tag, para que se entienda de un vistazo
+// por qué no afectan la diferencia de la fila del turno.
+.method--digital, .method--free { color: var(--color-text-muted); }
+.method__tag {
+  margin-left: var(--space-2);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-disabled);
+}
+
 // Apertura/cierre de turno: fecha (chica, muted) sobre hora (grande, fuerte)
 // para que se lea de un vistazo — evita confundir turnos consecutivos
 // (mismo día, horas distintas) con cajas abiertas simultáneamente.

@@ -41,7 +41,7 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { barWidth as calcBarWidth, pctOf } from '../../../../shared/utils/chart.utils';
 import { formatBogotaDay, formatDateBogota, formatTimeBogota, durationMinutes, formatDuration } from '../../../../shared/utils/date.utils';
-import { paymentMethodLabel } from '../../../../shared/utils/payment-method.utils';
+import { paymentMethodLabel, paymentChannel, PaymentChannel } from '../../../../shared/utils/payment-method.utils';
 import { PaymentMethodStackComponent } from '../components/payment-method-stack.component';
 
 const LARGE_DIFF_CENTS = 500_000;
@@ -437,6 +437,10 @@ export class ReportsPageComponent implements OnInit {
   /** Label granular por método (Nequi, Tarjeta crédito, etc.) para la lista de movimientos — distinto de methodLabel(), que agrupa en las 4 categorías del stack de "Cómo cobrás". */
   protected movementMethodLabel(m: string): string {
     return paymentMethodLabel(m);
+  }
+  /** Canal del movimiento — solo 'cash' cuenta para el cuadre de efectivo (Esperado/Contado) de la tabla de cierres. */
+  protected movementChannel(m: string): PaymentChannel {
+    return paymentChannel(m);
   }
   protected pctOfMethodTotal(amountCents: number): number {
     return pctOf(amountCents, this.methodTotalCents());

@@ -133,20 +133,37 @@ filtrado por el mismo rango de fechas de la pantalla — sin paginación propia
 
 KPIs:
 - **Turnos cerrados** en el período.
-- **Diferencia de caja total** (suma de valores absolutos).
+- **Diferencia de efectivo** (suma de valores absolutos de `differenceCents`
+  — solo canal efectivo, ver nota de terminología abajo).
 - **Turnos con diferencia > $5.000** (con badge ámbar si > 0).
 
-Tabla: operador, apertura, cierre, duración, base apertura, base cierre,
+Tabla: operador, inicio, fin, duración, efectivo esperado, efectivo contado,
 diferencia.
-- **Apertura/cierre**: fecha (`EEE dd/MM`, chica y muted) sobre hora (`HH:mm`,
+- **Inicio/Fin**: fecha (`EEE dd/MM`, chica y muted) sobre hora (`HH:mm`,
   grande y en negrita) en dos líneas — no un solo string `dd/MM/yy HH:mm`
   plano. Feedback de usuario (2026-07-29): con todo en una línea era difícil
   de leer y turnos consecutivos (mismo día, un cierre y la apertura siguiente
   casi al mismo minuto — regla de caja global) se confundían con cajas
   simultáneas. Separar fecha/hora + agregar duración explícita resuelve la
-  ambigüedad sin tener que restar mentalmente dos timestamps.
+  ambigüedad sin tener que restar mentalmente dos timestamps. Nombrados
+  "Inicio"/"Fin" (no "Apertura"/"Cierre") para no chocar con las columnas de
+  dinero, que sí usan esos términos (base de apertura vs. saldo de cierre).
 - **Duración**: `formatDuration(durationMinutes(openedAt, closedAt))` —
   mismos helpers de `shared/utils/date.utils.ts` usados en el resto de la app.
+- **Terminología de dinero** (fix 2026-07-31, feedback "los datos del cierre
+  son confusos"): la tabla mostraba antes "Base apertura"/"Base cierre" sin
+  el **esperado** — imposible verificar de dónde salía la "Diferencia".
+  Ahora muestra `expectedBalanceCents` ("Efvo. esperado" = base de apertura +
+  efectivo cobrado en el turno, según `close-shift.spec.md` regla 4) y
+  `closingBalanceCents` ("Efvo. contado" = lo que el operador contó al
+  cerrar) — el par que efectivamente explica `differenceCents = contado −
+  esperado`. Ambas columnas y la diferencia son **solo del canal efectivo**;
+  transferencia/Nequi/Daviplata/tarjetas no pasan por el cajón (regla 3 de
+  `close-shift.spec.md`) y por eso no las mueven — aclarado en
+  `card__hint` de la tabla y en el detalle de movimientos (ver abajo).
+  `openingBalanceCents` (base de apertura cruda) se deja de mostrar en esta
+  tabla — no es necesaria para verificar la diferencia, y siete columnas ya
+  eran el límite legible; sigue disponible en `/cashier/history` si hace falta.
 
 Filas con diferencia > $5.000 destacadas (mismo umbral y estilo `.row--alert`
 que el tab "Operadores"). Pie de página con link "Ver historial completo de
@@ -174,6 +191,12 @@ al hacer clic en el cierre. Implementado como fila expandible:
   agrupadas de "Cómo cobrás"), monto, y una columna "Notas" con badge
   ámbar/rojo si el pago no está `completed` (Pendiente/Anulado) y la
   justificación si existe.
+- **Tag de canal** (fix 2026-07-31): el método de cada movimiento se atenúa
+  (`.method--digital`/`.method--free`) y lleva un tag "no cajón"/"sin cobro"
+  cuando `paymentChannel(method) !== 'cash'` — conecta visualmente esta lista
+  (que mezcla todos los métodos) con las columnas "Efvo. esperado"/"Efvo.
+  contado" de la fila padre (que son solo efectivo), para que quede claro por
+  qué un movimiento de transferencia no mueve esa diferencia.
 - **Sin placa**: `PaymentEntity` no tiene placa directa (solo `sessionId`);
   agregarla requeriría un join adicional por pago. Decisión explícita del
   usuario de no incluirla por ahora — la vista muestra hora/método/monto/notas.

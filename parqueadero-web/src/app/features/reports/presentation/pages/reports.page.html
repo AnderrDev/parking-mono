@@ -491,10 +491,10 @@
             <span class="kpi__label">Turnos cerrados</span>
             <strong class="kpi__value">{{ shiftsClosedCount() }}</strong>
           </article>
-          <article class="kpi" [attr.data-variant]="totalShiftDiffCents() > 500000 ? 'warning' : 'default'" aria-label="Diferencia de caja acumulada en el período">
+          <article class="kpi" [attr.data-variant]="totalShiftDiffCents() > 500000 ? 'warning' : 'default'" aria-label="Diferencia de efectivo acumulada en el período">
             <span class="kpi__label">
-              Diferencia de caja total
-              <button type="button" class="kpi__hint" aria-label="Suma de faltantes y sobrantes (en valor absoluto) de todos los cierres del período." title="Suma de faltantes y sobrantes (en valor absoluto) de todos los cierres del período.">
+              Diferencia de efectivo
+              <button type="button" class="kpi__hint" aria-label="Suma de faltantes y sobrantes de efectivo (contado menos esperado, en valor absoluto) de todos los cierres del período. No incluye transferencia, Nequi, Daviplata ni tarjetas — esos se verifican aparte." title="Suma de faltantes y sobrantes de efectivo (contado menos esperado) de todos los cierres. No incluye pagos digitales.">
                 <lucide-angular name="CircleHelp" [size]="14" />
               </button>
             </span>
@@ -515,18 +515,22 @@
           <article class="card" aria-label="Cierres de caja del período">
             <header class="card__head">
               <h2>Detalle de cierres</h2>
-              <p class="card__hint">Últimos {{ closedShifts().length }} cierres del período. Filas con diferencia superior a $5.000 marcadas en ámbar.</p>
+              <p class="card__hint">
+                Últimos {{ closedShifts().length }} cierres del período. Filas con diferencia superior a $5.000 marcadas en ámbar.
+                Las columnas de efectivo son solo dinero físico del cajón — <strong>esperado</strong> = base con la que abrió + efectivo cobrado en el turno;
+                <strong>contado</strong> = lo que el operador contó al cerrar. Transferencia, Nequi, Daviplata y tarjetas no pasan por el cajón — se verifican aparte y no afectan esta diferencia (ver "Movimientos" de cada turno).
+              </p>
             </header>
             <table class="table table--shifts">
               <caption class="visually-hidden">Cierres de caja por operador</caption>
               <thead>
                 <tr>
                   <th>Operador</th>
-                  <th>Apertura</th>
-                  <th>Cierre</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
                   <th class="num">Duración</th>
-                  <th class="num">Base apertura</th>
-                  <th class="num">Base cierre</th>
+                  <th class="num">Efvo. esperado</th>
+                  <th class="num">Efvo. contado</th>
                   <th class="num">Diferencia</th>
                 </tr>
               </thead>
@@ -564,7 +568,7 @@
                       } @else { — }
                     </td>
                     <td class="num mono">{{ shiftDurationLabel(item) }}</td>
-                    <td class="num mono">{{ item.shift.openingBalanceCents | currencyCop }}</td>
+                    <td class="num mono">{{ item.shift.expectedBalanceCents !== null ? (item.shift.expectedBalanceCents | currencyCop) : '—' }}</td>
                     <td class="num mono">{{ item.shift.closingBalanceCents !== null ? (item.shift.closingBalanceCents | currencyCop) : '—' }}</td>
                     <td class="num mono" [class.diff-alert]="(item.shift.differenceCents ?? 0) > 500000 || (item.shift.differenceCents ?? 0) < -500000">
                       {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
@@ -593,7 +597,12 @@
                                 @for (p of expandedShiftPayments(); track p.id) {
                                   <tr>
                                     <td class="mono">{{ shiftTimeLabel(p.paidAt) }}</td>
-                                    <td>{{ movementMethodLabel(p.method) }}</td>
+                                    <td [class.method--digital]="movementChannel(p.method) === 'digital'" [class.method--free]="movementChannel(p.method) === 'free'">
+                                      {{ movementMethodLabel(p.method) }}
+                                      @if (movementChannel(p.method) !== 'cash') {
+                                        <span class="method__tag">{{ movementChannel(p.method) === 'digital' ? 'no cajón' : 'sin cobro' }}</span>
+                                      }
+                                    </td>
                                     <td class="num mono">{{ p.amountCents | currencyCop }}</td>
                                     <td>
                                       @if (p.status !== 'completed') {
