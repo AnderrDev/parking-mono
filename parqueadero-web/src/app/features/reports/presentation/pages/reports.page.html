@@ -532,8 +532,23 @@
               </thead>
               <tbody>
                 @for (item of closedShifts(); track item.shift.id) {
-                  <tr [class.row--alert]="(item.shift.differenceCents ?? 0) > 500000 || (item.shift.differenceCents ?? 0) < -500000">
-                    <td>{{ item.operatorName }}</td>
+                  <tr
+                    class="row-shift"
+                    [class.row--alert]="(item.shift.differenceCents ?? 0) > 500000 || (item.shift.differenceCents ?? 0) < -500000"
+                    [class.row-shift--expanded]="expandedShiftId() === item.shift.id"
+                  >
+                    <td>
+                      <button
+                        type="button"
+                        class="row-shift__toggle"
+                        (click)="toggleShiftExpand(item.shift.id)"
+                        [attr.aria-expanded]="expandedShiftId() === item.shift.id"
+                        [attr.aria-label]="'Ver movimientos del turno de ' + item.operatorName"
+                      >
+                        <lucide-angular [name]="expandedShiftId() === item.shift.id ? 'ChevronDown' : 'ChevronRight'" [size]="14" />
+                        {{ item.operatorName }}
+                      </button>
+                    </td>
                     <td class="mono">
                       <div class="shift-time">
                         <span class="shift-time__date">{{ shiftDateLabel(item.shift.openedAt) }}</span>
@@ -555,6 +570,50 @@
                       {{ item.shift.differenceCents !== null ? (item.shift.differenceCents | currencyCop) : '—' }}
                     </td>
                   </tr>
+                  @if (expandedShiftId() === item.shift.id) {
+                    <tr class="row-detail">
+                      <td colspan="7">
+                        <div class="shift-movements">
+                          @if (expandedShiftLoading()) {
+                            <p class="empty">Cargando movimientos…</p>
+                          } @else if (expandedShiftPayments()?.length === 0) {
+                            <p class="empty">Sin movimientos registrados en este turno.</p>
+                          } @else {
+                            <table class="table table--compact">
+                              <caption class="visually-hidden">Movimientos del turno de {{ item.operatorName }}</caption>
+                              <thead>
+                                <tr>
+                                  <th>Hora</th>
+                                  <th>Método</th>
+                                  <th class="num">Monto</th>
+                                  <th>Notas</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                @for (p of expandedShiftPayments(); track p.id) {
+                                  <tr>
+                                    <td class="mono">{{ shiftTimeLabel(p.paidAt) }}</td>
+                                    <td>{{ movementMethodLabel(p.method) }}</td>
+                                    <td class="num mono">{{ p.amountCents | currencyCop }}</td>
+                                    <td>
+                                      @if (p.status !== 'completed') {
+                                        <span class="badge" [class.badge--danger]="p.status === 'refunded'">
+                                          {{ p.status === 'refunded' ? 'Anulado' : 'Pendiente' }}
+                                        </span>
+                                      }
+                                      @if (p.justification) {
+                                        <span class="muted-note">{{ p.justification }}</span>
+                                      }
+                                    </td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>

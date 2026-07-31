@@ -10,6 +10,9 @@ import {
   CASHIER_REPOSITORY_TOKEN,
   CASHIER_REMOTE_DATASOURCE_TOKEN,
   LIST_SHIFTS_TOKEN,
+  PAYMENT_REPOSITORY_TOKEN,
+  PAYMENT_REMOTE_DATASOURCE_TOKEN,
+  LIST_SHIFT_PAYMENTS_TOKEN,
 } from '../../core/di/injection-tokens';
 import { ReportRemoteDataSource } from './data/datasources/report-remote.datasource';
 import { ReportRepositoryImpl } from './data/repositories/report.repository.impl';
@@ -19,6 +22,9 @@ import { GetOperatorPerformanceUseCase } from './domain/usecases/get-operator-pe
 import { CashierRemoteDataSource } from '../cashier/data/datasources/cashier-remote.datasource';
 import { CashierRepositoryImpl } from '../cashier/data/repositories/cashier.repository.impl';
 import { ListShiftsUseCase } from '../cashier/domain/usecases/list-shifts.usecase';
+import { PaymentRemoteDataSource } from '../payments/data/datasources/payment-remote.datasource';
+import { PaymentRepositoryImpl } from '../payments/data/repositories/payment.repository.impl';
+import { ListShiftPaymentsUseCase } from '../payments/domain/usecases/list-shift-payments.usecase';
 
 const reportsProviders = [
   { provide: REPORT_REMOTE_DATASOURCE_TOKEN, useClass: ReportRemoteDataSource },
@@ -30,6 +36,10 @@ const reportsProviders = [
   { provide: CASHIER_REMOTE_DATASOURCE_TOKEN, useClass: CashierRemoteDataSource },
   { provide: CASHIER_REPOSITORY_TOKEN, useClass: CashierRepositoryImpl },
   { provide: LIST_SHIFTS_TOKEN, useClass: ListShiftsUseCase },
+  // Payments (reuso cross-feature para el detalle expandible de movimientos por turno)
+  { provide: PAYMENT_REMOTE_DATASOURCE_TOKEN, useClass: PaymentRemoteDataSource },
+  { provide: PAYMENT_REPOSITORY_TOKEN, useClass: PaymentRepositoryImpl },
+  { provide: LIST_SHIFT_PAYMENTS_TOKEN, useClass: ListShiftPaymentsUseCase },
 ];
 
 export const reportsRoutes: Routes = [

@@ -157,6 +157,30 @@ preexistente, no forma parte de la apertura de Reportes a los 3 roles). Un
 operador ve la tabla resumida de esta pestaña pero no el link, para no llevarlo
 a una ruta que el guard le va a rechazar.
 
+#### Detalle de movimientos por turno (agregado 2026-07-31)
+
+Feedback de usuario: sería útil ver todos los movimientos (pagos) de un turno
+al hacer clic en el cierre. Implementado como fila expandible:
+
+- El nombre del operador en cada fila es un `<button>` con icono
+  `ChevronRight`/`ChevronDown` (Lucide) que alterna `expandedShiftId`.
+- Al expandir por primera vez esa fila, carga lazy vía
+  `ListShiftPaymentsUseCase` (spec `payments/list-shift-payments`, reuso
+  cross-feature de `PaymentRepository.listByShift(shiftId)` — mismo patrón que
+  el reuso de `cashier` ya usado en esta pestaña). No se precarga para las 25
+  filas de la tabla, solo para la que el usuario abre.
+- Fila de detalle (`colspan` sobre toda la tabla) con una tabla compacta:
+  hora, método (label granular vía `paymentMethodLabel`, no las 4 categorías
+  agrupadas de "Cómo cobrás"), monto, y una columna "Notas" con badge
+  ámbar/rojo si el pago no está `completed` (Pendiente/Anulado) y la
+  justificación si existe.
+- **Sin placa**: `PaymentEntity` no tiene placa directa (solo `sessionId`);
+  agregarla requeriría un join adicional por pago. Decisión explícita del
+  usuario de no incluirla por ahora — la vista muestra hora/método/monto/notas.
+- Estados: "Cargando movimientos…" mientras carga; "Sin movimientos
+  registrados en este turno." si el turno no tuvo pagos (ej. abierto y
+  cerrado casi de inmediato).
+
 ## Lenguaje humano (mappings)
 
 ### payment.method

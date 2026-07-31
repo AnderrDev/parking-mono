@@ -13,6 +13,7 @@ import {
   LucideAngularModule, LUCIDE_ICONS, LucideIconProvider,
   ClipboardList, CircleDollarSign, Car, Users, History,
   CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
+  ChevronDown, ChevronRight,
 } from 'lucide-angular';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ReportsForms, DateRangePreset, DateRange } from '../forms/reports.forms';
@@ -21,12 +22,15 @@ import {
   GET_SESSIONS_BY_TYPE_TOKEN,
   GET_OPERATOR_PERFORMANCE_TOKEN,
   LIST_SHIFTS_TOKEN,
+  LIST_SHIFT_PAYMENTS_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { GetRevenueByPeriodUseCase } from '../../domain/usecases/get-revenue-by-period.usecase';
 import { GetSessionsByTypeUseCase } from '../../domain/usecases/get-sessions-by-type.usecase';
 import { GetOperatorPerformanceUseCase } from '../../domain/usecases/get-operator-performance.usecase';
 import { ListShiftsUseCase } from '../../../cashier/domain/usecases/list-shifts.usecase';
 import { ShiftWithOperator } from '../../../cashier/domain/repositories/cashier.repository';
+import { ListShiftPaymentsUseCase } from '../../../payments/domain/usecases/list-shift-payments.usecase';
+import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import {
   RevenueReportResult,
   SessionsByTypeResult,
@@ -37,6 +41,7 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { barWidth as calcBarWidth, pctOf } from '../../../../shared/utils/chart.utils';
 import { formatBogotaDay, formatDateBogota, formatTimeBogota, durationMinutes, formatDuration } from '../../../../shared/utils/date.utils';
+import { paymentMethodLabel } from '../../../../shared/utils/payment-method.utils';
 import { PaymentMethodStackComponent } from '../components/payment-method-stack.component';
 
 const LARGE_DIFF_CENTS = 500_000;
@@ -70,6 +75,7 @@ interface Delta {
       useValue: new LucideIconProvider({
         ClipboardList, CircleDollarSign, Car, Users, History,
         CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
+        ChevronDown, ChevronRight,
       }),
       multi: true,
     },
@@ -88,6 +94,10 @@ export class ReportsPageComponent implements OnInit {
   protected readonly sessionsByType = signal<SessionsByTypeResult | null>(null);
   protected readonly operatorPerf = signal<OperatorPerformanceResult | null>(null);
   protected readonly shiftClosures = signal<ShiftWithOperator[] | null>(null);
+  // Detalle expandible: movimientos (pagos) del turno seleccionado
+  protected readonly expandedShiftId = signal<string | null>(null);
+  protected readonly expandedShiftPayments = signal<PaymentEntity[] | null>(null);
+  protected readonly expandedShiftLoading = signal(false);
   // Datos del rango previo (cuando "Comparar" está activo)
   protected readonly revenuePrev = signal<RevenueReportResult | null>(null);
   protected readonly sessionsPrev = signal<SessionsByTypeResult | null>(null);
@@ -249,6 +259,7 @@ export class ReportsPageComponent implements OnInit {
     @Inject(GET_SESSIONS_BY_TYPE_TOKEN) private readonly sessionTypesUC: GetSessionsByTypeUseCase,
     @Inject(GET_OPERATOR_PERFORMANCE_TOKEN) private readonly operatorUC: GetOperatorPerformanceUseCase,
     @Inject(LIST_SHIFTS_TOKEN) private readonly listShiftsUC: ListShiftsUseCase,
+    @Inject(LIST_SHIFT_PAYMENTS_TOKEN) private readonly listShiftPaymentsUC: ListShiftPaymentsUseCase,
     private readonly toast: ToastService,
   ) {}
 
@@ -300,6 +311,27 @@ export class ReportsPageComponent implements OnInit {
 
   protected expandToLast30(): void {
     this.applyPreset('last30');
+  }
+
+  /** Expande/colapsa el detalle de movimientos (pagos) de un cierre de caja. */
+  protected async toggleShiftExpand(shiftId: string): Promise<void> {
+    if (this.expandedShiftId() === shiftId) {
+      this.expandedShiftId.set(null);
+      this.expandedShiftPayments.set(null);
+      return;
+    }
+    this.expandedShiftId.set(shiftId);
+    this.expandedShiftPayments.set(null);
+    this.expandedShiftLoading.set(true);
+    const result = await this.listShiftPaymentsUC.execute({ shiftId });
+    this.expandedShiftLoading.set(false);
+    result.fold(
+      (f) => {
+        this.toast.error(`Error al cargar movimientos: ${f.message}`);
+        this.expandedShiftPayments.set([]);
+      },
+      (payments) => this.expandedShiftPayments.set(payments),
+    );
   }
 
   // ── Carga ──────────────────────────────────────────────────────────────────
@@ -401,6 +433,10 @@ export class ReportsPageComponent implements OnInit {
   }
   protected vehicleLabel(v: string): string {
     return this.vehicleLabels[v] ?? v;
+  }
+  /** Label granular por método (Nequi, Tarjeta crédito, etc.) para la lista de movimientos — distinto de methodLabel(), que agrupa en las 4 categorías del stack de "Cómo cobrás". */
+  protected movementMethodLabel(m: string): string {
+    return paymentMethodLabel(m);
   }
   protected pctOfMethodTotal(amountCents: number): number {
     return pctOf(amountCents, this.methodTotalCents());

@@ -57,6 +57,7 @@ import type { PaymentRepository } from '../../features/payments/domain/repositor
 import type { PaymentDataSource } from '../../features/payments/data/datasources/payment.datasource';
 import type { RegisterPaymentUseCase } from '../../features/payments/domain/usecases/register-payment.usecase';
 import type { ListPaymentsUseCase } from '../../features/payments/domain/usecases/list-payments.usecase';
+import type { ListShiftPaymentsUseCase } from '../../features/payments/domain/usecases/list-shift-payments.usecase';
 import type { CorrectPaymentMethodUseCase } from '../../features/payments/domain/usecases/correct-payment-method.usecase';
 import type { CorrectPaymentAmountUseCase } from '../../features/payments/domain/usecases/correct-payment-amount.usecase';
 import type { VoidPaymentUseCase } from '../../features/payments/domain/usecases/void-payment.usecase';
@@ -155,6 +156,7 @@ export const PAYMENT_REPOSITORY_TOKEN = new InjectionToken<PaymentRepository>('P
 export const PAYMENT_REMOTE_DATASOURCE_TOKEN = new InjectionToken<PaymentDataSource>('PaymentRemoteDataSource');
 export const REGISTER_PAYMENT_TOKEN = new InjectionToken<RegisterPaymentUseCase>('RegisterPaymentUseCase');
 export const LIST_PAYMENTS_TOKEN = new InjectionToken<ListPaymentsUseCase>('ListPaymentsUseCase');
+export const LIST_SHIFT_PAYMENTS_TOKEN = new InjectionToken<ListShiftPaymentsUseCase>('ListShiftPaymentsUseCase');
 export const CORRECT_PAYMENT_METHOD_TOKEN = new InjectionToken<CorrectPaymentMethodUseCase>('CorrectPaymentMethodUseCase');
 export const CORRECT_PAYMENT_AMOUNT_TOKEN = new InjectionToken<CorrectPaymentAmountUseCase>('CorrectPaymentAmountUseCase');
 export const VOID_PAYMENT_TOKEN = new InjectionToken<VoidPaymentUseCase>('VoidPaymentUseCase');
