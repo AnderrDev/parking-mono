@@ -10,6 +10,7 @@ import {
   CorrectPaymentMethodParams,
   ListPaymentsParams,
   ListPaymentsResult,
+  PaymentWithVehicle,
   VoidPaymentParams,
 } from '../../domain/repositories/payment.repository';
 import { PaymentDataSource } from '../datasources/payment.datasource';
@@ -35,6 +36,10 @@ export class PaymentRepositoryImpl extends PaymentRepository {
 
   async listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>> {
     return this.remoteDs.listByShift(shiftId);
+  }
+
+  async listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>> {
+    return this.remoteDs.listByShiftWithVehicle(shiftId);
   }
 
   async sumCashByShift(shiftId: string): Promise<Either<Failure, number>> {

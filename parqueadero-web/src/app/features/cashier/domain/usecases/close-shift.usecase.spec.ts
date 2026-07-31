@@ -90,6 +90,7 @@ class MockPaymentRepository extends PaymentRepository {
     return Promise.resolve(right({ data: [] as PaymentEntity[], pagination: emptyPagination, totalCents: 0 }));
   }
   async listByShift(_shiftId: string) { return this.listByShiftResult; }
+  async listByShiftWithVehicle(_shiftId: string) { return Promise.resolve(right([])); }
   async voidPayment(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
   async correctMethod(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
   async correctAmount(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }

@@ -11,9 +11,15 @@ import {
   CorrectPaymentMethodParams,
   ListPaymentsParams,
   ListPaymentsResult,
+  PaymentWithVehicle,
   VoidPaymentParams,
 } from '../../domain/repositories/payment.repository';
 import { PaymentDataSource } from './payment.datasource';
+
+/** Fila de `payments` con el join embebido a `parking_sessions` (solo plate/entry_at, lo mínimo para el detalle de movimientos). */
+interface PaymentWithSessionRow extends PaymentModel {
+  parking_sessions: { vehicle_plate: string; entry_at: string } | null;
+}
 
 @Injectable()
 export class PaymentRemoteDataSource extends PaymentDataSource {
@@ -109,6 +115,32 @@ export class PaymentRemoteDataSource extends PaymentDataSource {
 
       if (error) return left(new ServerFailure(error.message));
       return right((data ?? []).map(PaymentMapper.toEntity));
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
+  async listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('payments')
+        .select(`
+          *,
+          parking_sessions:session_id ( vehicle_plate, entry_at )
+        `)
+        .eq('cashier_shift_id', shiftId)
+        .eq('_deleted', false)
+        .order('paid_at', { ascending: false })
+        .returns<PaymentWithSessionRow[]>();
+
+      if (error) return left(new ServerFailure(error.message));
+      return right(
+        (data ?? []).map((row) => ({
+          payment: PaymentMapper.toEntity(row),
+          plate: row.parking_sessions?.vehicle_plate ?? null,
+          entryAt: row.parking_sessions?.entry_at ? new Date(row.parking_sessions.entry_at) : null,
+        })),
+      );
     } catch {
       return left(new NetworkFailure());
     }

@@ -3,21 +3,22 @@ import { UseCase } from '../../../../core/base/usecase';
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
 import { PAYMENT_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
-import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
-import { PaymentRepository } from '../repositories/payment.repository';
+import { PaymentRepository, PaymentWithVehicle } from '../repositories/payment.repository';
 
 export interface ListShiftPaymentsParams {
   shiftId: string;
 }
 
-/** Todos los pagos de un turno, sin paginar — para el detalle expandible de un cierre de caja. */
+export type { PaymentWithVehicle };
+
+/** Todos los pagos de un turno, sin paginar, con placa/hora de entrada de la sesión asociada — para el detalle expandible de un cierre de caja. */
 @Injectable()
-export class ListShiftPaymentsUseCase extends UseCase<ListShiftPaymentsParams, PaymentEntity[]> {
+export class ListShiftPaymentsUseCase extends UseCase<ListShiftPaymentsParams, PaymentWithVehicle[]> {
   constructor(@Inject(PAYMENT_REPOSITORY_TOKEN) private readonly repo: PaymentRepository) {
     super();
   }
 
-  async execute(params: ListShiftPaymentsParams): Promise<Either<Failure, PaymentEntity[]>> {
-    return this.repo.listByShift(params.shiftId);
+  async execute(params: ListShiftPaymentsParams): Promise<Either<Failure, PaymentWithVehicle[]>> {
+    return this.repo.listByShiftWithVehicle(params.shiftId);
   }
 }

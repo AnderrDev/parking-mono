@@ -30,7 +30,7 @@ import { GetOperatorPerformanceUseCase } from '../../domain/usecases/get-operato
 import { ListShiftsUseCase } from '../../../cashier/domain/usecases/list-shifts.usecase';
 import { ShiftWithOperator } from '../../../cashier/domain/repositories/cashier.repository';
 import { ListShiftPaymentsUseCase } from '../../../payments/domain/usecases/list-shift-payments.usecase';
-import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
+import { PaymentWithVehicle } from '../../../payments/domain/repositories/payment.repository';
 import {
   RevenueReportResult,
   SessionsByTypeResult,
@@ -96,7 +96,7 @@ export class ReportsPageComponent implements OnInit {
   protected readonly shiftClosures = signal<ShiftWithOperator[] | null>(null);
   // Detalle expandible: movimientos (pagos) del turno seleccionado
   protected readonly expandedShiftId = signal<string | null>(null);
-  protected readonly expandedShiftPayments = signal<PaymentEntity[] | null>(null);
+  protected readonly expandedShiftPayments = signal<PaymentWithVehicle[] | null>(null);
   protected readonly expandedShiftLoading = signal(false);
   // Datos del rango previo (cuando "Comparar" está activo)
   protected readonly revenuePrev = signal<RevenueReportResult | null>(null);
@@ -441,6 +441,14 @@ export class ReportsPageComponent implements OnInit {
   /** Canal del movimiento — solo 'cash' cuenta para el cuadre de efectivo (Esperado/Contado) de la tabla de cierres. */
   protected movementChannel(m: string): PaymentChannel {
     return paymentChannel(m);
+  }
+  /** Hora de entrada del vehículo (sesión asociada al pago) — '—' si el pago no viene de una sesión (ej. mensualidad). */
+  protected movementEntryLabel(p: PaymentWithVehicle): string {
+    return p.entryAt ? this.shiftTimeLabel(p.entryAt) : '—';
+  }
+  /** Cuánto estuvo parqueado el vehículo antes de este pago (entrada → hora del pago). */
+  protected movementDurationLabel(p: PaymentWithVehicle): string {
+    return p.entryAt ? formatDuration(durationMinutes(p.entryAt, p.payment.paidAt)) : '—';
   }
   protected pctOfMethodTotal(amountCents: number): number {
     return pctOf(amountCents, this.methodTotalCents());

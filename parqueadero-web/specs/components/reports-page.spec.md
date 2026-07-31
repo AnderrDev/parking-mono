@@ -183,23 +183,31 @@ al hacer clic en el cierre. Implementado como fila expandible:
   `ChevronRight`/`ChevronDown` (Lucide) que alterna `expandedShiftId`.
 - Al expandir por primera vez esa fila, carga lazy vía
   `ListShiftPaymentsUseCase` (spec `payments/list-shift-payments`, reuso
-  cross-feature de `PaymentRepository.listByShift(shiftId)` — mismo patrón que
-  el reuso de `cashier` ya usado en esta pestaña). No se precarga para las 25
-  filas de la tabla, solo para la que el usuario abre.
-- Fila de detalle (`colspan` sobre toda la tabla) con una tabla compacta:
-  hora, método (label granular vía `paymentMethodLabel`, no las 4 categorías
-  agrupadas de "Cómo cobrás"), monto, y una columna "Notas" con badge
-  ámbar/rojo si el pago no está `completed` (Pendiente/Anulado) y la
-  justificación si existe.
-- **Tag de canal** (fix 2026-07-31): el método de cada movimiento se atenúa
+  cross-feature de `PaymentRepository.listByShiftWithVehicle(shiftId)` —
+  mismo patrón que el reuso de `cashier` ya usado en esta pestaña). No se
+  precarga para las 25 filas de la tabla, solo para la que el usuario abre.
+- Fila de detalle (`colspan` sobre toda la tabla) con una tabla compacta,
+  columnas: **Placa | Entrada | Tiempo parqueado | Hora pago | Método |
+  Monto | Notas**.
+  - Placa/Entrada vienen del join a `parking_sessions` (spec
+    `payments/list-shift-payments`); "—" si el pago no tiene sesión asociada
+    (ej. mensualidad).
+  - Tiempo parqueado = `durationMinutes(entryAt, payment.paidAt)` +
+    `formatDuration`, calculado en el componente (`movementDurationLabel`).
+  - Método: label granular vía `paymentMethodLabel` (no las 4 categorías
+    agrupadas de "Cómo cobrás").
+  - Notas: badge ámbar/rojo si el pago no está `completed`
+    (Pendiente/Anulado) + justificación si existe.
+- **Tag de canal**: el método de cada movimiento se atenúa
   (`.method--digital`/`.method--free`) y lleva un tag "no cajón"/"sin cobro"
   cuando `paymentChannel(method) !== 'cash'` — conecta visualmente esta lista
   (que mezcla todos los métodos) con las columnas "Efvo. esperado"/"Efvo.
   contado" de la fila padre (que son solo efectivo), para que quede claro por
   qué un movimiento de transferencia no mueve esa diferencia.
-- **Sin placa**: `PaymentEntity` no tiene placa directa (solo `sessionId`);
-  agregarla requeriría un join adicional por pago. Decisión explícita del
-  usuario de no incluirla por ahora — la vista muestra hora/método/monto/notas.
+- **Con placa** (agregado 2026-07-31, revirtiendo la decisión inicial de
+  omitirla): feedback de usuario pidiendo ver "el porqué de las entradas, la
+  placa y el tiempo" — la placa y la duración parqueada dan el contexto
+  completo de cada movimiento sin salir de esta vista.
 - Estados: "Cargando movimientos…" mientras carga; "Sin movimientos
   registrados en este turno." si el turno no tuvo pagos (ej. abierto y
   cerrado casi de inmediato).

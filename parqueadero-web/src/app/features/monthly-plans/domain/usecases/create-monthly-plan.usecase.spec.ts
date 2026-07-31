@@ -103,6 +103,7 @@ class MockPaymentRepository extends PaymentRepository {
   async create(params: CreatePaymentParams) { this.capturedCreate = params; return this.createResult; }
   async list(_params: unknown) { return Promise.resolve(right({ data: [] as PaymentEntity[], pagination: emptyPagination, totalCents: 0 })); }
   async listByShift(_id: string) { return Promise.resolve(right([] as PaymentEntity[])); }
+  async listByShiftWithVehicle(_id: string) { return Promise.resolve(right([])); }
   async sumCashByShift(_id: string) { return Promise.resolve(right(0)); }
   async voidPayment(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
   async correctMethod(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }

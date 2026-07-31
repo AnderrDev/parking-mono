@@ -587,31 +587,37 @@
                               <caption class="visually-hidden">Movimientos del turno de {{ item.operatorName }}</caption>
                               <thead>
                                 <tr>
-                                  <th>Hora</th>
+                                  <th>Placa</th>
+                                  <th>Entrada</th>
+                                  <th class="num">Tiempo parqueado</th>
+                                  <th>Hora pago</th>
                                   <th>Método</th>
                                   <th class="num">Monto</th>
                                   <th>Notas</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                @for (p of expandedShiftPayments(); track p.id) {
+                                @for (p of expandedShiftPayments(); track p.payment.id) {
                                   <tr>
-                                    <td class="mono">{{ shiftTimeLabel(p.paidAt) }}</td>
-                                    <td [class.method--digital]="movementChannel(p.method) === 'digital'" [class.method--free]="movementChannel(p.method) === 'free'">
-                                      {{ movementMethodLabel(p.method) }}
-                                      @if (movementChannel(p.method) !== 'cash') {
-                                        <span class="method__tag">{{ movementChannel(p.method) === 'digital' ? 'no cajón' : 'sin cobro' }}</span>
+                                    <td class="mono">{{ p.plate ?? '—' }}</td>
+                                    <td class="mono">{{ movementEntryLabel(p) }}</td>
+                                    <td class="num mono">{{ movementDurationLabel(p) }}</td>
+                                    <td class="mono">{{ shiftTimeLabel(p.payment.paidAt) }}</td>
+                                    <td [class.method--digital]="movementChannel(p.payment.method) === 'digital'" [class.method--free]="movementChannel(p.payment.method) === 'free'">
+                                      {{ movementMethodLabel(p.payment.method) }}
+                                      @if (movementChannel(p.payment.method) !== 'cash') {
+                                        <span class="method__tag">{{ movementChannel(p.payment.method) === 'digital' ? 'no cajón' : 'sin cobro' }}</span>
                                       }
                                     </td>
-                                    <td class="num mono">{{ p.amountCents | currencyCop }}</td>
+                                    <td class="num mono">{{ p.payment.amountCents | currencyCop }}</td>
                                     <td>
-                                      @if (p.status !== 'completed') {
-                                        <span class="badge" [class.badge--danger]="p.status === 'refunded'">
-                                          {{ p.status === 'refunded' ? 'Anulado' : 'Pendiente' }}
+                                      @if (p.payment.status !== 'completed') {
+                                        <span class="badge" [class.badge--danger]="p.payment.status === 'refunded'">
+                                          {{ p.payment.status === 'refunded' ? 'Anulado' : 'Pendiente' }}
                                         </span>
                                       }
-                                      @if (p.justification) {
-                                        <span class="muted-note">{{ p.justification }}</span>
+                                      @if (p.payment.justification) {
+                                        <span class="muted-note">{{ p.payment.justification }}</span>
                                       }
                                     </td>
                                   </tr>

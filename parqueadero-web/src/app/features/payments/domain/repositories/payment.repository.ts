@@ -28,6 +28,13 @@ export interface ListPaymentsResult {
   totalCents: number;
 }
 
+/** Pago enriquecido con la placa/hora de entrada de la sesión asociada (join, no persistido en PaymentEntity). */
+export interface PaymentWithVehicle {
+  payment: PaymentEntity;
+  plate: string | null;
+  entryAt: Date | null;
+}
+
 export interface VoidPaymentParams {
   paymentId: string;
   reason: string;
@@ -50,6 +57,7 @@ export abstract class PaymentRepository {
   abstract create(params: CreatePaymentParams): Promise<Either<Failure, PaymentEntity>>;
   abstract list(params: ListPaymentsParams): Promise<Either<Failure, ListPaymentsResult>>;
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
+  abstract listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
   abstract correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>>;
   abstract correctAmount(params: CorrectPaymentAmountParams): Promise<Either<Failure, PaymentEntity>>;
