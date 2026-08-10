@@ -104,6 +104,11 @@ export class ReportsPageComponent implements OnInit {
 
   protected filterForm!: FormGroup;
 
+  /** Granularidad del gráfico de ingresos, derivada del tamaño del rango
+   *  (≤31 días → día, ≤182 → semana, más → mes). Antes era un select
+   *  "Agrupar por" que obligaba al usuario a decidir algo sin criterio. */
+  protected readonly appliedGroupBy = signal<GroupBy>('day');
+
   // ── Diccionarios humanos ────────────────────────────────────────────────────
   protected readonly methodLabels: Record<string, string> = {
     cash: 'Efectivo',
@@ -373,7 +378,8 @@ export class ReportsPageComponent implements OnInit {
       dateFrom: this.filterForm.value.dateFrom,
       dateTo: this.filterForm.value.dateTo,
     };
-    const groupBy: GroupBy = this.filterForm.value.groupBy as GroupBy;
+    const groupBy = this.autoGroupBy(range);
+    this.appliedGroupBy.set(groupBy);
     const compare = !!this.filterForm.value.compare;
     const role = this.auth.role() ?? 'operador';
 
@@ -435,6 +441,17 @@ export class ReportsPageComponent implements OnInit {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  private autoGroupBy(range: DateRange): GroupBy {
+    const parse = (iso: string): Date => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y!, m! - 1, d!, 12, 0, 0, 0);
+    };
+    const days = Math.round((parse(range.dateTo).getTime() - parse(range.dateFrom).getTime()) / 86_400_000) + 1;
+    if (days <= 31) return 'day';
+    if (days <= 182) return 'week';
+    return 'month';
+  }
+
   private toUtcRange(range: DateRange): { from: Date; to: Date } {
     return {
       from: new Date(range.dateFrom + 'T00:00:00-05:00'),

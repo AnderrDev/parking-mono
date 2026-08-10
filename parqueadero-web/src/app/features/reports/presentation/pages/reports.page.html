@@ -40,14 +40,6 @@
           (change)="onCustomDateChange()"
         />
       </label>
-      <label class="field">
-        <span>Agrupar por</span>
-        <select formControlName="groupBy" (change)="loadReport()">
-          <option value="day">Día</option>
-          <option value="week">Semana</option>
-          <option value="month">Mes</option>
-        </select>
-      </label>
       <button type="button" class="btn-refresh" (click)="loadReport()" [disabled]="loading() || dateRangeInvalid()">
         <lucide-angular name="RefreshCw" [size]="15" />
         {{ loading() ? 'Cargando…' : 'Actualizar' }}
@@ -267,7 +259,7 @@
         <article class="card" aria-label="Ingresos por período">
           <header class="card__head">
             <h2>Ingresos por período</h2>
-            <p class="card__hint">Cada barra representa el recaudo de ese {{ filterForm.value.groupBy === 'day' ? 'día' : filterForm.value.groupBy === 'week' ? 'semana' : 'mes' }}.</p>
+            <p class="card__hint">Cada barra representa el recaudo de {{ appliedGroupBy() === 'day' ? 'un día' : appliedGroupBy() === 'week' ? 'una semana' : 'un mes' }} (agrupado automáticamente según el tamaño del rango).</p>
           </header>
           @if (revenue()!.byPeriod.length === 0) {
             <p class="empty">Sin datos en el rango.</p>

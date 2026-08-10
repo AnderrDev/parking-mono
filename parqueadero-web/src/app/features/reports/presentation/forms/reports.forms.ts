@@ -15,12 +15,11 @@ export interface DateRange {
 export class ReportsForms {
   constructor(private readonly fb: FormBuilder) {}
 
-  createReportFilterForm(defaults: { dateFrom: string; dateTo: string; groupBy?: string; preset?: DateRangePreset; compare?: boolean }): FormGroup {
+  createReportFilterForm(defaults: { dateFrom: string; dateTo: string; preset?: DateRangePreset; compare?: boolean }): FormGroup {
     return this.fb.group({
       preset: [defaults.preset ?? 'last30'],
       dateFrom: [defaults.dateFrom, Validators.required],
       dateTo: [defaults.dateTo, Validators.required],
-      groupBy: [defaults.groupBy ?? 'day'],
       compare: [defaults.compare ?? false],
     });
   }
