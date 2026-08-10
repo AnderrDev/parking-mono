@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Inject, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Inject, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { AsyncPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -203,6 +203,17 @@ export class AppComponent {
   ) {}
 
   protected readonly currentUser = this.authState.currentUser;
+
+  /** Sheet "Más" (móvil): expone el grupo Administración que la bottom-nav no alcanza a mostrar. */
+  protected readonly moreMenuOpen = signal(false);
+
+  protected toggleMoreMenu(): void {
+    this.moreMenuOpen.update((open) => !open);
+  }
+
+  protected closeMoreMenu(): void {
+    this.moreMenuOpen.set(false);
+  }
 
   protected readonly showShell = toSignal(
     this.router.events.pipe(

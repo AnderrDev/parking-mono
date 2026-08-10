@@ -187,3 +187,18 @@ h3 {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+// -----------------------------------------------------------------------------
+// Móvil: las tablas "crudas" (class .table en páginas) scrollean horizontal
+// dentro de su card en vez de desbordar la página. La data-table compartida
+// ya se convierte en cards vía container query — esta regla no la afecta
+// (display: block coincide con su modo card).
+// -----------------------------------------------------------------------------
+@media (max-width: 640px) {
+  table.table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

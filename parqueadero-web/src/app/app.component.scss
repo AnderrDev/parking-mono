@@ -206,6 +206,14 @@
   text-transform: capitalize;
 }
 
+// Botón "Más" y sheet de administración: solo existen en móvil (≤640px);
+// en desktop/tablet el grupo Administración vive en el sidebar normal.
+.sidebar__more,
+.more-sheet,
+.more-sheet__backdrop {
+  display: none;
+}
+
 // =============================================================================
 // Main area
 // =============================================================================
@@ -360,7 +368,7 @@
   .header__action { padding: var(--space-2); }
 }
 
-// Móvil — bottom navigation (sólo grupo principal)
+// Móvil — bottom navigation (grupo principal + botón "Más" para Administración)
 @media (max-width: 640px) {
   .shell {
     flex-direction: column;
@@ -368,7 +376,9 @@
 
   .sidebar {
     width: 100%;
-    height: var(--bottomnav-height);
+    // Safe area: en iPhone el home indicator se superpone a la barra sin esto.
+    height: calc(var(--bottomnav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     position: fixed;
     bottom: 0;
     left: 0;
@@ -379,7 +389,9 @@
     box-shadow: 0 -4px 12px rgb(15 23 42 / 0.06);
     flex-direction: row;
     z-index: var(--z-sidebar);
-    padding: 0;
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .sidebar__brand,
@@ -398,10 +410,38 @@
 
   .sidebar__group {
     flex-direction: row;
-    flex: 1;
+    flex: 4;  // ~4 items del grupo principal; el botón "Más" (flex: 1) queda del mismo ancho que cada tab
     height: 100%;
 
-    &:nth-child(2) { display: none; }  // Admin oculto en móvil
+    // Admin no cabe como tabs — se accede por el botón "Más" (sheet)
+    &:nth-child(2) { display: none; }
+  }
+
+  // Tab "Más": mismo look que un item de la bottom-nav
+  .sidebar__more {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--space-2) var(--space-1);
+    min-height: var(--bottomnav-height);
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-weight: var(--font-weight-medium);
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+
+    &--active { color: var(--color-accent); }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: -2px;
+    }
   }
 
   .sidebar__list {
@@ -449,10 +489,109 @@
     &:hover { background: transparent; }
   }
 
-  .sidebar__label { display: block; }
+  .sidebar__label {
+    display: block;
+    max-width: 100%;  // "Mensualidades" y similares se truncan en vez de desbordar el tab
+  }
 
   .main-wrap {
-    padding-bottom: var(--bottomnav-height);
+    padding-bottom: calc(var(--bottomnav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  // ── Sheet "Más": administración + cuenta, ancla sobre la bottom-nav ──
+  .more-sheet__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgb(15 23 42 / 0.4);
+    z-index: calc(var(--z-sidebar) - 1);
+    animation: fade-in var(--motion-fast) var(--ease-out);
+  }
+
+  .more-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--bottomnav-height) + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - var(--header-height) - var(--bottomnav-height));
+    overflow-y: auto;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: var(--shadow-3);
+    padding: var(--space-4);
+    z-index: var(--z-sidebar);
+    animation: slide-up var(--motion-base) var(--ease-out);
+
+    // El media ≤1024 esconde .user-chip__info (modo rail) — acá sí se muestra
+    .user-chip__info { display: flex; }
+    .user-chip { background: var(--color-bg-subtle); justify-content: flex-start; padding: var(--space-2) var(--space-3); }
+  }
+
+  .more-sheet__title {
+    margin: 0 0 var(--space-2);
+    font-size: 11px;
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  .more-sheet__list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .more-sheet__link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-target-min);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+
+    svg { flex-shrink: 0; color: var(--color-text-muted); }
+
+    &--active {
+      border-color: var(--color-accent);
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+      svg { color: var(--color-accent); }
+    }
+
+    &--danger {
+      color: var(--color-danger);
+      svg { color: var(--color-danger); }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  .more-sheet__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-4);
   }
 
   .header {
