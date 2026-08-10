@@ -13,7 +13,7 @@ import {
   LucideAngularModule, LUCIDE_ICONS, LucideIconProvider,
   ClipboardList, CircleDollarSign, Car, Users, History,
   CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, RefreshCw,
 } from 'lucide-angular';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ReportsForms, DateRangePreset, DateRange } from '../forms/reports.forms';
@@ -75,7 +75,7 @@ interface Delta {
       useValue: new LucideIconProvider({
         ClipboardList, CircleDollarSign, Car, Users, History,
         CircleHelp, TrendingUp, TrendingDown, TriangleAlert, Clock,
-        ChevronDown, ChevronRight,
+        ChevronDown, ChevronRight, RefreshCw,
       }),
       multi: true,
     },
@@ -128,8 +128,10 @@ export class ReportsPageComponent implements OnInit {
     custom: 'Personalizado',
   };
 
+  // 'custom' no es chip: editar las fechas activa ese modo solo. 'last30' quedó
+  // reservado al botón "Ampliar a últimos 30 días" de los estados vacíos.
   protected readonly presetOptions: DateRangePreset[] = [
-    'today', 'week', 'month', 'lastMonth', 'last30', 'custom',
+    'today', 'week', 'month', 'lastMonth',
   ];
 
   // ── Computed: KPIs ──────────────────────────────────────────────────────────
@@ -142,11 +144,30 @@ export class ReportsPageComponent implements OnInit {
     return !!this.filterForm?.value?.compare;
   }
 
+  /** Mensaje de error del rango, o null si es consultable. */
+  protected rangeErrorMsg(): string | null {
+    const v = this.filterForm?.value as { dateFrom?: string; dateTo?: string } | undefined;
+    if (!v?.dateFrom || !v?.dateTo) return 'Selecciona ambas fechas para consultar.';
+    if (v.dateFrom > v.dateTo) return 'La fecha "Desde" debe ser anterior o igual a "Hasta".';
+    return null;
+  }
+
   /** true cuando el rango de fechas del formulario no es consultable (vacío o desde > hasta). */
   protected dateRangeInvalid(): boolean {
+    return this.rangeErrorMsg() !== null;
+  }
+
+  /** Resumen legible del rango en pantalla: "sáb 12 jul → sáb 09 ago · 30 días". */
+  protected rangeSummary(): string {
     const v = this.filterForm?.value as { dateFrom?: string; dateTo?: string } | undefined;
-    if (!v?.dateFrom || !v?.dateTo) return true;
-    return v.dateFrom > v.dateTo;
+    if (!v?.dateFrom || !v?.dateTo) return '';
+    if (v.dateFrom === v.dateTo) return formatBogotaDay(v.dateFrom);
+    const parse = (iso: string): Date => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y!, m! - 1, d!, 12, 0, 0, 0);
+    };
+    const days = Math.round((parse(v.dateTo).getTime() - parse(v.dateFrom).getTime()) / 86_400_000) + 1;
+    return `${formatBogotaDay(v.dateFrom)} → ${formatBogotaDay(v.dateTo)} · ${days} días`;
   }
 
   protected readonly totalRevenueCents = computed(() => this.revenue()?.totalRevenueCents ?? 0);
@@ -264,7 +285,9 @@ export class ReportsPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const initialPreset: DateRangePreset = 'last30';
+    // "Este mes" como default: es el rango natural de la vista contable
+    // (antes era "últimos 30 días", un corte arbitrario difícil de cuadrar).
+    const initialPreset: DateRangePreset = 'month';
     const range = this.reportsForms.rangeForPreset(initialPreset)!;
     this.filterForm = this.reportsForms.createReportFilterForm({
       dateFrom: range.dateFrom,
@@ -293,8 +316,10 @@ export class ReportsPageComponent implements OnInit {
     }
   }
 
+  /** Editar una fecha = modo personalizado; consulta de una vez si el rango es válido. */
   protected onCustomDateChange(): void {
     this.filterForm.patchValue({ preset: 'custom' }, { emitEvent: false });
+    if (!this.dateRangeInvalid()) void this.loadReport();
   }
 
   protected toggleCompare(): void {
@@ -303,10 +328,10 @@ export class ReportsPageComponent implements OnInit {
     void this.loadReport();
   }
 
+  // Cambiar de tab NO re-consulta: loadReport() ya trae los datos de todos los
+  // tabs para el rango vigente; volver a pedirlos aquí solo repetía queries.
   protected setTab(t: Tab): void {
-    if (t === this.tab()) return;
     this.tab.set(t);
-    void this.loadReport();
   }
 
   protected expandToLast30(): void {
@@ -337,12 +362,12 @@ export class ReportsPageComponent implements OnInit {
   // ── Carga ──────────────────────────────────────────────────────────────────
   async loadReport(): Promise<void> {
     if (!this.filterForm || this.filterForm.invalid) return;
-    if (this.dateRangeInvalid()) {
-      this.errorMsg.set('La fecha "Desde" debe ser anterior o igual a "Hasta".');
-      return;
-    }
+    if (this.dateRangeInvalid()) return; // el error se muestra inline en los filtros
     this.loading.set(true);
     this.errorMsg.set(null);
+    // Un turno expandido puede no existir en el nuevo rango — colapsar.
+    this.expandedShiftId.set(null);
+    this.expandedShiftPayments.set(null);
 
     const range: DateRange = {
       dateFrom: this.filterForm.value.dateFrom,

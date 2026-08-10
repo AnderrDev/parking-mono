@@ -14,9 +14,11 @@
           type="button"
           class="preset"
           [class.preset--active]="filterForm.value.preset === p"
+          [attr.aria-pressed]="filterForm.value.preset === p"
           (click)="applyPreset(p)"
         >{{ presetLabels[p] }}</button>
       }
+      <span class="filters__custom-hint">o elige las fechas a mano:</span>
     </div>
 
     <div class="filters__row">
@@ -46,8 +48,9 @@
           <option value="month">Mes</option>
         </select>
       </label>
-      <button type="button" class="btn-primary" (click)="loadReport()" [disabled]="loading() || dateRangeInvalid()">
-        {{ loading() ? 'Cargando…' : 'Consultar' }}
+      <button type="button" class="btn-refresh" (click)="loadReport()" [disabled]="loading() || dateRangeInvalid()">
+        <lucide-angular name="RefreshCw" [size]="15" />
+        {{ loading() ? 'Cargando…' : 'Actualizar' }}
       </button>
 
       <label class="compare-toggle">
@@ -61,9 +64,11 @@
     </div>
 
     @if (dateRangeInvalid()) {
-      <p class="error" role="alert">La fecha "Desde" debe ser anterior o igual a "Hasta".</p>
+      <p class="error" role="alert">{{ rangeErrorMsg() }}</p>
     } @else if (errorMsg()) {
       <p class="error" role="alert">{{ errorMsg() }}</p>
+    } @else {
+      <p class="filters__status">Mostrando: <strong>{{ rangeSummary() }}</strong></p>
     }
   </section>
 
