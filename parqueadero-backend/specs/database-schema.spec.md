@@ -84,23 +84,25 @@ INDEXES:
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 name TEXT NOT NULL
 vehicle_type TEXT NOT NULL CHECK (vehicle_type IN ('carro', 'moto', 'bicicleta', 'otro'))
-unit TEXT NOT NULL CHECK (unit IN ('minuto', 'hora', 'fraccion', 'dia', 'mensualidad'))
-  -- Para parking: el `unit` deja de gobernar el cobro (queda como etiqueta).
-  -- Para `mensualidad`: sigue rigiendo (planes mensuales usan value_cents).
+unit TEXT NOT NULL CHECK (unit IN ('minuto', 'hora', 'fraccion', 'dia', 'mensualidad', 'quincena'))
+  -- Rotación (minuto/hora/fraccion/dia): el `unit` deja de gobernar el cobro
+  -- (queda como etiqueta); manda el tiered pricing.
+  -- Planes prepagados (`mensualidad` 30 días, `quincena` 15 días, esta última
+  -- desde 00041): manda `value_cents` = precio del periodo completo.
 value_cents BIGINT NOT NULL CHECK (value_cents > 0)
-  -- DEPRECADO para parking (lo reemplazan los 3 cents por tier).
-  -- Vigente para `mensualidad` = precio mensual del plan.
+  -- DEPRECADO para rotación (lo reemplazan los 3 cents por tier).
+  -- Vigente para los planes = precio del periodo completo.
 grace_minutes INTEGER NOT NULL DEFAULT 0
 daily_cap_cents BIGINT NOT NULL CHECK (daily_cap_cents > 0)
   -- DEPRECADO para parking. Se mantiene como espejo de plena_cents para back-compat.
 
 -- NUEVOS (tiered pricing, migration 00021):
 per_minute_cents BIGINT
-  -- Valor por minuto. NOT NULL cuando unit != 'mensualidad'.
+  -- Valor por minuto. NOT NULL salvo en unidades de plan.
 per_hour_cents BIGINT
-  -- Valor por hora completa (se cobra ceil(min/60)). NOT NULL si unit != 'mensualidad'.
+  -- Valor por hora completa (se cobra ceil(min/60)). NOT NULL salvo en planes.
 plena_cents BIGINT
-  -- Tope absoluto por sesión (día completo). NOT NULL si unit != 'mensualidad'.
+  -- Tope absoluto por sesión (día completo). NOT NULL salvo en planes.
 
 schedule_json JSONB NOT NULL DEFAULT '{"lunes": "07:00-22:00"}'
 valid_from DATE
@@ -111,18 +113,24 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 _deleted BOOLEAN NOT NULL DEFAULT FALSE
 
 CONSTRAINTS:
-  - CHECK: unit = 'mensualidad' OR (per_minute_cents IS NOT NULL AND per_hour_cents IS NOT NULL AND plena_cents IS NOT NULL)
-  - CHECK: unit = 'mensualidad' OR (per_minute_cents > 0 AND per_hour_cents > 0 AND plena_cents > 0)
-  - CHECK: unit = 'mensualidad' OR per_hour_cents <= per_minute_cents * 60
+  -- `PLANES` = unit IN ('mensualidad','quincena'). Quedan exentas de todo lo
+  -- que es propio del cobro por tiempo. Ajustado en 00042: antes la exención
+  -- era solo para 'mensualidad' y la quincena no se podía insertar.
+  - CHECK: unit IN PLANES OR (per_minute_cents IS NOT NULL AND per_hour_cents IS NOT NULL AND plena_cents IS NOT NULL)
+  - CHECK: unit IN PLANES OR (per_minute_cents > 0 AND per_hour_cents > 0 AND plena_cents > 0)
+  - CHECK: unit IN PLANES OR per_hour_cents <= per_minute_cents * 60
     -- la hora no puede ser más cara que 60 minutos sueltos (cliente-friendly)
-  - CHECK: unit = 'mensualidad' OR plena_cents <= per_hour_cents * 24
+  - CHECK: unit IN PLANES OR plena_cents <= per_hour_cents * 24
     -- la plena no puede superar 24h de la tarifa hora
 
 INDEXES:
   - INDEX(is_active)
   - INDEX(vehicle_type)
-  - UNIQUE(vehicle_type) WHERE is_active=true AND _deleted=false AND unit != 'mensualidad'
-    -- una sola tarifa de parking activa por tipo de vehículo
+  - UNIQUE(vehicle_type) WHERE is_active=true AND _deleted=false AND unit NOT IN PLANES
+    -- una sola tarifa de rotación activa por tipo de vehículo
+  - UNIQUE(vehicle_type, unit) WHERE is_active=true AND _deleted=false AND unit IN PLANES
+    -- un solo precio activo por plan y tipo (00043). Mensualidad y quincena
+    -- conviven para el mismo vehículo; dos mensualidades no.
 ```
 
 **Semántica de cobro**: ver `specs/tariffs-pricing.spec.md`. El cliente paga el **MIN** de tres cálculos (minuto / hora redondeada / plena), nunca más que `plena_cents`.
@@ -173,7 +181,33 @@ INDEXES:
   - INDEX(customer_id)
   - INDEX(status)
   - INDEX(end_date) WHERE status='active'
+
+CONSTRAINTS:
+  - CHECK (end_date >= start_date)
+  - EXCLUDE USING gist (vehicle_plate WITH =,
+                        daterange(start_date, end_date, '[]') WITH &&)
+      WHERE (_deleted = false AND status IN ('active','expiring'))
+    -- monthly_plans_no_overlap (00040). Materializa "una placa = una
+    -- mensualidad vigente". Un UNIQUE no sirve: lo que no puede repetirse
+    -- es el SOLAPAMIENTO de fechas, y renovar por anticipado con rangos
+    -- consecutivos tiene que seguir siendo posible. Requiere btree_gist.
 ```
+
+**Ciclo de vida del status.** `refresh_monthly_plan_statuses()` (00040) pasa
+los planes a `expired` cuando `end_date < hoy` y a `expiring` cuando faltan
+≤ 5 días, siempre contra la fecha civil de Colombia. La corre pg_cron con el
+job `refresh-monthly-plan-statuses` a las 05:10 UTC (00:10 en Bogotá); es
+idempotente y se puede ejecutar a mano. Ningún cliente escribe `expired`.
+
+**Duración del plan.** No hay columna de duración: un plan de quincena y uno
+mensual se distinguen únicamente por `end_date - start_date` (15 o 30 días).
+El precio de cada duración vive en `tariffs` con `unit = 'quincena'` o
+`'mensualidad'` — ver `tariffs-pricing.spec.md`.
+
+**Venta.** `create_monthly_plan_with_payment()` (00040, SECURITY INVOKER)
+inserta el plan y su `payments` en una sola transacción. El pago va con
+`session_id = NULL` y `gateway_ref = 'monthly_plan:<id>'`, el único vínculo
+entre ingreso y plan.
 
 ### 7. `invoices`
 

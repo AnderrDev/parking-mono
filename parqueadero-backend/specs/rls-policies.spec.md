@@ -221,13 +221,21 @@ FOR SELECT USING (auth.jwt() ->> 'role' IN ('admin', 'contador'));
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Búsqueda por documento (lectura) | No | No | No |
+| operador | Búsqueda por documento (lectura) | Sí (ver 00038) | No | No |
 | contador | Todo (lectura) | No | No | No |
+
+> **00038 (2026-08-11):** el operador puede INSERTAR clientes. El diálogo de
+> venta de mensualidad crea el cliente inline cuando la placa pertenece a
+> alguien que aún no está en la base. Sigue sin poder editarlos ni borrarlos.
 
 ```sql
 -- Operador busca clientes
 CREATE POLICY "operador_read_customers" ON customers
 FOR SELECT USING (auth.jwt() ->> 'role' = 'operador');
+
+-- Operador crea clientes al vender una mensualidad (00038)
+CREATE POLICY customers_operador_insert ON customers
+FOR INSERT WITH CHECK ((auth.jwt() ->> 'user_role') = 'operador');
 
 -- Contador y admin leen todo
 CREATE POLICY "admin_contador_read" ON customers
@@ -261,13 +269,42 @@ FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
 | Rol | SELECT | INSERT | UPDATE | DELETE |
 |---|---|---|---|---|
 | admin | Todo | Sí | Todo | Sí (soft) |
-| operador | Búsqueda por placa (lectura) | No | No | No |
+| operador | Búsqueda por placa (lectura) | Sí (ver 00038) | Sí (ver 00038) | No |
 | contador | Todo (lectura) | No | No | No |
+
+> **00045 (2026-08-11):** las 4 vistas (`v_revenue_daily`, `v_sessions_by_type`,
+> `v_operator_performance`, `v_audit_log`) pasaron a `security_invoker = on`.
+> Antes resolvían permisos como su dueño `postgres` (BYPASSRLS), así que las
+> policies de las tablas base NO se evaluaban y cualquier usuario logueado
+> leía todo — incluido el audit log completo desde un operador. Ahora cada
+> vista aplica las policies de quien consulta. Para que los reportes del
+> operador no se vaciaran se le dio `users_operador_read_active` (lista de
+> usuarios activos), que las tres vistas de reportes necesitan para resolver
+> el nombre del operador vía JOIN.
+>
+> Verificado por rol: admin y contador ven las 4 vistas completas; el
+> operador ve reportes completos y **0 filas** de `v_audit_log`. `anon` sigue
+> sin acceso (00039).
+
+> **00038 (2026-08-11):** vender una mensualidad es una operación de caja que
+> ocurre en el mostrador, contra el turno abierto del operador, y su ingreso
+> ya se registra en `payments` vía `payments_operador_insert_own_shift`. Por
+> eso el operador puede INSERTAR planes y ACTUALIZARLOS (renovar vigencia y
+> cancelar, que es soft-delete `_deleted = true` desde la misma pantalla).
+> El DELETE físico sigue vedado: todo borrado es lógico y queda en `audit_log`.
 
 ```sql
 -- Operador busca planes
 CREATE POLICY "operador_search_plans" ON monthly_plans
 FOR SELECT USING (auth.jwt() ->> 'role' = 'operador');
+
+-- Operador vende y mantiene planes (00038)
+CREATE POLICY monthly_plans_operador_insert ON monthly_plans
+FOR INSERT WITH CHECK ((auth.jwt() ->> 'user_role') = 'operador');
+
+CREATE POLICY monthly_plans_operador_update ON monthly_plans
+FOR UPDATE USING ((auth.jwt() ->> 'user_role') = 'operador')
+WITH CHECK ((auth.jwt() ->> 'user_role') = 'operador');
 
 -- Contador y admin leen
 CREATE POLICY "contador_admin_read" ON monthly_plans

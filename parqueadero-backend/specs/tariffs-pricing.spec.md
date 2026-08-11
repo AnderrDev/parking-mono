@@ -5,7 +5,7 @@
 
 ## Descripción
 
-Una sola tarifa activa por `vehicle_type` (excepto mensualidades, ver más abajo). La tarifa expone **tres valores independientes**:
+Una sola tarifa activa por `vehicle_type` (excepto las tarifas de plan, ver más abajo). La tarifa expone **tres valores independientes**:
 
 - `per_minute_cents` — valor del minuto suelto
 - `per_hour_cents` — valor de cada hora completa
@@ -89,11 +89,32 @@ Hay una discontinuidad en `dur = 60` que favorece al cliente:
 
 Esto es válido porque C5 garantiza `per_hour ≤ 60 × per_minute` — la hora completa siempre es igual o más barata que 60 min sueltos.
 
-## Mensualidad
+## Tarifas de plan (mensualidad y quincena)
 
-`unit='mensualidad'` es un tipo de tarifa **distinto**: representa el precio mensual de un plan, no un cobro por sesión. Sigue usando `value_cents` (precio del mes) y los 3 campos tiered quedan en NULL. Una sesión asociada a una mensualidad activa cobra $0.
+Hay dos unidades que **no** son cobros por sesión sino el precio de un plan
+prepagado por un periodo fijo:
 
-El UNIQUE de "una tarifa por vehicle_type" **excluye** mensualidad — pueden coexistir una tarifa de parking y una de mensualidad para el mismo `vehicle_type`.
+| unit | Periodo | Desde |
+|---|---|---|
+| `mensualidad` | 30 días | 00013 |
+| `quincena` | 15 días | 00041 (2026-08-11) |
+
+Ambas usan `value_cents` como precio del periodo completo y dejan los 3
+campos de tiered pricing en NULL. Una sesión cubierta por un plan vigente
+cobra $0.
+
+**Categorías de unicidad.** Solo puede haber una tarifa de rotación activa
+por `vehicle_type` (si hubiera dos, el cobro tomaría "cualquiera"). Los
+planes, en cambio, son productos distintos entre sí: para un mismo
+`vehicle_type` pueden convivir una mensualidad y una quincena activas, pero
+no dos mensualidades. Ver C7 y C8.
+
+> **Al agregar una unidad de plan nueva** hay que tocar los cuatro lugares
+> que definen la frontera plan/rotación, o el plan se cobrará como parqueo
+> por tiempo: el CHECK `tariffs_unit_check`, el CHECK
+> `tariffs_parking_requires_tiered`, los índices únicos parciales, y la
+> constante `PLAN_TARIFF_UNITS` en `parking/domain/entities/tariff.entity.ts`
+> (de la que sale el filtro de todas las consultas del front).
 
 ## Lookup desde el app
 
@@ -104,23 +125,28 @@ SELECT * FROM tariffs
 WHERE vehicle_type = $1
   AND is_active = true
   AND _deleted = false
-  AND unit != 'mensualidad'
+  AND unit NOT IN ('mensualidad', 'quincena')
 LIMIT 1;
 ```
 
-Como hay UNIQUE en (vehicle_type) para parking activas, el resultado es determinista.
+Como hay UNIQUE en (vehicle_type) para rotación activa, el resultado es determinista.
+
+`getActivePlanTariff(vehicle_type, unit)` hace el lookup del precio de un
+plan filtrando por la unidad exacta (`mensualidad` o `quincena`). Si no hay
+tarifa configurada devuelve null y quien vende digita el monto a mano.
 
 ## Validaciones backend (constraints)
 
 | # | Constraint | Razón |
 |---|---|---|
-| C1 | `per_minute_cents IS NOT NULL` cuando `unit != 'mensualidad'` | parking necesita los 3 valores |
-| C2 | `per_hour_cents IS NOT NULL` cuando `unit != 'mensualidad'` | idem |
-| C3 | `plena_cents IS NOT NULL` cuando `unit != 'mensualidad'` | idem |
+| C1 | `per_minute_cents IS NOT NULL` cuando `unit NOT IN ('mensualidad','quincena')` | rotación necesita los 3 valores |
+| C2 | `per_hour_cents IS NOT NULL` cuando `unit NOT IN ('mensualidad','quincena')` | idem |
+| C3 | `plena_cents IS NOT NULL` cuando `unit NOT IN ('mensualidad','quincena')` | idem |
 | C4 | Los 3 > 0 | no se acepta tarifa cero |
 | C5 | `per_hour_cents <= per_minute_cents * 60` | hora ≤ 60 min sueltos (favorece cliente al cruce horario) |
 | C6 | `plena_cents <= per_hour_cents * 24` | plena ≤ 24h. Nota: idealmente sería `≤ 12 × per_hour` (la plena cubre un ciclo de 12 h); endurecerlo requiere migration y validar tarifas existentes — pendiente. |
-| C7 | UNIQUE `(vehicle_type)` WHERE `is_active=true AND _deleted=false AND unit != 'mensualidad'` | una sola parking activa por tipo |
+| C7 | UNIQUE `(vehicle_type)` WHERE `is_active=true AND _deleted=false AND unit NOT IN ('mensualidad','quincena')` | una sola tarifa de rotación activa por tipo (ajustada en 00043) |
+| C8 | UNIQUE `(vehicle_type, unit)` WHERE `is_active=true AND _deleted=false AND unit IN ('mensualidad','quincena')` | un solo precio activo por plan y tipo; mensualidad y quincena conviven (00043) |
 
 `grace_minutes` se conserva con valor por defecto 0; la UI no lo expone y el cálculo no lo consulta.
 
