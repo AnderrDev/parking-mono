@@ -26,7 +26,16 @@ export interface RevenueReportResult {
   dateTo: Date;
   groupBy: GroupBy;
   totalRevenueCents: number;
+  /**
+   * Parte del total que viene de venta de planes (mensualidad o quincena),
+   * es decir pagos sin sesión asociada. Se expone aparte porque esos
+   * ingresos NO aparecen en el reporte por tipo de vehículo: un plan no
+   * tiene tipo, así que sumar esa tabla nunca da el total.
+   */
+  planRevenueCents: number;
+  /** Cobros de parqueo por tiempo. Es `totalSessions` sin las ventas de plan. */
   totalSessions: number;
+  planSalesCount: number;
   byPeriod: RevenuePeriod[];
   byMethod: { method: string; amountCents: number; count: number }[];
 }

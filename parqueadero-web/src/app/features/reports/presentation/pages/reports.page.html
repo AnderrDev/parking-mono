@@ -123,6 +123,12 @@
               </button>
             </span>
             <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
+            @if (hasPlanRevenue()) {
+              <span class="kpi__note">
+                Incluye {{ planRevenueCents() | currencyCop }} de {{ planSalesCount() }}
+                {{ planSalesCount() === 1 ? 'plan vendido' : 'planes vendidos' }}
+              </span>
+            }
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
                 @if (revenueDelta().isNew) { Nuevo período }
@@ -192,6 +198,12 @@
               </button>
             </span>
             <strong class="kpi__value">{{ totalRevenueCents() | currencyCop }}</strong>
+            @if (hasPlanRevenue()) {
+              <span class="kpi__note">
+                Incluye {{ planRevenueCents() | currencyCop }} de {{ planSalesCount() }}
+                {{ planSalesCount() === 1 ? 'plan vendido' : 'planes vendidos' }}
+              </span>
+            }
             @if (compareEnabled()) {
               <span class="kpi__delta" [class.kpi__delta--good]="deltaIsGood(revenueDelta(), true)" [class.kpi__delta--bad]="!deltaIsGood(revenueDelta(), true)">
                 @if (revenueDelta().isNew) { Nuevo período }
@@ -367,7 +379,7 @@
           <table class="table">
             <caption class="visually-hidden">Detalle por tipo de vehículo</caption>
             <thead>
-              <tr><th>Tipo</th><th class="num">Sesiones</th><th class="num">Duración prom.</th><th class="num">Ingresos</th><th class="num">%</th></tr>
+              <tr><th>Tipo</th><th class="num">Sesiones</th><th class="num">Duración prom.</th><th class="num">Ingresos por rotación</th><th class="num">%</th></tr>
             </thead>
             <tbody>
               @for (row of sessionsByType()!.byType; track row.vehicleType) {
@@ -381,6 +393,15 @@
               }
             </tbody>
           </table>
+          @if (hasPlanRevenue()) {
+            <p class="table__note">
+              Esta tabla cubre solo el parqueo por tiempo. Las
+              {{ planSalesCount() }} ventas de plan
+              ({{ planRevenueCents() | currencyCop }}) no aparecen aquí porque
+              un plan no se asocia a un tipo de vehículo, así que esta columna
+              no suma el «Total cobrado».
+            </p>
+          }
         </details>
 
         <!-- Gráfico: entradas por hora del día -->

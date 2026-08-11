@@ -1,17 +1,15 @@
 import { Inject, Injectable } from '@angular/core';
-import { Either, left, right } from '../../../../core/either/either';
+import { Either, left } from '../../../../core/either/either';
 import { Failure, ValidationFailure, BusinessRuleFailure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
 import {
   MONTHLY_PLAN_REPOSITORY_TOKEN,
   CUSTOMER_REPOSITORY_TOKEN,
   CASHIER_REPOSITORY_TOKEN,
-  PAYMENT_REPOSITORY_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import { CustomerRepository } from '../../../customers/domain/repositories/customer.repository';
 import { CashierRepository } from '../../../cashier/domain/repositories/cashier.repository';
-import { PaymentRepository } from '../../../payments/domain/repositories/payment.repository';
 import { MonthlyPlanRepository, CreateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
 import { isValidPlate, normalizePlate } from '../../../../shared/utils/plate.utils';
 
@@ -23,7 +21,6 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
     @Inject(MONTHLY_PLAN_REPOSITORY_TOKEN) private readonly repo: MonthlyPlanRepository,
     @Inject(CUSTOMER_REPOSITORY_TOKEN) private readonly customerRepo: CustomerRepository,
     @Inject(CASHIER_REPOSITORY_TOKEN) private readonly cashierRepo: CashierRepository,
-    @Inject(PAYMENT_REPOSITORY_TOKEN) private readonly paymentRepo: PaymentRepository,
   ) { super(); }
 
   async execute(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
@@ -64,9 +61,6 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
     if (endDate <= startDate) {
       return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio'));
     }
-    if (params.autoRenew && !params.paymentTokenId) {
-      return left(new ValidationFailure('Se requiere un token de pago para habilitar la renovación automática'));
-    }
 
     const customerResult = await this.customerRepo.findById(params.customerId);
     if (customerResult.isLeft()) return customerResult as Either<Failure, never>;
@@ -74,34 +68,20 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
       return left(new ValidationFailure('Cliente no encontrado'));
     }
 
+    // Chequeo temprano solo para dar un mensaje claro antes de ir al
+    // servidor. La garantía real es la constraint `monthly_plans_no_overlap`,
+    // que la RPC traduce a `plan_overlap`: entre este SELECT y el INSERT
+    // cabe otra venta de la misma placa.
     const hasActive = await this.repo.hasActivePlanForPlate(plate);
     if (hasActive.isLeft()) return hasActive as Either<Failure, never>;
     if (hasActive.value) {
       return left(new BusinessRuleFailure(`La placa ${plate} ya tiene un plan activo que se solapa con las fechas indicadas`));
     }
 
-    const planResult = await this.repo.create({ ...params, vehiclePlate: plate });
-    if (planResult.isLeft()) return planResult;
-    const plan = planResult.value;
-
-    // Registrar el ingreso en `payments` ligado al shift abierto. Si esto
-    // falla, el plan ya fue creado (caso degenerado documentado en spec).
-    // Mejora futura: RPC `create_plan_with_payment` para atomicidad real.
-    const paymentResult = await this.paymentRepo.create({
-      sessionId: null,
-      cashierShiftId: shift.id,
-      method: params.paymentMethod,
-      amountCents: params.amountCents,
-      invoiceId: null,
-      gatewayRef: `monthly_plan:${plan.id}`,
-    });
-    if (paymentResult.isLeft()) {
-      // No bloqueamos el éxito del plan; logueamos el problema al caller
-      // como warning vía un wrap. Por simplicidad, devolvemos plan OK y
-      // documentamos. El admin puede registrar el pago manualmente.
-      console.warn('[CreateMonthlyPlan] Payment failed for plan', plan.id, paymentResult.value);
-    }
-
-    return right(plan);
+    // Plan e ingreso en una sola transacción: o quedan ambos, o ninguno.
+    // Antes se insertaban por separado y el fallo del pago se tragaba con
+    // un console.warn, dejando la mensualidad vendida y la plata fuera de
+    // la caja sin ningún rastro visible.
+    return this.repo.createWithPayment({ ...params, vehiclePlate: plate }, shift.id);
   }
 }

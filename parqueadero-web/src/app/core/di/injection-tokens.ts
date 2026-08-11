@@ -26,7 +26,7 @@ import type { ListTariffsUseCase } from '../../features/tariffs/domain/usecases/
 import type { CreateTariffUseCase } from '../../features/tariffs/domain/usecases/create-tariff.usecase';
 import type { UpdateTariffUseCase } from '../../features/tariffs/domain/usecases/update-tariff.usecase';
 import type { DeactivateTariffUseCase } from '../../features/tariffs/domain/usecases/deactivate-tariff.usecase';
-import type { GetActiveMonthlyTariffUseCase } from '../../features/tariffs/domain/usecases/get-active-monthly-tariff.usecase';
+import type { GetActivePlanTariffUseCase } from '../../features/tariffs/domain/usecases/get-active-plan-tariff.usecase';
 import type { CustomerRepository } from '../../features/customers/domain/repositories/customer.repository';
 import type { CustomerDataSource } from '../../features/customers/data/datasources/customer.datasource';
 import type { ListCustomersUseCase } from '../../features/customers/domain/usecases/list-customers.usecase';
@@ -115,7 +115,7 @@ export const LIST_TARIFFS_TOKEN = new InjectionToken<ListTariffsUseCase>('ListTa
 export const CREATE_TARIFF_TOKEN = new InjectionToken<CreateTariffUseCase>('CreateTariffUseCase');
 export const UPDATE_TARIFF_TOKEN = new InjectionToken<UpdateTariffUseCase>('UpdateTariffUseCase');
 export const DEACTIVATE_TARIFF_TOKEN = new InjectionToken<DeactivateTariffUseCase>('DeactivateTariffUseCase');
-export const GET_ACTIVE_MONTHLY_TARIFF_TOKEN = new InjectionToken<GetActiveMonthlyTariffUseCase>('GetActiveMonthlyTariffUseCase');
+export const GET_ACTIVE_PLAN_TARIFF_TOKEN = new InjectionToken<GetActivePlanTariffUseCase>('GetActivePlanTariffUseCase');
 
 // ── Customers ────────────────────────────────────────────────────────────────
 export const CUSTOMER_REPOSITORY_TOKEN = new InjectionToken<CustomerRepository>('CustomerRepository');

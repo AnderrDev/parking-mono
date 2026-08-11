@@ -45,7 +45,6 @@
         @case ('startDate') { {{ row.startDate | date:'dd/MM/yyyy' }} }
         @case ('endDate') { {{ row.endDate | date:'dd/MM/yyyy' }} }
         @case ('amountCents') { {{ row.amountCents | currencyCop }} }
-        @case ('autoRenew') { {{ row.autoRenew ? 'Sí' : 'No' }} }
         @case ('status') {
           <span class="badge" [class]="statusBadge(row.status)">
             {{ statusLabel(row.status) }}

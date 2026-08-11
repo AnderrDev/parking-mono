@@ -194,8 +194,17 @@
 
           @if (r.monthlyPlan) {
             <div class="search-result__row">
-              <span class="search-result__label">Plan vence:</span>
-              <span class="search-result__value">{{ formatDateShort(r.monthlyPlan.endDate) }}</span>
+              @if (r.monthlyPlan.isCurrentlyActive) {
+                <span class="search-result__label">Plan vence:</span>
+                <span class="search-result__value">{{ formatDateShort(r.monthlyPlan.endDate) }}</span>
+              } @else {
+                <!-- Sin esta distinción el operador lee "Plan vence: <fecha
+                     pasada>" y asume que el vehículo está cubierto. -->
+                <span class="search-result__label">Mensualidad:</span>
+                <span class="search-result__value search-result__value--danger">
+                  VENCIDA el {{ formatDateShort(r.monthlyPlan.endDate) }}
+                </span>
+              }
             </div>
           }
         </div>

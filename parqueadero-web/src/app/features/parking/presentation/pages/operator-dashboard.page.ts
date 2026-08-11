@@ -348,7 +348,9 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       case 'hora': return t.valueCents;
       case 'fraccion': return t.valueCents * 2;
       case 'dia': return Math.round(t.valueCents / 24);
-      case 'mensualidad': return 0;  // No aplica per-hour para mensualidad.
+      // Los planes prepagados no tienen equivalente por hora.
+      case 'mensualidad':
+      case 'quincena': return 0;
     }
   }
 
@@ -358,7 +360,8 @@ export class OperatorDashboardPageComponent implements OnInit, OnDestroy {
       case 'hora': return Math.round(t.valueCents / 60);
       case 'fraccion': return Math.round(t.valueCents / 30);
       case 'dia': return Math.round(t.valueCents / 1440);
-      case 'mensualidad': return 0;
+      case 'mensualidad':
+      case 'quincena': return 0;
     }
   }
 

@@ -177,9 +177,26 @@ export class ReportsPageComponent implements OnInit {
 
   protected readonly totalRevenueCents = computed(() => this.revenue()?.totalRevenueCents ?? 0);
   protected readonly totalSessions = computed(() => this.revenue()?.totalSessions ?? 0);
+
+  /**
+   * Ingresos por venta de planes (mensualidad/quincena). Van aparte porque
+   * no son sesiones de parqueo y no aparecen en el desglose por tipo de
+   * vehículo: sin esto, "Total cobrado" y la tabla por tipo mostraban dos
+   * cifras distintas sin ninguna explicación en pantalla.
+   */
+  protected readonly planRevenueCents = computed(() => this.revenue()?.planRevenueCents ?? 0);
+  protected readonly planSalesCount = computed(() => this.revenue()?.planSalesCount ?? 0);
+  protected readonly hasPlanRevenue = computed(() => this.planSalesCount() > 0);
+  /** Lo cobrado solo por rotación: es lo que suma la tabla por tipo. */
+  protected readonly rotationRevenueCents = computed(
+    () => this.totalRevenueCents() - this.planRevenueCents(),
+  );
+
   protected readonly avgTicketCents = computed(() => {
     const sessions = this.totalSessions();
-    return sessions > 0 ? Math.round(this.totalRevenueCents() / sessions) : 0;
+    // Ticket promedio de parqueo: sobre ingresos de rotación y sesiones
+    // reales. Mezclar la venta de planes lo inflaba.
+    return sessions > 0 ? Math.round(this.rotationRevenueCents() / sessions) : 0;
   });
 
   protected readonly revenueDelta = computed<Delta>(() =>

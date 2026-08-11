@@ -1,4 +1,5 @@
 import { MonthlyPlanEntity, MonthlyPlanStatus } from '../../domain/entities/monthly-plan.entity';
+import { parseIsoDateOnly } from '../../../../shared/utils/date.utils';
 
 export interface MonthlyPlanModel {
   id: string;
@@ -25,8 +26,10 @@ export class MonthlyPlanMapper {
       m.vehicle_plate,
       m.customer_id,
       m.status as MonthlyPlanStatus,
-      new Date(m.start_date),
-      new Date(m.end_date),
+      // `start_date` / `end_date` son DATE: días de calendario, sin hora ni
+      // zona. Anclarlos a la medianoche local (ver `parseIsoDateOnly`).
+      parseIsoDateOnly(m.start_date),
+      parseIsoDateOnly(m.end_date),
       m.plan_type,
       m.amount_cents ?? 0,
       m.auto_renew ?? false,

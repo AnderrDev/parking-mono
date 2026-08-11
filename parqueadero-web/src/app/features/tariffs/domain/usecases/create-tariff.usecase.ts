@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@angular/core';
 import { Either, left } from '../../../../core/either/either';
 import { Failure, ValidationFailure, BusinessRuleFailure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
-import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { TariffEntity, isPlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { TariffRepository, CreateTariffParams } from '../repositories/tariff.repository';
 import { TARIFF_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
 
@@ -28,11 +28,11 @@ export class CreateTariffUseCase extends UseCase<CreateTariffParams, TariffEntit
     if (!Number.isInteger(params.dailyCapCents) || params.dailyCapCents <= 0) {
       return left(new ValidationFailure('El tope diario debe ser un entero mayor a 0', 'dailyCapCents'));
     }
-    const isMonthly = params.unit === 'mensualidad';
+    const isPlan = isPlanTariffUnit(params.unit);
 
     // Tiered pricing (S4). Para parking, los 3 valores son obligatorios y
     // deben cumplir las constraints C4-C6 del backend (ver `tariffs-pricing.spec.md`).
-    if (!isMonthly) {
+    if (!isPlan) {
       const { perMinuteCents, perHourCents, plenaCents } = params;
       if (!Number.isInteger(perMinuteCents) || (perMinuteCents as number) <= 0) {
         return left(new ValidationFailure('Valor por minuto debe ser entero > 0', 'perMinuteCents'));
@@ -58,15 +58,17 @@ export class CreateTariffUseCase extends UseCase<CreateTariffParams, TariffEntit
       return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio', 'validTo'));
     }
 
-    // Una sola tarifa activa por (tipo de vehículo, categoría parking|mensualidad).
-    // Sin esta validación, el sistema tomaría "cualquiera" al cobrar.
-    const sameCatResult = await this.repo.existsActiveSameCategory(params.vehicleType, isMonthly);
+    // Una sola tarifa activa por (tipo de vehículo, categoría). Las
+    // categorías son rotación y cada plan por separado: mensualidad y
+    // quincena conviven, pero no dos mensualidades. Sin esta validación el
+    // sistema tomaría "cualquiera" al cobrar.
+    const sameCatResult = await this.repo.existsActiveSameCategory(params.vehicleType, params.unit);
     if (sameCatResult.isLeft()) return sameCatResult as Either<Failure, never>;
     if (sameCatResult.fold(() => false, exists => exists)) {
-      const cat = isMonthly ? 'mensualidad' : 'parking';
+      const cat = isPlan ? params.unit : 'rotación';
       return left(new BusinessRuleFailure(
         `Ya existe una tarifa activa de ${cat} para ${params.vehicleType}. ` +
-        `Desactivá la actual antes de crear una nueva.`
+        `Desactiva la actual antes de crear una nueva.`
       ));
     }
 

@@ -10,7 +10,7 @@
 
 import { Injectable, inject } from '@angular/core';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
-import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { TariffEntity, PLAN_UNITS_FILTER } from '../../domain/entities/tariff.entity';
 import {
   ExitReceiptPrintData,
   TicketRendererPort,
@@ -101,6 +101,7 @@ const UNIT_LABEL: Record<TariffEntity['unit'], string> = {
   fraccion: 'fracción',
   dia: 'día',
   mensualidad: 'mes',
+  quincena: 'quincena',
 };
 
 /** Tiempo de vida del cache en memoria para parking_info y tarifas (ms). */
@@ -178,7 +179,7 @@ export class TicketRendererService extends TicketRendererPort {
         .from('tariffs')
         .select('*')
         .eq('is_active', true)
-        .neq('unit', 'mensualidad');
+        .not('unit', 'in', PLAN_UNITS_FILTER);
       if (!data) return [];
       const tariffs = data.map((row: Record<string, unknown>) => new TariffEntity(
         row['id'] as string,

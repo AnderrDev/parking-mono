@@ -20,8 +20,6 @@ export interface CreateMonthlyPlanParams {
   startDate: Date;
   endDate: Date;
   amountCents: number;
-  autoRenew?: boolean;
-  paymentTokenId?: string | null;
   /**
    * Método de pago con que el cliente pagó la mensualidad. El use case
    * registra un row en `payments` ligado al `cashier_shift_id` activo
@@ -32,19 +30,36 @@ export interface CreateMonthlyPlanParams {
   userId: string;
 }
 
+/**
+ * Qué pasó con la plata al cancelar. `paymentKeptClosedShift` significa que
+ * el ingreso NO se anuló porque su turno ya está cerrado: el cuadre de ese
+ * día ya se firmó y la devolución se maneja aparte.
+ */
+export interface CancelPlanOutcome {
+  paymentRefunded: boolean;
+  paymentKeptClosedShift: boolean;
+}
+
 export interface UpdateMonthlyPlanParams {
   id: string;
   endDate?: Date;
-  autoRenew?: boolean;
-  paymentTokenId?: string | null;
   amountCents?: number;
 }
 
 export abstract class MonthlyPlanRepository {
   abstract list(params: ListMonthlyPlansParams): Promise<Either<Failure, { data: MonthlyPlanEntity[]; pagination: PaginationMeta }>>;
   abstract findById(id: string): Promise<Either<Failure, MonthlyPlanEntity>>;
-  abstract create(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>>;
+  /**
+   * Vende la mensualidad: crea el plan y registra su ingreso en la caja
+   * del turno indicado, en una sola transacción del servidor. No existe
+   * una variante que solo cree el plan: separarlos fue lo que permitió que
+   * un plan quedara vendido sin que la plata entrara a caja.
+   */
+  abstract createWithPayment(
+    params: CreateMonthlyPlanParams,
+    shiftId: string,
+  ): Promise<Either<Failure, MonthlyPlanEntity>>;
   abstract update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>>;
-  abstract cancel(id: string): Promise<Either<Failure, void>>;
+  abstract cancel(id: string): Promise<Either<Failure, CancelPlanOutcome>>;
   abstract hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>>;
 }

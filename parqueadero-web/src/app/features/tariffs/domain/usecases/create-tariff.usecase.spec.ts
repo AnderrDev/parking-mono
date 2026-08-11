@@ -26,10 +26,10 @@ class MockTariffRepository extends TariffRepository {
   async existsActive(_name: string, _type: unknown, _excludeId?: string) {
     return this.existsActiveResult;
   }
-  async existsActiveSameCategory(_type: unknown, _isMonthly: boolean, _excludeId?: string) {
+  async existsActiveSameCategory(_type: unknown, _unit: unknown, _excludeId?: string) {
     return Promise.resolve(right(false));
   }
-  async getActiveMonthlyTariff(_type: unknown) { return Promise.resolve(right(null as TariffEntity | null)); }
+  async getActivePlanTariff(_type: unknown, _unit: unknown) { return Promise.resolve(right(null as TariffEntity | null)); }
   async create(params: CreateTariffParams) {
     this.capturedCreateParams = params;
     return this.createResult;

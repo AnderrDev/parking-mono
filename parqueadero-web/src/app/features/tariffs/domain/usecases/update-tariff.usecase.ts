@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@angular/core';
 import { Either, left } from '../../../../core/either/either';
 import { Failure, ValidationFailure, BusinessRuleFailure, NotFoundFailure } from '../../../../core/either/failures';
 import { UseCase } from '../../../../core/base/usecase';
-import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { TariffEntity, isPlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { TariffRepository, UpdateTariffParams } from '../repositories/tariff.repository';
 import { TARIFF_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
 
@@ -64,9 +64,9 @@ export class UpdateTariffUseCase extends UseCase<UpdateTariffUseCaseParams, Tari
 
     const valueCents = fields.valueCents ?? tariff.valueCents;
     const dailyCapCents = fields.dailyCapCents ?? tariff.dailyCapCents;
-    const isMonthly = tariff.unit === 'mensualidad';
+    const isPlan = isPlanTariffUnit(tariff.unit);
 
-    if (!isMonthly) {
+    if (!isPlan) {
       // Constraints cliente-friendly C5/C6 sobre el estado resultante:
       const perMinute = fields.perMinuteCents ?? tariff.perMinuteCents;
       const perHour   = fields.perHourCents   ?? tariff.perHourCents;
@@ -82,15 +82,16 @@ export class UpdateTariffUseCase extends UseCase<UpdateTariffUseCaseParams, Tari
     }
 
     // Si reactivamos una tarifa que estaba inactiva, asegurar que no
-    // colisione con otra activa de la misma categoría (parking|mensualidad).
+    // colisione con otra activa de la misma categoría (rotación, o el
+    // mismo tipo de plan).
     if (fields.isActive === true && !tariff.isActive) {
-      const sameCatResult = await this.repo.existsActiveSameCategory(tariff.vehicleType, isMonthly, id);
+      const sameCatResult = await this.repo.existsActiveSameCategory(tariff.vehicleType, tariff.unit, id);
       if (sameCatResult.isLeft()) return sameCatResult as Either<Failure, never>;
       if (sameCatResult.fold(() => false, exists => exists)) {
-        const cat = isMonthly ? 'mensualidad' : 'parking';
+        const cat = isPlan ? tariff.unit : 'rotación';
         return left(new BusinessRuleFailure(
           `Ya existe una tarifa activa de ${cat} para ${tariff.vehicleType}. ` +
-          `Desactivá la actual antes de reactivar esta.`
+          `Desactiva la actual antes de reactivar esta.`
         ));
       }
     }

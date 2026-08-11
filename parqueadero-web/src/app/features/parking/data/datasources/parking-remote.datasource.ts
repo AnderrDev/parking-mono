@@ -6,7 +6,7 @@ import { PaginationMeta as Pagination } from '../../../../shared/models/paginati
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { VehicleEntity } from '../../domain/entities/vehicle.entity';
 import { MonthlyPlanEntity } from '../../domain/entities/monthly-plan.entity';
-import { TariffEntity } from '../../domain/entities/tariff.entity';
+import { TariffEntity, PLAN_UNITS_FILTER } from '../../domain/entities/tariff.entity';
 import {
   RegisterEntryParams,
   RegisterExitParams,
@@ -23,6 +23,7 @@ import { ParkingSessionMapper, ParkingSessionModel } from '../models/parking-ses
 import { VehicleMapper, VehicleModel } from '../models/vehicle.model';
 import { VehicleHistoryStats } from '../../domain/entities/vehicle-history-stats.entity';
 import { MonthlyPlanMapper, MonthlyPlanModel } from '../models/monthly-plan.model';
+import { todayIsoBogota } from '../../../../shared/utils/date.utils';
 import { TariffMapper, TariffModel } from '../models/tariff.model';
 import { PaymentMapper, PaymentModel } from '../models/payment.model';
 import {
@@ -293,14 +294,23 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
   async getActivePlanByPlate(plate: string): Promise<Either<Failure, MonthlyPlanEntity | null>> {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      // Fecha civil de Colombia, no UTC: `toISOString()` ya devuelve el día
+      // siguiente desde las 19:00 COT y dejaba fuera los planes que vencen
+      // hoy, cobrándole al mensualista.
+      const today = todayIsoBogota();
       const { data, error } = await this.supabase.client
         .from('monthly_plans')
         .select()
         .eq('vehicle_plate', plate)
         .in('status', ['active', 'expiring'])
+        .lte('start_date', today)
         .gte('end_date', today)
         .eq('_deleted', false)
+        // Si hubiera dos planes vigentes para la placa, `maybeSingle()` sola
+        // devolvería error y bloquearía la ENTRADA del vehículo. Con el plan
+        // de vencimiento más lejano el operador puede seguir trabajando.
+        .order('end_date', { ascending: false })
+        .limit(1)
         .maybeSingle<MonthlyPlanModel>();
 
       if (error) return left(new ServerFailure(error.message));
@@ -386,15 +396,16 @@ export class ParkingRemoteDataSource extends ParkingDataSource {
 
   async getActiveTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity>> {
     try {
-      // Excluimos 'mensualidad' del lookup de parking porque mensualidad es
-      // un cobro distinto (precio por mes completo, no por minuto/hora).
-      // El use case de mensualidades usa su propio query (`getActiveMonthlyTariff`).
+      // Excluimos las unidades de PLAN (mensualidad, quincena) del lookup de
+      // rotación: son precios por periodo completo, no por minuto/hora. Si
+      // una se colara aquí, se le cobraría al cliente el valor del plan por
+      // un rato de parqueo. Los planes usan `getActivePlanTariff`.
       const { data, error } = await this.supabase.client
         .from('tariffs')
         .select()
         .eq('vehicle_type', vehicleType)
         .eq('is_active', true)
-        .neq('unit', 'mensualidad')
+        .not('unit', 'in', PLAN_UNITS_FILTER)
         .limit(1)
         .maybeSingle<TariffModel>();
 

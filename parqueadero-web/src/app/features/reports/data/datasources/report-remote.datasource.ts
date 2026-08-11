@@ -32,6 +32,10 @@ export class ReportRemoteDataSource extends ReportDataSource {
         .order('paid_at', { ascending: true });
 
       if (operatorId) query = query.eq('operator_id', operatorId);
+      // OJO al exponer este filtro en la UI: las ventas de plan tienen
+      // `vehicle_type` NULL (el pago no cuelga de una sesión), así que
+      // filtrar por tipo las excluye del total. Hoy ninguna pantalla lo
+      // pasa; si se agrega, hay que avisarlo igual que en la tabla por tipo.
       if (vehicleType) query = query.eq('vehicle_type', vehicleType);
 
       const { data, error } = await query.returns<RevenueDailyRow[]>();

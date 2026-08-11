@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Either, left, right } from '../../../../core/either/either';
 import { Failure, NetworkFailure, ServerFailure } from '../../../../core/either/failures';
-import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import {
+  TariffEntity, TariffUnit, PlanTariffUnit, isPlanTariffUnit, PLAN_UNITS_FILTER,
+} from '../../../parking/domain/entities/tariff.entity';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { TariffModel, TariffMapper } from '../../../parking/data/models/tariff.model';
 import { PaginatedResult } from '../../../../shared/models/pagination.model';
@@ -71,11 +73,13 @@ export class TariffRemoteDataSource extends TariffDataSource {
       // Para parking enviamos los 3 fields nuevos. Las columnas legacy
       // value_cents/daily_cap_cents siguen siendo NOT NULL en el DB hasta
       // una migration futura: las derivamos de los nuevos para no romper.
-      const isMonthly = params.unit === 'mensualidad';
-      const legacyValueCents = isMonthly
+      // Los planes (mensualidad/quincena) llevan precio plano en
+      // `value_cents`; el tiered pricing solo aplica a rotación.
+      const isPlan = isPlanTariffUnit(params.unit);
+      const legacyValueCents = isPlan
         ? params.valueCents
         : (params.perHourCents ?? params.valueCents);
-      const legacyDailyCapCents = isMonthly
+      const legacyDailyCapCents = isPlan
         ? params.dailyCapCents
         : (params.plenaCents ?? params.dailyCapCents);
 
@@ -88,9 +92,9 @@ export class TariffRemoteDataSource extends TariffDataSource {
           value_cents: legacyValueCents,
           grace_minutes: params.graceMinutes,
           daily_cap_cents: legacyDailyCapCents,
-          per_minute_cents: isMonthly ? null : (params.perMinuteCents ?? null),
-          per_hour_cents:   isMonthly ? null : (params.perHourCents   ?? null),
-          plena_cents:      isMonthly ? null : (params.plenaCents     ?? null),
+          per_minute_cents: isPlan ? null : (params.perMinuteCents ?? null),
+          per_hour_cents:   isPlan ? null : (params.perHourCents   ?? null),
+          plena_cents:      isPlan ? null : (params.plenaCents     ?? null),
           schedule_json: params.scheduleJson ?? { todos: '00:00-23:59' },
           valid_from: params.validFrom?.toISOString().slice(0, 10) ?? null,
           valid_to: params.validTo?.toISOString().slice(0, 10) ?? null,
@@ -172,7 +176,7 @@ export class TariffRemoteDataSource extends TariffDataSource {
     }
   }
 
-  async existsActiveSameCategory(vehicleType: VehicleType, isMonthly: boolean, excludeId?: string): Promise<Either<Failure, boolean>> {
+  async existsActiveSameCategory(vehicleType: VehicleType, unit: TariffUnit, excludeId?: string): Promise<Either<Failure, boolean>> {
     try {
       let query = this.supabase.client
         .from('tariffs')
@@ -180,10 +184,14 @@ export class TariffRemoteDataSource extends TariffDataSource {
         .eq('vehicle_type', vehicleType)
         .eq('is_active', true)
         .eq('_deleted', false);
-      if (isMonthly) {
-        query = query.eq('unit', 'mensualidad');
+      if (isPlanTariffUnit(unit)) {
+        // Cada plan es su propio producto: mensualidad y quincena pueden
+        // coexistir para el mismo tipo de vehículo, pero no dos iguales.
+        query = query.eq('unit', unit);
       } else {
-        query = query.neq('unit', 'mensualidad');
+        // Rotación: todas las unidades de tiempo compiten entre sí, solo
+        // puede haber una activa por tipo o el cobro sería ambiguo.
+        query = query.not('unit', 'in', PLAN_UNITS_FILTER);
       }
       if (excludeId) query = query.neq('id', excludeId);
 
@@ -195,13 +203,16 @@ export class TariffRemoteDataSource extends TariffDataSource {
     }
   }
 
-  async getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>> {
+  async getActivePlanTariff(
+    vehicleType: VehicleType,
+    unit: PlanTariffUnit,
+  ): Promise<Either<Failure, TariffEntity | null>> {
     try {
       const { data, error } = await this.supabase.client
         .from('tariffs')
         .select()
         .eq('vehicle_type', vehicleType)
-        .eq('unit', 'mensualidad')
+        .eq('unit', unit)
         .eq('is_active', true)
         .eq('_deleted', false)
         .limit(1)

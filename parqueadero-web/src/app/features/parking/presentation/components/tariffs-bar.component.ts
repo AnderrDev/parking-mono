@@ -56,7 +56,9 @@ export class TariffsBarComponent {
         return t.valueCents * 60;
       case 'dia':
         return Math.round(t.valueCents / 24);
+      // Los planes prepagados no tienen equivalente por hora.
       case 'mensualidad':
+      case 'quincena':
         return 0;
     }
   }
@@ -71,6 +73,7 @@ export class TariffsBarComponent {
       case 'dia':
         return Math.round(t.valueCents / 1440);
       case 'mensualidad':
+      case 'quincena':
         return 0;
     }
   }

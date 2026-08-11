@@ -6,23 +6,27 @@ import { MonthlyPlanForms } from '../forms/monthly-plan.forms';
 import { getErrorMessage } from '../../../../shared/forms/form-error-messages';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
 import { CurrencyInputDirective } from '../../../../shared/directives/currency-input.directive';
+import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
 import {
-  LIST_CUSTOMERS_TOKEN, CREATE_CUSTOMER_TOKEN, GET_ACTIVE_MONTHLY_TARIFF_TOKEN,
+  LIST_CUSTOMERS_TOKEN, CREATE_CUSTOMER_TOKEN, GET_ACTIVE_PLAN_TARIFF_TOKEN,
   CUSTOMER_REPOSITORY_TOKEN, CUSTOMER_REMOTE_DATASOURCE_TOKEN,
   TARIFF_REPOSITORY_TOKEN, TARIFF_REMOTE_DATASOURCE_TOKEN,
 } from '../../../../core/di/injection-tokens';
 import { ListCustomersUseCase } from '../../../customers/domain/usecases/list-customers.usecase';
 import { CreateCustomerUseCase } from '../../../customers/domain/usecases/create-customer.usecase';
-import { GetActiveMonthlyTariffUseCase } from '../../../tariffs/domain/usecases/get-active-monthly-tariff.usecase';
+import { GetActivePlanTariffUseCase } from '../../../tariffs/domain/usecases/get-active-plan-tariff.usecase';
 import { CustomerRemoteDataSource } from '../../../customers/data/datasources/customer-remote.datasource';
 import { CustomerRepositoryImpl } from '../../../customers/data/repositories/customer.repository.impl';
 import { TariffRemoteDataSource } from '../../../tariffs/data/datasources/tariff-remote.datasource';
 import { TariffRepositoryImpl } from '../../../tariffs/data/repositories/tariff.repository.impl';
 import { CustomerEntity, DocType } from '../../../customers/domain/entities/customer.entity';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
+import { PlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { normalizePlate } from '../../../../shared/utils/plate.utils';
-import { todayIsoBogota } from '../../../../shared/utils/date.utils';
-import { DOC_TYPES, VEHICLE_TYPES, PLAN_TYPES, PAYMENT_METHODS_PLAN } from '../../../../shared/constants/form-options';
+import { formatIsoDateOnly, parseIsoDateOnly, todayIsoBogota } from '../../../../shared/utils/date.utils';
+import {
+  DOC_TYPES, VEHICLE_TYPES, PLAN_TYPES, PAYMENT_METHODS_PLAN, PLAN_DURATIONS,
+} from '../../../../shared/constants/form-options';
 
 const DEFAULT_CUSTOMER = {
   name: 'Cliente General',
@@ -46,11 +50,11 @@ export interface MonthlyPlanFormValue {
   customerId: string;
   planType: string;
   vehicleType: string;
+  /** 'quincena' | 'mensualidad'. Solo UI: en BD la duración son las fechas. */
+  duration: string;
   startDate: string;
   endDate: string;
   amountCents: number;
-  autoRenew: boolean;
-  paymentTokenId: string | null;
   paymentMethod: string;
   /** Snapshot del cliente seleccionado para imprimir comprobante sin
    * tener que re-consultar la BD desde la page. */
@@ -62,7 +66,7 @@ export interface MonthlyPlanFormValue {
   selector: 'app-monthly-plan-edit-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, CurrencyCopPipe, CurrencyInputDirective],
+  imports: [ReactiveFormsModule, CurrencyCopPipe, CurrencyInputDirective, LoadingSpinnerComponent],
   templateUrl: './monthly-plan-edit-dialog.component.html',
   styleUrl: './monthly-plan-edit-dialog.component.scss',
   // Providers self-contained: CDK Dialog no hereda fiable los providers
@@ -76,7 +80,7 @@ export interface MonthlyPlanFormValue {
     { provide: CREATE_CUSTOMER_TOKEN, useClass: CreateCustomerUseCase },
     { provide: TARIFF_REMOTE_DATASOURCE_TOKEN, useClass: TariffRemoteDataSource },
     { provide: TARIFF_REPOSITORY_TOKEN, useClass: TariffRepositoryImpl },
-    { provide: GET_ACTIVE_MONTHLY_TARIFF_TOKEN, useClass: GetActiveMonthlyTariffUseCase },
+    { provide: GET_ACTIVE_PLAN_TARIFF_TOKEN, useClass: GetActivePlanTariffUseCase },
   ],
 })
 export class MonthlyPlanEditDialogComponent implements OnInit {
@@ -97,6 +101,7 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
   protected readonly planTypes = PLAN_TYPES;
   protected readonly paymentMethods = PAYMENT_METHODS_PLAN;
   protected readonly vehicleTypes = VEHICLE_TYPES;
+  protected readonly durations = PLAN_DURATIONS;
   protected readonly tariffNotConfigured = signal(false);
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
@@ -110,7 +115,7 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
     private readonly fb: FormBuilder,
     @Inject(LIST_CUSTOMERS_TOKEN) private readonly listCustomers: ListCustomersUseCase,
     @Inject(CREATE_CUSTOMER_TOKEN) private readonly createCustomer: CreateCustomerUseCase,
-    @Inject(GET_ACTIVE_MONTHLY_TARIFF_TOKEN) private readonly getMonthlyTariff: GetActiveMonthlyTariffUseCase,
+    @Inject(GET_ACTIVE_PLAN_TARIFF_TOKEN) private readonly getPlanTariff: GetActivePlanTariffUseCase,
   ) {}
 
   ngOnInit(): void {
@@ -119,31 +124,27 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
       vehiclePlate: p.vehiclePlate,
       customerId: p.customerId,
       planType: p.planType,
-      startDate: p.startDate.toISOString().slice(0, 10),
-      endDate: p.endDate.toISOString().slice(0, 10),
+      startDate: formatIsoDateOnly(p.startDate),
+      endDate: formatIsoDateOnly(p.endDate),
       amountCents: p.amountCents,
-      autoRenew: p.autoRenew,
-      paymentTokenId: p.paymentTokenId,
     } : undefined);
 
     if (this.isEdit) {
       ['vehiclePlate', 'customerId', 'planType', 'startDate'].forEach(f => this.form.get(f)?.disable());
     }
 
-    // Fecha fin siempre deshabilitada y auto-calculada: plan mensual = 30 días.
-    // El control sigue en el form (vía getRawValue) pero el operador no la edita.
+    // Fecha fin siempre deshabilitada y derivada de inicio + duración. El
+    // control sigue en el form (vía getRawValue) pero no se edita a mano.
     this.form.get('endDate')?.disable({ emitEvent: false });
 
-    // Si no hay defaults (modo crear), la fecha fin se sincroniza con la
-    // fecha inicio + 30 días cada vez que el operador cambia el inicio.
+    // En modo crear, el vencimiento se recalcula cuando cambia la fecha de
+    // inicio o la duración elegida (quincena / mensualidad).
     if (!this.isEdit) {
-      this.form.get('startDate')?.valueChanges.subscribe((iso: string | null) => {
-        if (!iso) return;
-        const parts = iso.split('-');
-        const base = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        base.setDate(base.getDate() + 30);
-        const endIso = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
-        this.form.get('endDate')?.setValue(endIso, { emitEvent: false });
+      this.syncEndDate();
+      this.form.get('startDate')?.valueChanges.subscribe(() => this.syncEndDate());
+      this.form.get('duration')?.valueChanges.subscribe(() => {
+        this.syncEndDate();
+        this.loadTariff();
       });
     }
 
@@ -161,16 +162,31 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
     // seleccionado. Si no hay tarifa configurada, no toca el monto y
     // muestra hint para que el operador lo digite manualmente.
     if (!this.isEdit) {
-      this.loadTariffForType(this.form.get('vehicleType')?.value as VehicleType);
-      this.form.get('vehicleType')?.valueChanges.subscribe((t: VehicleType) => {
-        this.loadTariffForType(t);
-      });
+      this.loadTariff();
+      this.form.get('vehicleType')?.valueChanges.subscribe(() => this.loadTariff());
     }
   }
 
-  private async loadTariffForType(type: VehicleType): Promise<void> {
-    if (!type) return;
-    const result = await this.getMonthlyTariff.execute(type);
+  /** Vencimiento = inicio + los días de la duración elegida. */
+  private syncEndDate(): void {
+    const iso = this.form.get('startDate')?.value as string | null;
+    if (!iso) return;
+    const days = this.durationDays();
+    const end = parseIsoDateOnly(iso);
+    end.setDate(end.getDate() + days);
+    this.form.get('endDate')?.setValue(formatIsoDateOnly(end), { emitEvent: false });
+  }
+
+  private durationDays(): number {
+    const value = this.form.get('duration')?.value as string;
+    return PLAN_DURATIONS.find(d => d.value === value)?.days ?? 30;
+  }
+
+  private async loadTariff(): Promise<void> {
+    const type = this.form.get('vehicleType')?.value as VehicleType;
+    const unit = this.form.get('duration')?.value as PlanTariffUnit;
+    if (!type || !unit) return;
+    const result = await this.getPlanTariff.execute({ vehicleType: type, unit });
     const amountCtrl = this.form.get('amountCents');
     if (!amountCtrl) return;
     result.fold(
@@ -304,56 +320,68 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
   protected async submit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
-    const value = this.form.getRawValue() as MonthlyPlanFormValue;
-    if (!this.isEdit && !value.customerId) {
-      this.submitting.set(true);
-      this.submitError.set(null);
-      const customer = await this.ensureDefaultCustomer();
-      this.submitting.set(false);
-      if (!customer) return;
-      this.selectCustomer(customer);
-      value.customerId = customer.id;
-    }
 
-    // Si el padre proveyó onSubmit, dejamos que ejecute el use case y
-    // mantenemos el dialog abierto en caso de error inline. Es el patrón
-    // recomendado y evita perder los datos cargados al rechazar el backend.
-    // Si no hay onSubmit (compatibilidad), cerramos directo con el value.
-    // Adjuntar snapshot del cliente para que la page pueda imprimir
-    // comprobante sin re-consultar la BD.
-    const c = this.selectedCustomer();
-    const valueWithCustomer: MonthlyPlanFormValue = {
-      ...value,
-      customerSnapshot: c ? { name: c.name, docType: c.docType, docNumber: c.docNumber } : null,
-    };
+    // `submitting` cubre TODA la operación, no solo la llamada final: la
+    // resolución del cliente también va contra la red y sin esto el botón
+    // se veía inerte mientras el diálogo ya estaba trabajando.
+    this.submitting.set(true);
+    this.submitError.set(null);
+    try {
+      const value = this.form.getRawValue() as MonthlyPlanFormValue;
 
-    if (this.data.onSubmit) {
-      this.submitting.set(true);
-      this.submitError.set(null);
-      const errorMsg = await this.data.onSubmit(valueWithCustomer);
-      this.submitting.set(false);
-      if (errorMsg) {
-        this.submitError.set(errorMsg);
-        return;
+      // El cliente es opcional para quien vende, pero `monthly_plans.
+      // customer_id` es NOT NULL en la BD. Si no eligió ninguno, la venta
+      // queda a nombre del Cliente General SIN tocar el campo en pantalla:
+      // antes se seleccionaba de verdad y al operador le aparecía de la nada
+      // una cédula que él no había escrito.
+      let customer = this.selectedCustomer();
+      if (!this.isEdit && !value.customerId) {
+        customer = await this.ensureDefaultCustomer();
+        if (!customer) return;
+        value.customerId = customer.id;
+      }
+
+      // Snapshot del cliente para imprimir el comprobante sin re-consultar.
+      const valueWithCustomer: MonthlyPlanFormValue = {
+        ...value,
+        customerSnapshot: customer
+          ? { name: customer.name, docType: customer.docType, docNumber: customer.docNumber }
+          : null,
+      };
+
+      // Con `onSubmit`, el padre ejecuta el use case y el diálogo sigue
+      // abierto si el backend rechaza, para no perder lo ya digitado.
+      if (this.data.onSubmit) {
+        const errorMsg = await this.data.onSubmit(valueWithCustomer);
+        if (errorMsg) {
+          this.submitError.set(errorMsg);
+          return;
+        }
       }
       this.dialogRef.close(valueWithCustomer);
-      return;
+    } finally {
+      this.submitting.set(false);
     }
-    this.dialogRef.close(valueWithCustomer);
   }
 
   protected cancel(): void { this.dialogRef.close(null); }
 
   private async ensureDefaultCustomer(): Promise<CustomerEntity | null> {
+    // pageSize mínimo aceptado por ListCustomersUseCase es 10: pedir menos
+    // devuelve ValidationFailure y el Cliente General existente quedaría
+    // invisible, llevando a intentar crearlo de nuevo contra el UNIQUE.
     const existing = await this.listCustomers.execute({
       search: DEFAULT_CUSTOMER.docNumber,
       includeDeleted: false,
-      pagination: { page: 1, pageSize: 1 },
+      pagination: { page: 1, pageSize: 10 },
     });
-    const found = existing.fold(
-      () => null,
-      (result) => result.data[0] ?? null,
-    );
+    if (existing.isLeft()) {
+      this.submitError.set(`No se pudo buscar Cliente General: ${existing.value.message}`);
+      return null;
+    }
+    // Match exacto: la búsqueda es un ilike parcial y podría traer otros
+    // documentos que contengan la cadena.
+    const found = existing.value.data.find(c => c.docNumber === DEFAULT_CUSTOMER.docNumber) ?? null;
     if (found) return found;
 
     const created = await this.createCustomer.execute({

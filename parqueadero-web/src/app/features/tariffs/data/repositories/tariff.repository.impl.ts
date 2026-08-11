@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@angular/core';
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
-import { TariffEntity } from '../../../parking/domain/entities/tariff.entity';
+import { TariffEntity, TariffUnit, PlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaginatedResult } from '../../../../shared/models/pagination.model';
 import { TariffDataSource } from '../datasources/tariff.datasource';
@@ -48,11 +48,14 @@ export class TariffRepositoryImpl extends TariffRepository {
     return this.remoteDs.existsActive(name, vehicleType, excludeId);
   }
 
-  async existsActiveSameCategory(vehicleType: VehicleType, isMonthly: boolean, excludeId?: string): Promise<Either<Failure, boolean>> {
-    return this.remoteDs.existsActiveSameCategory(vehicleType, isMonthly, excludeId);
+  async existsActiveSameCategory(vehicleType: VehicleType, unit: TariffUnit, excludeId?: string): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.existsActiveSameCategory(vehicleType, unit, excludeId);
   }
 
-  async getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>> {
-    return this.remoteDs.getActiveMonthlyTariff(vehicleType);
+  async getActivePlanTariff(
+    vehicleType: VehicleType,
+    unit: PlanTariffUnit,
+  ): Promise<Either<Failure, TariffEntity | null>> {
+    return this.remoteDs.getActivePlanTariff(vehicleType, unit);
   }
 }

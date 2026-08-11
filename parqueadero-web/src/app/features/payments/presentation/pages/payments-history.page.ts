@@ -21,6 +21,7 @@ import { TicketRendererPort } from '../../../parking/domain/services/ticket-rend
 import { TariffMapper, TariffModel } from '../../../parking/data/models/tariff.model';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
+import { PLAN_UNITS_FILTER } from '../../../parking/domain/entities/tariff.entity';
 import { formatCOP } from '../../../../shared/utils/currency.utils';
 import { VoidPaymentUseCase } from '../../domain/usecases/void-payment.usecase';
 
@@ -130,7 +131,7 @@ export class PaymentsHistoryPageComponent implements OnInit {
       .select('*')
       .eq('is_active', true)
       .eq('_deleted', false)
-      .neq('unit', 'mensualidad');
+      .not('unit', 'in', PLAN_UNITS_FILTER);
     if (!data) return;
     for (const t of data as TariffModel[]) {
       this.activeTariffByType.set(t.vehicle_type as VehicleType, t);
@@ -239,11 +240,21 @@ export class PaymentsHistoryPageComponent implements OnInit {
     };
 
     const offset = (this.page() - 1) * this.pageSize;
+    // Al filtrar por placa, el embed tiene que ser `!inner`. En PostgREST un
+    // filtro sobre un recurso embebido NO descarta la fila padre salvo que
+    // el embed sea inner: sin esto la búsqueda devolvía TODOS los pagos del
+    // rango con la placa en blanco, y el total sumaba todo.
+    // `parking_sessions!inner` sin alias: `payments` tiene una sola FK hacia
+    // sesiones (`session_id`), así que no hace falta desambiguar, y la clave
+    // del resultado sigue llamándose `parking_sessions`.
+    const plateFilter = v.vehiclePlate?.trim() ? v.vehiclePlate.trim().toUpperCase() : null;
+    const sessionJoin = plateFilter ? 'parking_sessions!inner' : 'parking_sessions:session_id';
+
     let query = this.supabase.client
       .from('payments')
       .select(`
         id, session_id, method, amount_cents, status, paid_at, justification,
-        parking_sessions:session_id (
+        ${sessionJoin} (
           vehicle_plate, vehicle_type, entry_at, exit_at, tariff_id,
           tariff_snapshot_name, tariff_snapshot_per_minute_cents,
           tariff_snapshot_per_hour_cents, tariff_snapshot_plena_cents,
@@ -266,9 +277,11 @@ export class PaymentsHistoryPageComponent implements OnInit {
     if (v.status) {
       query = query.eq('status', v.status);
     }
-    if (v.vehiclePlate?.trim()) {
-      const plate = v.vehiclePlate.trim().toUpperCase();
-      query = query.eq('parking_sessions.vehicle_plate', plate);
+    if (plateFilter) {
+      // Con el embed inner de arriba, esto sí descarta las filas padre.
+      // Nota: al buscar por placa desaparecen las ventas de mensualidad,
+      // que no tienen sesión asociada. Es lo correcto — no tienen placa.
+      query = query.eq('parking_sessions.vehicle_plate', plateFilter);
     }
 
     interface JoinedRow {

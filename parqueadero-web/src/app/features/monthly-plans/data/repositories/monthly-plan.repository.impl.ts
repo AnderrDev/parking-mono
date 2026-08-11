@@ -5,6 +5,7 @@ import { MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN } from '../../../../core/di/inject
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import {
+  CancelPlanOutcome,
   MonthlyPlanRepository,
   CreateMonthlyPlanParams,
   ListMonthlyPlansParams,
@@ -33,15 +34,18 @@ export class MonthlyPlanRepositoryImpl extends MonthlyPlanRepository {
     return this.remoteDs.findById(id);
   }
 
-  async create(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
-    return this.remoteDs.create(params);
+  async createWithPayment(
+    params: CreateMonthlyPlanParams,
+    shiftId: string,
+  ): Promise<Either<Failure, MonthlyPlanEntity>> {
+    return this.remoteDs.createWithPayment(params, shiftId);
   }
 
   async update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
     return this.remoteDs.update(params);
   }
 
-  async cancel(id: string): Promise<Either<Failure, void>> {
+  async cancel(id: string): Promise<Either<Failure, CancelPlanOutcome>> {
     return this.remoteDs.cancel(id);
   }
 

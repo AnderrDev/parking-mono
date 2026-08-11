@@ -26,6 +26,7 @@ import {
 import { ToastService } from '../../../../core/services/toast.service';
 import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { PaymentMethod } from '../../../parking/domain/entities/payment.entity';
+import { parseIsoDateOnly } from '../../../../shared/utils/date.utils';
 
 const STATUS_OPTIONS: { value: MonthlyPlanStatus | ''; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -42,7 +43,6 @@ const COLUMNS: TableColumn<MonthlyPlanEntity>[] = [
   { key: 'endDate', label: 'Vence', sortable: true },
   { key: 'amountCents', label: 'Valor', sortable: false },
   { key: 'status', label: 'Estado', sortable: true },
-  { key: 'autoRenew', label: 'Auto-renovar', sortable: false },
   { key: '_actions', label: 'Acciones', sortable: false },
 ];
 
@@ -162,8 +162,6 @@ export class MonthlyPlansListPageComponent implements OnInit {
             startDate: this.parseLocalDate(value.startDate),
             endDate: this.parseLocalDate(value.endDate),
             amountCents: Number(value.amountCents),
-            autoRenew: value.autoRenew,
-            ...(value.paymentTokenId ? { paymentTokenId: value.paymentTokenId } : {}),
             paymentMethod: value.paymentMethod as PaymentMethod,
             userId,
           });
@@ -191,9 +189,7 @@ export class MonthlyPlansListPageComponent implements OnInit {
           const result = await this.updateUC.execute({
             id: plan.id,
             endDate: this.parseLocalDate(value.endDate),
-            autoRenew: value.autoRenew,
             amountCents: Number(value.amountCents),
-            ...(value.paymentTokenId ? { paymentTokenId: value.paymentTokenId } : {}),
           });
           return result.fold(
             (f) => this.failureMsg(f),
@@ -211,8 +207,7 @@ export class MonthlyPlansListPageComponent implements OnInit {
 
   /** Convierte 'YYYY-MM-DD' (zona local Bogotá) a Date sin caer en UTC. */
   private parseLocalDate(iso: string): Date {
-    const parts = iso.split('-');
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    return parseIsoDateOnly(iso);
   }
 
   protected confirmCancel(plan: MonthlyPlanEntity): void {
@@ -231,7 +226,18 @@ export class MonthlyPlansListPageComponent implements OnInit {
       const result = await this.cancelUC.execute({ id: plan.id });
       result.fold(
         (f) => this.toast.error(this.failureMsg(f)),
-        () => { this.toast.success('Plan mensual cancelado'); this.load(); },
+        (outcome) => {
+          // Decir qué pasó con la plata: cancelar un plan mueve caja y el
+          // operador tiene que saber si el ingreso salió del cuadre o no.
+          if (outcome.paymentRefunded) {
+            this.toast.success('Plan cancelado · el ingreso salió del cuadre de tu turno');
+          } else if (outcome.paymentKeptClosedShift) {
+            this.toast.info('Plan cancelado. El pago quedó en un turno ya cerrado: la devolución se hace aparte.');
+          } else {
+            this.toast.success('Plan mensual cancelado');
+          }
+          this.load();
+        },
       );
     });
   }

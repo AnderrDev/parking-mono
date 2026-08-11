@@ -317,3 +317,12 @@ lucide-angular {
   .compare-toggle { margin-left: 0; }
   .bar-row { grid-template-columns: 90px 1fr auto; &__sub { display: none; } }
 }
+
+// Nota al pie de una tabla cuando su alcance es más estrecho que el KPI
+// que la acompaña (ver desglose de planes en «Sesiones por tipo»).
+.table__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}

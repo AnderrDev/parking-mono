@@ -13,6 +13,13 @@
     .btn { padding: var(--space-2) var(--space-5); border-radius: var(--radius-md); font-weight: var(--font-weight-semibold); font-size: var(--text-base); min-height: var(--touch-target-secondary); cursor: pointer; }
     .btn--ghost { background: var(--color-surface-2); color: var(--color-text); border: 1px solid var(--color-border); }
     .btn--primary { background: var(--color-primary); color: var(--color-primary-fg); }
+    .btn:disabled { opacity: 0.7; cursor: progress; }
+    .btn--with-spinner {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+    }
     .field__input--plate {
       font-family: var(--font-mono);
       font-size: var(--text-xl);
@@ -105,11 +112,6 @@
       color: var(--color-text-muted);
       margin-left: var(--space-2);
     }
-    .field__hint-inline--warn {
-      color: var(--color-warning-strong);
-      margin-left: 0;
-      margin-top: var(--space-1);
-    }
     .field__hint-inline--block {
       display: block;
       margin-left: 0;
@@ -117,9 +119,14 @@
     }
     .vehicle-types {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: var(--space-2);
       @media (max-width: 420px) { grid-template-columns: repeat(2, 1fr); }
+    }
+    .plan-durations {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-2);
     }
     .vt-chip {
       display: flex;

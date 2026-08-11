@@ -1,6 +1,6 @@
 import { Either } from '../../../../core/either/either';
 import { Failure } from '../../../../core/either/failures';
-import { TariffEntity, TariffUnit } from '../../../parking/domain/entities/tariff.entity';
+import { TariffEntity, TariffUnit, PlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PaginatedResult, PaginationParams } from '../../../../shared/models/pagination.model';
 import { SortParams } from '../../../../shared/models/sort.model';
@@ -54,18 +54,28 @@ export abstract class TariffRepository {
   abstract existsActive(name: string, vehicleType: VehicleType, excludeId?: string): Promise<Either<Failure, boolean>>;
 
   /**
-   * Devuelve true si ya hay otra tarifa activa para el mismo
-   * `vehicleType` en la misma categoría (parking vs mensualidad).
-   * `isMonthly=true` busca tarifas con `unit='mensualidad'`;
-   * `false` busca el resto. Usado para evitar tarifas duplicadas que
-   * causarían que el sistema tome "cualquiera" al cobrar.
+   * Devuelve true si ya hay otra tarifa activa para el mismo `vehicleType`
+   * en la misma categoría que `unit`. Evita tarifas duplicadas, que harían
+   * que el sistema tomara "cualquiera" al cobrar.
+   *
+   * Las categorías son: rotación (todas las unidades de tiempo compiten
+   * entre sí, solo puede haber una activa por tipo) y cada unidad de plan
+   * por separado — mensualidad y quincena son productos distintos y ambos
+   * pueden estar activos a la vez para el mismo tipo de vehículo.
    */
   abstract existsActiveSameCategory(
     vehicleType: VehicleType,
-    isMonthly: boolean,
+    unit: TariffUnit,
     excludeId?: string,
   ): Promise<Either<Failure, boolean>>;
 
-  /** Tarifa activa de mensualidad para un tipo de vehículo. Null si no existe. */
-  abstract getActiveMonthlyTariff(vehicleType: VehicleType): Promise<Either<Failure, TariffEntity | null>>;
+  /**
+   * Tarifa activa de un plan prepagado (mensualidad o quincena) para un
+   * tipo de vehículo. Null si no hay configurada, en cuyo caso quien vende
+   * digita el valor a mano.
+   */
+  abstract getActivePlanTariff(
+    vehicleType: VehicleType,
+    unit: PlanTariffUnit,
+  ): Promise<Either<Failure, TariffEntity | null>>;
 }

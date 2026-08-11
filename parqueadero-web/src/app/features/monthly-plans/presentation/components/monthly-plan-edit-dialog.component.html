@@ -33,6 +33,18 @@
           </div>
 
           <div class="field">
+            <span class="field__label">Duración</span>
+            <div class="plan-durations" role="radiogroup">
+              @for (d of durations; track d.value) {
+                <label class="vt-chip" [class.vt-chip--selected]="form.get('duration')?.value === d.value">
+                  <input type="radio" formControlName="duration" [value]="d.value" class="sr-only" />
+                  <span>{{ d.label }}</span>
+                </label>
+              }
+            </div>
+          </div>
+
+          <div class="field">
             <label class="field__label" for="p-customer">Cliente <span class="field__hint-inline">(opcional)</span></label>
             @if (selectedCustomer(); as c) {
               <div class="customer-chip">
@@ -160,7 +172,7 @@
               }
             </div>
             <div class="field">
-              <label class="field__label" for="p-end">Fecha fin <span class="field__hint-inline">(automática: 30 días)</span></label>
+              <label class="field__label" for="p-end">Vence <span class="field__hint-inline">(según la duración)</span></label>
               <input id="p-end" class="field__input"
                 type="date" formControlName="endDate" />
             </div>
@@ -204,8 +216,10 @@
               <span id="p-amount-err" class="field__error" role="alert">{{ errMsg('amountCents') }}</span>
             }
             @if (tariffNotConfigured()) {
-              <span class="field__hint-inline field__hint-inline--warn">
-                Sin tarifa configurada para este tipo · ingresá el monto manualmente
+              <!-- Sugerencia, no advertencia: digitar el valor a mano es un
+                   camino válido, no un error del operador. -->
+              <span class="field__hint-inline field__hint-inline--block">
+                Escribe el valor que vas a cobrar por el mes
               </span>
             }
           </div>
@@ -221,19 +235,6 @@
           </div>
         }
 
-        <label class="field-checkbox">
-          <input type="checkbox" formControlName="autoRenew" />
-          <span>Renovación automática</span>
-        </label>
-
-        @if (form.get('autoRenew')?.value) {
-          <div class="field">
-            <label class="field__label" for="p-token">Token de pago</label>
-            <input id="p-token" class="field__input"
-              type="text" formControlName="paymentTokenId" placeholder="tok_..." />
-          </div>
-        }
-
         @if (submitError()) {
           <div class="submit-error" role="alert">
             <span class="submit-error__icon" aria-hidden="true">⚠</span>
@@ -244,8 +245,16 @@
         <div class="dialog__actions">
           <button type="button" class="btn btn--ghost"
             (click)="cancel()" [disabled]="submitting()">Cancelar</button>
-          <button type="submit" class="btn btn--primary" [disabled]="submitting()">
-            {{ submitting() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear plan') }}
+          <button type="submit" class="btn btn--primary btn--with-spinner"
+            [disabled]="submitting()" [attr.aria-busy]="submitting()">
+            @if (submitting()) {
+              <app-loading-spinner size="sm" variant="inverse" />
+            }
+            <span>
+              {{ submitting()
+                  ? (isEdit ? 'Guardando…' : 'Creando plan…')
+                  : (isEdit ? 'Guardar cambios' : 'Crear plan') }}
+            </span>
           </button>
         </div>
       </form>

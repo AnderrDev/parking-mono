@@ -2,11 +2,9 @@ import { CreateMonthlyPlanUseCase } from './create-monthly-plan.usecase';
 import { MonthlyPlanRepository, CreateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
 import { CustomerRepository } from '../../../customers/domain/repositories/customer.repository';
 import { CashierRepository } from '../../../cashier/domain/repositories/cashier.repository';
-import { PaymentRepository, CreatePaymentParams } from '../../../payments/domain/repositories/payment.repository';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import { CustomerEntity } from '../../../customers/domain/entities/customer.entity';
 import { CashierShiftEntity } from '../../../cashier/domain/entities/cashier-shift.entity';
-import { PaymentEntity } from '../../../parking/domain/entities/payment.entity';
 import { left, right } from '../../../../core/either/either';
 import { BusinessRuleFailure, NetworkFailure, ValidationFailure } from '../../../../core/either/failures';
 
@@ -39,15 +37,17 @@ const emptyPagination = { page: 1, pageSize: 25, total: 0, totalPages: 0 };
 class MockMonthlyPlanRepository extends MonthlyPlanRepository {
   hasActivePlanResult: ReturnType<MonthlyPlanRepository['hasActivePlanForPlate']> =
     Promise.resolve(right(false));
-  createResult: ReturnType<MonthlyPlanRepository['create']> =
+  createResult: ReturnType<MonthlyPlanRepository['createWithPayment']> =
     Promise.resolve(right(makePlan()));
   capturedCreateParams: CreateMonthlyPlanParams | null = null;
+  capturedShiftId: string | null = null;
 
   async hasActivePlanForPlate(_plate: string, _excludeId?: string) {
     return this.hasActivePlanResult;
   }
-  async create(params: CreateMonthlyPlanParams) {
+  async createWithPayment(params: CreateMonthlyPlanParams, shiftId: string) {
     this.capturedCreateParams = params;
+    this.capturedShiftId = shiftId;
     return this.createResult;
   }
   async list(_params: unknown) {
@@ -55,7 +55,9 @@ class MockMonthlyPlanRepository extends MonthlyPlanRepository {
   }
   async findById(_id: string) { return Promise.resolve(right(makePlan())); }
   async update(_params: unknown) { return Promise.resolve(right(makePlan())); }
-  async cancel(_id: string) { return Promise.resolve(right(undefined)); }
+  async cancel(_id: string) {
+    return Promise.resolve(right({ paymentRefunded: false, paymentKeptClosedShift: false }));
+  }
 }
 
 class MockCustomerRepository extends CustomerRepository {
@@ -95,20 +97,9 @@ class MockCashierRepository extends CashierRepository {
   }
 }
 
-class MockPaymentRepository extends PaymentRepository {
-  capturedCreate: CreatePaymentParams | null = null;
-  createResult: ReturnType<PaymentRepository['create']> =
-    Promise.resolve(right(null as never as PaymentEntity));
-
-  async create(params: CreatePaymentParams) { this.capturedCreate = params; return this.createResult; }
-  async list(_params: unknown) { return Promise.resolve(right({ data: [] as PaymentEntity[], pagination: emptyPagination, totalCents: 0 })); }
-  async listByShift(_id: string) { return Promise.resolve(right([] as PaymentEntity[])); }
-  async listByShiftWithVehicle(_id: string) { return Promise.resolve(right([])); }
-  async sumCashByShift(_id: string) { return Promise.resolve(right(0)); }
-  async voidPayment(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
-  async correctMethod(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
-  async correctAmount(_params: unknown) { return Promise.resolve(right(null as never as PaymentEntity)); }
-}
+// Ya no hay mock de PaymentRepository: el ingreso lo registra la RPC
+// `create_monthly_plan_with_payment` dentro de la misma transacción que el
+// plan, así que el use case no orquesta el pago por separado.
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -117,7 +108,6 @@ describe('CreateMonthlyPlanUseCase', () => {
   let planRepo: MockMonthlyPlanRepository;
   let customerRepo: MockCustomerRepository;
   let cashierRepo: MockCashierRepository;
-  let paymentRepo: MockPaymentRepository;
 
   const baseParams = (overrides: Partial<CreateMonthlyPlanParams> = {}): CreateMonthlyPlanParams => ({
     vehiclePlate: 'ABC123',
@@ -135,8 +125,7 @@ describe('CreateMonthlyPlanUseCase', () => {
     planRepo = new MockMonthlyPlanRepository();
     customerRepo = new MockCustomerRepository();
     cashierRepo = new MockCashierRepository();
-    paymentRepo = new MockPaymentRepository();
-    usecase = new CreateMonthlyPlanUseCase(planRepo, customerRepo, cashierRepo, paymentRepo);
+    usecase = new CreateMonthlyPlanUseCase(planRepo, customerRepo, cashierRepo);
   });
 
   it('happy path: crea plan mensual con datos válidos', async () => {
@@ -151,6 +140,8 @@ describe('CreateMonthlyPlanUseCase', () => {
   it('normaliza placa a mayúsculas antes de crear', async () => {
     await usecase.execute(baseParams({ vehiclePlate: 'abc123' }));
     expect(planRepo.capturedCreateParams?.vehiclePlate).toBe('ABC123');
+    // El ingreso va contra el turno abierto, resuelto por el use case.
+    expect(planRepo.capturedShiftId).toBe('shift-1');
   });
 
   it('ValidationFailure: placa con formato inválido', async () => {
@@ -207,17 +198,6 @@ describe('CreateMonthlyPlanUseCase', () => {
     const result = await usecase.execute(baseParams({ startDate: future(10), endDate: future(5) }));
     expect(result.isLeft()).toBeTrue();
     expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
-  });
-
-  it('ValidationFailure: autoRenew sin paymentTokenId', async () => {
-    const result = await usecase.execute(baseParams({ autoRenew: true, paymentTokenId: null }));
-    expect(result.isLeft()).toBeTrue();
-    expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
-  });
-
-  it('pasa con autoRenew y paymentTokenId válido', async () => {
-    const result = await usecase.execute(baseParams({ autoRenew: true, paymentTokenId: 'tok-123' }));
-    expect(result.isRight()).toBeTrue();
   });
 
   it('ValidationFailure: cliente marcado como eliminado', async () => {

@@ -1,12 +1,19 @@
 import { Injectable } from '@angular/core';
 import { Either, left, right } from '../../../../core/either/either';
-import { Failure, NetworkFailure, NotFoundFailure, ServerFailure } from '../../../../core/either/failures';
+import {
+  BusinessRuleFailure, Failure, NetworkFailure, NotFoundFailure, ServerFailure, ValidationFailure,
+} from '../../../../core/either/failures';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { PaginationMeta } from '../../../../shared/models/pagination.model';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import { MonthlyPlanMapper, MonthlyPlanModel } from '../../../parking/data/models/monthly-plan.model';
-import { CreateMonthlyPlanParams, ListMonthlyPlansParams, UpdateMonthlyPlanParams } from '../../domain/repositories/monthly-plan.repository';
+import {
+  CancelPlanOutcome, CreateMonthlyPlanParams, ListMonthlyPlansParams, UpdateMonthlyPlanParams,
+} from '../../domain/repositories/monthly-plan.repository';
 import { MonthlyPlanDataSource } from './monthly-plan.datasource';
+import {
+  formatIsoDateOnly, parseIsoDateOnly, todayDateOnlyBogota, todayIsoBogota,
+} from '../../../../shared/utils/date.utils';
 
 const EXPIRING_THRESHOLD_DAYS = 5;
 
@@ -60,34 +67,66 @@ export class MonthlyPlanRemoteDataSource extends MonthlyPlanDataSource {
     }
   }
 
-  async create(params: CreateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
+  /**
+   * Delega en la RPC `create_monthly_plan_with_payment` (migration 00040):
+   * plan e ingreso se insertan en la misma transacción del servidor, y el
+   * solapamiento lo decide la constraint `monthly_plans_no_overlap`, no una
+   * consulta previa del cliente que otra venta simultánea puede invalidar.
+   */
+  async createWithPayment(
+    params: CreateMonthlyPlanParams,
+    shiftId: string,
+  ): Promise<Either<Failure, MonthlyPlanEntity>> {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const endDate = new Date(params.endDate);
-      endDate.setHours(0, 0, 0, 0);
-      const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / 86_400_000);
-      const status = daysLeft <= EXPIRING_THRESHOLD_DAYS ? 'expiring' : 'active';
+      const { data, error } = await this.supabase.client.rpc('create_monthly_plan_with_payment', {
+        p_customer_id: params.customerId,
+        p_vehicle_plate: params.vehiclePlate,
+        p_plan_type: params.planType,
+        p_start_date: formatIsoDateOnly(params.startDate),
+        p_end_date: formatIsoDateOnly(params.endDate),
+        p_amount_cents: params.amountCents,
+        p_shift_id: shiftId,
+        p_payment_method: params.paymentMethod,
+        p_client_op_id_payment: crypto.randomUUID(),
+      });
 
-      const payload: Record<string, unknown> = {
-        vehicle_plate: params.vehiclePlate,
-        customer_id: params.customerId,
-        plan_type: params.planType,
-        start_date: params.startDate.toISOString().slice(0, 10),
-        end_date: params.endDate.toISOString().slice(0, 10),
-        amount_cents: params.amountCents,
-        status,
-        auto_renew: params.autoRenew ?? false,
-      };
-      if (params.paymentTokenId) payload['payment_token_id'] = params.paymentTokenId;
+      if (error) return left(this.mapRpcError(error, params.vehiclePlate));
 
-      const { data, error } = await this.supabase.client
-        .from('monthly_plans').insert(payload).select().single();
-      if (error) return left(new ServerFailure(error.message));
-      return right(MonthlyPlanMapper.toEntity(data as MonthlyPlanModel));
+      const plan = (data as { plan: MonthlyPlanModel } | null)?.plan;
+      if (!plan) return left(new ServerFailure('La venta no devolvió el plan creado'));
+      return right(MonthlyPlanMapper.toEntity(plan));
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }
+  }
+
+  /**
+   * Traduce los errores de la RPC a Failures de dominio. Los `RAISE
+   * EXCEPTION` de la función llegan como texto dentro de `error.message`.
+   */
+  private mapRpcError(error: { message: string; code?: string }, plate: string): Failure {
+    const msg = error.message ?? '';
+    if (msg.includes('plan_overlap')) {
+      return new BusinessRuleFailure(
+        `La placa ${plate} ya tiene una mensualidad vigente que se solapa con esas fechas`,
+      );
+    }
+    if (msg.includes('shift_not_open')) {
+      return new BusinessRuleFailure('La caja se cerró. Abre un turno para registrar la venta.');
+    }
+    if (msg.includes('plan_already_expired')) {
+      return new ValidationFailure('La fecha de fin ya pasó');
+    }
+    if (msg.includes('invalid_date_range')) {
+      return new ValidationFailure('La fecha de fin debe ser posterior a la de inicio');
+    }
+    if (msg.includes('invalid_plan_type')) return new ValidationFailure('Tipo de plan inválido');
+    if (msg.includes('invalid_amount')) return new ValidationFailure('El valor del plan debe ser mayor que 0');
+    // 42501 = RLS. Sin este caso el operador solo veía "Error del servidor".
+    if (error.code === '42501' || msg.includes('row-level security')) {
+      return new BusinessRuleFailure('Tu usuario no tiene permiso para vender mensualidades');
+    }
+    return new ServerFailure(msg);
   }
 
   async update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>> {
@@ -95,45 +134,80 @@ export class MonthlyPlanRemoteDataSource extends MonthlyPlanDataSource {
       const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
       if (params.endDate !== undefined) {
-        patch['end_date'] = params.endDate.toISOString().slice(0, 10);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const endDate = new Date(params.endDate);
-        endDate.setHours(0, 0, 0, 0);
-        const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / 86_400_000);
-        patch['status'] = daysLeft <= EXPIRING_THRESHOLD_DAYS ? 'expiring' : 'active';
+        patch['end_date'] = formatIsoDateOnly(params.endDate);
+        patch['status'] = this.statusForEndDate(params.endDate);
       }
-      if (params.autoRenew !== undefined) patch['auto_renew'] = params.autoRenew;
-      if ('paymentTokenId' in params) patch['payment_token_id'] = params.paymentTokenId ?? null;
       if (params.amountCents !== undefined) patch['amount_cents'] = params.amountCents;
 
       const { data, error } = await this.supabase.client
         .from('monthly_plans').update(patch).eq('id', params.id).select().single();
-      if (error) return left(new ServerFailure(error.message));
+      if (error) {
+        // Extender la vigencia puede chocar contra `monthly_plans_no_overlap`
+        // si la placa ya tiene otro plan en esas fechas (código 23P01).
+        if (error.code === '23P01' || error.message?.includes('monthly_plans_no_overlap')) {
+          return left(new BusinessRuleFailure(
+            'Esa vigencia se solapa con otra mensualidad de la misma placa',
+          ));
+        }
+        return left(new ServerFailure(error.message));
+      }
       return right(MonthlyPlanMapper.toEntity(data as MonthlyPlanModel));
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }
   }
 
-  async cancel(id: string): Promise<Either<Failure, void>> {
+  /**
+   * Cancela vía RPC `cancel_monthly_plan` (00044), que además anula el
+   * ingreso de la venta si el turno donde entró sigue abierto. Un UPDATE
+   * directo dejaba el plan cancelado y la plata contando en la caja.
+   */
+  async cancel(id: string): Promise<Either<Failure, CancelPlanOutcome>> {
     try {
-      const { error } = await this.supabase.client
-        .from('monthly_plans')
-        .update({ status: 'cancelled', _deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) return left(new ServerFailure(error.message));
-      return right(undefined);
+      const { data, error } = await this.supabase.client
+        .rpc('cancel_monthly_plan', { p_plan_id: id, p_reason: 'Plan mensual cancelado desde la lista' });
+      if (error) {
+        if (error.message?.includes('plan_not_cancellable')) {
+          return left(new BusinessRuleFailure('El plan ya está cancelado o vencido'));
+        }
+        if (error.message?.includes('plan_not_found')) {
+          return left(new NotFoundFailure('Plan no encontrado'));
+        }
+        if (error.code === '42501' || error.message?.includes('user_not_allowed')) {
+          return left(new BusinessRuleFailure('Tu usuario no tiene permiso para cancelar planes'));
+        }
+        return left(new ServerFailure(error.message));
+      }
+      const result = data as { payment_refunded?: boolean; payment_kept_closed_shift?: boolean } | null;
+      return right({
+        paymentRefunded: result?.payment_refunded ?? false,
+        paymentKeptClosedShift: result?.payment_kept_closed_shift ?? false,
+      });
     } catch {
       return left(new NetworkFailure('Sin conexión'));
     }
+  }
+
+  /**
+   * `expiring` si vence dentro del umbral, `active` en caso contrario.
+   * Se compara por día calendario de Colombia (ver `parseIsoDateOnly`).
+   */
+  private statusForEndDate(endDate: Date): 'active' | 'expiring' {
+    const today = todayDateOnlyBogota();
+    const end = parseIsoDateOnly(formatIsoDateOnly(endDate));
+    const daysLeft = Math.round((end.getTime() - today.getTime()) / 86_400_000);
+    return daysLeft <= EXPIRING_THRESHOLD_DAYS ? 'expiring' : 'active';
   }
 
   async hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>> {
     try {
       let query = this.supabase.client
         .from('monthly_plans').select('id', { count: 'exact', head: true })
-        .eq('vehicle_plate', plate).in('status', ['active', 'expiring']).eq('_deleted', false);
+        .eq('vehicle_plate', plate).in('status', ['active', 'expiring'])
+        // Sin el filtro de fecha, un plan vencido hace meses (que nadie marca
+        // como `expired`) bloqueaba para siempre la renovación de esa placa.
+        .gte('end_date', todayIsoBogota())
+        .eq('_deleted', false);
       if (excludeId) query = query.neq('id', excludeId);
       const { count, error } = await query;
       if (error) return left(new ServerFailure(error.message));

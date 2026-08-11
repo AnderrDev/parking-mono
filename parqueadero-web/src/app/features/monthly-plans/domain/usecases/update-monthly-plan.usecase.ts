@@ -34,9 +34,6 @@ export class UpdateMonthlyPlanUseCase extends UseCase<UpdateMonthlyPlanParams, M
         return left(new ValidationFailure('La fecha de fin debe ser posterior a hoy'));
       }
     }
-    if (params.autoRenew && !params.paymentTokenId) {
-      return left(new ValidationFailure('Se requiere un token de pago para habilitar la renovación automática'));
-    }
     if (params.amountCents !== undefined && params.amountCents <= 0) {
       return left(new ValidationFailure('El valor del plan debe ser mayor que 0'));
     }

@@ -28,6 +28,7 @@ import { AuthStateService } from '../../../../core/services/auth-state.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 import { CurrencyCopPipe } from '../../../../shared/pipes/currency-cop.pipe';
+import { PLAN_UNITS_FILTER } from '../../domain/entities/tariff.entity';
 import { CancelSessionDialogComponent } from '../components/cancel-session-dialog.component';
 
 /** Subset mínimo de la tabla tariffs para calcular cobro proyectado. */
@@ -115,7 +116,7 @@ export class SessionHistoryPageComponent implements OnInit, OnDestroy {
       .select('id, vehicle_type, per_minute_cents, per_hour_cents, plena_cents')
       .eq('is_active', true)
       .eq('_deleted', false)
-      .neq('unit', 'mensualidad');
+      .not('unit', 'in', PLAN_UNITS_FILTER);
     if (!data) return;
     const byId = new Map<string, TariffRow>();
     const byType = new Map<VehicleType, TariffRow>();

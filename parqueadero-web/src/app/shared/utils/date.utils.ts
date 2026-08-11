@@ -60,6 +60,42 @@ export function isoBogotaPlusDays(days: number): string {
 }
 
 /**
+ * Convierte una fecha civil `YYYY-MM-DD` (columna DATE de Postgres) a un
+ * `Date` en la medianoche LOCAL.
+ *
+ * `new Date('2026-08-11')` NO sirve para esto: el estándar obliga a leer
+ * ese formato como UTC, así que en Colombia (UTC-5) el Date resultante es
+ * el 10 de agosto a las 19:00. Eso desplaza un día lo que se muestra con
+ * `DatePipe` y hace que un plan se lea como vencido durante todo su último
+ * día de vigencia. Una columna DATE no tiene hora ni zona: representa un
+ * día del calendario y hay que anclarla al calendario local.
+ */
+export function parseIsoDateOnly(iso: string): Date {
+  const parts = iso.slice(0, 10).split('-').map(Number);
+  return new Date(parts[0]!, parts[1]! - 1, parts[2]!);
+}
+
+/**
+ * Serializa un `Date` a `YYYY-MM-DD` leyendo sus componentes LOCALES.
+ * `toISOString()` convierte a UTC antes de formatear y puede correr la
+ * fecha un día según la hora del Date.
+ */
+export function formatIsoDateOnly(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Hoy en Colombia, como fecha civil anclada a la medianoche local. Es el
+ * punto de comparación correcto contra `start_date` / `end_date`.
+ */
+export function todayDateOnlyBogota(): Date {
+  return parseIsoDateOnly(todayIsoBogota());
+}
+
+/**
  * Convierte un label de período (`YYYY-MM-DD`, `YYYY-Www`, `YYYY-MM`) a una
  * etiqueta legible en zona Bogotá. Para `day` devuelve "lun 03 may"; los
  * demás formatos los devuelve intactos (ya son legibles).

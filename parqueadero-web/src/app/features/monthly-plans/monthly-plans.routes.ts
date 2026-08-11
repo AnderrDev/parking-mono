@@ -17,7 +17,7 @@ import {
   PAYMENT_REMOTE_DATASOURCE_TOKEN,
   TARIFF_REPOSITORY_TOKEN,
   TARIFF_REMOTE_DATASOURCE_TOKEN,
-  GET_ACTIVE_MONTHLY_TARIFF_TOKEN,
+  GET_ACTIVE_PLAN_TARIFF_TOKEN,
 } from '../../core/di/injection-tokens';
 import { MonthlyPlanRemoteDataSource } from './data/datasources/monthly-plan-remote.datasource';
 import { MonthlyPlanRepositoryImpl } from './data/repositories/monthly-plan.repository.impl';
@@ -35,7 +35,7 @@ import { PaymentRemoteDataSource } from '../payments/data/datasources/payment-re
 import { PaymentRepositoryImpl } from '../payments/data/repositories/payment.repository.impl';
 import { TariffRemoteDataSource } from '../tariffs/data/datasources/tariff-remote.datasource';
 import { TariffRepositoryImpl } from '../tariffs/data/repositories/tariff.repository.impl';
-import { GetActiveMonthlyTariffUseCase } from '../tariffs/domain/usecases/get-active-monthly-tariff.usecase';
+import { GetActivePlanTariffUseCase } from '../tariffs/domain/usecases/get-active-plan-tariff.usecase';
 
 const monthlyPlanProviders = [
   { provide: MONTHLY_PLAN_REMOTE_DATASOURCE_TOKEN, useClass: MonthlyPlanRemoteDataSource },
@@ -58,7 +58,7 @@ const monthlyPlanProviders = [
   // el tipo de vehículo seleccionado.
   { provide: TARIFF_REMOTE_DATASOURCE_TOKEN, useClass: TariffRemoteDataSource },
   { provide: TARIFF_REPOSITORY_TOKEN, useClass: TariffRepositoryImpl },
-  { provide: GET_ACTIVE_MONTHLY_TARIFF_TOKEN, useClass: GetActiveMonthlyTariffUseCase },
+  { provide: GET_ACTIVE_PLAN_TARIFF_TOKEN, useClass: GetActivePlanTariffUseCase },
 ];
 
 export const monthlyPlansRoutes: Routes = [

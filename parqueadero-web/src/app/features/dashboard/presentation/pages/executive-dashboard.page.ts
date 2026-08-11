@@ -140,13 +140,16 @@ export class ExecutiveDashboardPageComponent implements OnInit {
       this.revenueUC.execute({ dateFrom: startOfMonth, dateTo: now, groupBy: 'day' }),
       this.revenueUC.execute({ dateFrom: sevenDaysAgo, dateTo: now, groupBy: 'day' }),
       this.sessionsByTypeUC.execute({ dateFrom: sevenDaysAgo, dateTo: now }),
+      // Solo interesa `pagination.total`, pero el pageSize mínimo que acepta
+      // el use case es 10: con menos devuelve ValidationFailure y ambos
+      // contadores caían silenciosamente a 0.
       this.listPlansUC.execute({
         status: 'active',
-        pagination: { page: 1, pageSize: 1 },
+        pagination: { page: 1, pageSize: 10 },
       }),
       this.listPlansUC.execute({
         status: 'expiring',
-        pagination: { page: 1, pageSize: 1 },
+        pagination: { page: 1, pageSize: 10 },
       }),
     ]);
 

@@ -65,6 +65,8 @@ export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, Re
     const methodMap = new Map<string, { amountCents: number; count: number }>();
     let totalRevenue = 0;
     let totalSessions = 0;
+    let planRevenue = 0;
+    let planSales = 0;
 
     for (const row of rows) {
       const label = periodLabel(row.day, params.groupBy);
@@ -79,7 +81,14 @@ export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, Re
       methodMap.set(row.method, { amountCents: mEntry.amountCents + row.amount_cents, count: mEntry.count + 1 });
 
       totalRevenue += row.revenue_cents;
-      totalSessions++;
+      // Un pago sin sesión es una venta de plan; el resto son cobros de
+      // parqueo. Separarlos evita contar mensualidades como "sesiones".
+      if (row.session_id === null) {
+        planRevenue += row.revenue_cents;
+        planSales++;
+      } else {
+        totalSessions++;
+      }
     }
 
     const byPeriod: RevenuePeriod[] = Array.from(periodMap.entries())
@@ -97,6 +106,8 @@ export class GetRevenueByPeriodUseCase extends UseCase<RevenueByPeriodParams, Re
       dateTo: params.dateTo,
       groupBy: params.groupBy,
       totalRevenueCents: totalRevenue,
+      planRevenueCents: planRevenue,
+      planSalesCount: planSales,
       totalSessions,
       byPeriod,
       byMethod,
