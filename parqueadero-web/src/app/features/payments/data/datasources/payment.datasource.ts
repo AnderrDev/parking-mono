@@ -15,6 +15,7 @@ export abstract class PaymentDataSource {
   abstract create(params: CreatePaymentParams): Promise<Either<Failure, PaymentEntity>>;
   abstract list(params: ListPaymentsParams): Promise<Either<Failure, ListPaymentsResult>>;
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
+  abstract findByGatewayRef(ref: string): Promise<Either<Failure, PaymentEntity | null>>;
   abstract listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
   abstract correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>>;

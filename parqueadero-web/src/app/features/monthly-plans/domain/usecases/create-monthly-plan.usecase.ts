@@ -12,6 +12,7 @@ import { CustomerRepository } from '../../../customers/domain/repositories/custo
 import { CashierRepository } from '../../../cashier/domain/repositories/cashier.repository';
 import { MonthlyPlanRepository, CreateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
 import { isValidPlate, normalizePlate } from '../../../../shared/utils/plate.utils';
+import { todayDateOnlyBogota } from '../../../../shared/utils/date.utils';
 
 const PLAN_TYPES = ['basico', 'premium', 'ilimitado'];
 
@@ -48,18 +49,24 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
       ));
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Fechas civiles de Colombia: `setHours(0,0,0,0)` sobre la hora de la
+    // máquina bastaba mientras solo se comparaban entre sí, pero el corte
+    // contra "hoy" tiene que ser el día de Bogotá.
+    const today = todayDateOnlyBogota();
     const startDate = new Date(params.startDate);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(params.endDate);
     endDate.setHours(0, 0, 0, 0);
 
-    if (startDate < today) {
-      return left(new ValidationFailure('La fecha de inicio no puede ser anterior a hoy'));
-    }
     if (endDate <= startDate) {
       return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio'));
+    }
+    // Se permite retrodatar el inicio (mensualidades que el cliente ya venía
+    // usando o que se registran tarde), pero no vender un plan que ya se
+    // venció: no cubriría ninguna entrada. Es la misma regla que aplica la
+    // RPC con `plan_already_expired`; acá solo se adelanta el mensaje.
+    if (endDate < today) {
+      return left(new ValidationFailure('La fecha de fin ya pasó: el plan no cubriría ningún día'));
     }
 
     const customerResult = await this.customerRepo.findById(params.customerId);
@@ -72,7 +79,7 @@ export class CreateMonthlyPlanUseCase extends UseCase<CreateMonthlyPlanParams, M
     // servidor. La garantía real es la constraint `monthly_plans_no_overlap`,
     // que la RPC traduce a `plan_overlap`: entre este SELECT y el INSERT
     // cabe otra venta de la misma placa.
-    const hasActive = await this.repo.hasActivePlanForPlate(plate);
+    const hasActive = await this.repo.hasActivePlanForPlate(plate, { start: startDate, end: endDate });
     if (hasActive.isLeft()) return hasActive as Either<Failure, never>;
     if (hasActive.value) {
       return left(new BusinessRuleFailure(`La placa ${plate} ya tiene un plan activo que se solapa con las fechas indicadas`));

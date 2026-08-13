@@ -44,7 +44,7 @@ Admin u operador (con turno de caja abierto).
 
 El plan se vende en dos duraciones, elegidas con un selector en el diálogo:
 
-| Duración | Días que se suman al inicio | Tarifa que le pone precio |
+| Duración | Días cubiertos | Tarifa que le pone precio |
 |---|---|---|
 | Quincena | 15 | `tariffs.unit = 'quincena'` |
 | Mensualidad | 30 | `tariffs.unit = 'mensualidad'` |
@@ -53,9 +53,12 @@ La duración **no se persiste** en `monthly_plans`: la expresan `start_date`
 y `end_date`, así que la tabla no cambió. El selector solo decide la fecha
 de vencimiento y qué tarifa se consulta para autocompletar el valor.
 
-Como `end_date` es inclusivo, un plan de 30 días vendido el 1 vence el 31 y
-cubre 31 días de calendario. Se conserva esa convención — es la que ya tenía
-la mensualidad — y la quincena la sigue: 15 días sumados, 16 cubiertos.
+**`end_date = start_date + días − 1`** (corregido el 2026-08-12). Como
+`end_date` es inclusivo y cuenta completo, sumar los días pelados vendía uno
+de más: 30 días desde el 12-ago vencían el 11-sep y cubrían 31. La
+discrepancia era invisible hasta que el comprobante impreso empezó a
+imprimir la vigencia en días al lado de la etiqueta "30 días" del
+formulario. Ahora: vendida el 12-ago, vence el 10-sep, 30 días exactos.
 
 Si el tipo de vehículo elegido no tiene tarifa configurada para esa
 duración, el valor queda editable y quien vende lo digita.
@@ -70,7 +73,17 @@ duración, el valor queda editable y quien vende lo digita.
    al servidor; entre ese SELECT y el INSERT cabe otra venta de la misma placa.
    Renovar por anticipado con fechas consecutivas (p. ej. día 31 al 60 sobre
    un plan que va del 1 al 30) SÍ está permitido: no hay solapamiento.
-2. `startDate` ≥ hoy (no planes en el pasado).
+   El chequeo previo pregunta por SOLAPAMIENTO con las fechas pedidas
+   (`hasActivePlanForPlate(plate, { start, end })`); preguntar solo "¿tiene
+   plan vigente hoy?" rechazaba renovaciones consecutivas y retrodataciones
+   que la BD sí acepta.
+2. `startDate` **puede ser anterior a hoy** (desde 2026-08-12). Se retrodata
+   para registrar mensualidades que el cliente ya venía usando o que se
+   cobran días después de empezadas. Lo que NO se acepta es vender un plan
+   ya vencido: `endDate` ≥ hoy, porque no cubriría ninguna entrada. La misma
+   regla la aplica la RPC (`plan_already_expired`); el use case solo adelanta
+   el mensaje. El corte de "hoy" es el día civil de Bogotá
+   (`todayDateOnlyBogota()`), no la medianoche de la máquina.
 3. `endDate > startDate`.
 4. Si `endDate - today ≤ 5 días`: el plan inicia con `status = 'expiring'`
    directamente. La cuenta es por DÍA CALENDARIO de Colombia, no por instante.
@@ -158,6 +171,10 @@ valor que vas a cobrar por el mes".
 - **Invocación**: `MonthlyPlansListPage` → "Nuevo plan" → `MonthlyPlanEditDialog`.
 - **Formulario**: `MonthlyPlanForms.createPlanForm()`.
 - **Feedback**: Toast "Plan mensual creado para placa {plate}".
+- **Comprobante impreso**: tras el `Right`, la página dispara el ticket
+  térmico de la venta — ver
+  `specs/features/monthly-plans/print-monthly-plan-receipt.spec.md`. No
+  bloquea ni revierte la venta si la impresión falla.
 
 ## Renovación automática — retirada (2026-08-11)
 

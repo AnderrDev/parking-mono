@@ -18,7 +18,9 @@ import {
   TARIFF_REPOSITORY_TOKEN,
   TARIFF_REMOTE_DATASOURCE_TOKEN,
   GET_ACTIVE_PLAN_TARIFF_TOKEN,
+  TICKET_RENDERER_TOKEN,
 } from '../../core/di/injection-tokens';
+import { TicketRendererService } from '../parking/data/services/ticket-renderer.service';
 import { MonthlyPlanRemoteDataSource } from './data/datasources/monthly-plan-remote.datasource';
 import { MonthlyPlanRepositoryImpl } from './data/repositories/monthly-plan.repository.impl';
 import { ListMonthlyPlansUseCase } from './domain/usecases/list-monthly-plans.usecase';
@@ -59,6 +61,9 @@ const monthlyPlanProviders = [
   { provide: TARIFF_REMOTE_DATASOURCE_TOKEN, useClass: TariffRemoteDataSource },
   { provide: TARIFF_REPOSITORY_TOKEN, useClass: TariffRepositoryImpl },
   { provide: GET_ACTIVE_PLAN_TARIFF_TOKEN, useClass: GetActivePlanTariffUseCase },
+  // Comprobante térmico de la venta (impresión automática + reimpresión).
+  // Spec: specs/features/monthly-plans/print-monthly-plan-receipt.spec.md
+  { provide: TICKET_RENDERER_TOKEN, useClass: TicketRendererService },
 ];
 
 export const monthlyPlansRoutes: Routes = [

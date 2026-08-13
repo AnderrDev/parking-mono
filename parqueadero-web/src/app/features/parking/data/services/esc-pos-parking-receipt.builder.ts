@@ -2,6 +2,7 @@ import { formatCOP } from '../../../../shared/utils/currency.utils';
 import { InvoiceDetailEntity } from '../../../invoicing/domain/entities/invoice-detail.entity';
 import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking-session.entity';
 import { TariffEntity } from '../../domain/entities/tariff.entity';
+import type { MonthlyPlanReceiptData } from '../../domain/services/ticket-renderer.port';
 import type { ExitReceiptData, ParkingInfo } from './ticket-renderer.service';
 import type { QzParkingPrintChunk } from './qz-parking-printer.service';
 
@@ -163,6 +164,82 @@ export function buildEscPosSalesTicket(detail: InvoiceDetailEntity, info: Parkin
   return output;
 }
 
+/**
+ * Comprobante de venta de mensualidad. Es el único papel que se lleva el
+ * cliente para acreditar qué placa quedó cubierta y hasta cuándo, así que
+ * la vigencia va antes que el valor.
+ */
+export function buildEscPosMonthlyPlanReceipt(
+  data: MonthlyPlanReceiptData,
+  info: ParkingInfo,
+): string[] {
+  const sold = splitBogotaDateTime(data.soldAt);
+  const output = baseHeader(info);
+
+  output.push(
+    COMMAND.alignCenter,
+    COMMAND.boldOn,
+    ...lines('COMPROBANTE MENSUALIDAD'),
+    COMMAND.boldOff,
+  );
+
+  if (data.isReprint) {
+    output.push(divider(), COMMAND.boldOn, ...lines('REIMPRESION'), COMMAND.boldOff);
+  }
+
+  // Va con la placa, no al pie: es lo que decide si este papel sirve o no.
+  if (data.isCancelled) {
+    output.push(
+      divider(),
+      COMMAND.boldOn,
+      ...lines('PLAN CANCELADO'),
+      ...lines('NO da derecho a ingreso'),
+      COMMAND.boldOff,
+    );
+  }
+
+  output.push(
+    divider(),
+    COMMAND.textDouble,
+    COMMAND.boldOn,
+    ...lines(data.plate),
+    COMMAND.boldOff,
+    COMMAND.textNormal,
+    COMMAND.alignLeft,
+  );
+
+  if (data.customerName) output.push(...pairLines('Cliente', data.customerName));
+  if (data.customerDoc) output.push(...pairLines('Documento', data.customerDoc));
+
+  output.push(
+    ...pairLines('Plan', planTypeLabel(data.planType)),
+    ...pairLines('Desde', formatBogotaDateOnly(data.startDate)),
+    ...pairLines('Hasta', formatBogotaDateOnly(data.endDate)),
+    ...pairLines('Vigencia', vigencyLabel(data.startDate, data.endDate)),
+    divider(),
+  );
+
+  if (data.paymentMethod) {
+    output.push(...pairLines('Pago', paymentMethodLabel(data.paymentMethod)));
+  }
+
+  output.push(
+    ...pairLines('Vendido', `${sold.date} ${sold.time}`),
+    COMMAND.boldOn,
+    ...pairLines('TOTAL', formatCOP(data.amountCents)),
+    COMMAND.boldOff,
+    divider(),
+    COMMAND.alignCenter,
+    ...lines('Presente este comprobante'),
+    ...lines('La placa entra sin cobro mientras este vigente'),
+    COMMAND.alignLeft,
+    ...lines(`Plan: ${data.planId}`),
+    ...footer(info),
+  );
+
+  return output;
+}
+
 export function buildEscPosTestReceipt(info: ParkingInfo): string[] {
   const output = baseHeader(info);
   output.push(
@@ -285,6 +362,33 @@ function paymentMethodLabel(method: string): string {
     error: 'Cobro corregido',
   };
   return labels[method] ?? method;
+}
+
+const PLAN_TYPE_LABEL: Record<string, string> = {
+  basico: 'Basico',
+  premium: 'Premium',
+  ilimitado: 'Ilimitado',
+};
+
+function planTypeLabel(planType: string): string {
+  return PLAN_TYPE_LABEL[planType] ?? planType;
+}
+
+/**
+ * Fechas civiles (columnas DATE) que llegan ancladas a la medianoche LOCAL.
+ * Se formatean con los getters locales: pasarlas por `timeZone` las
+ * reconvierte y puede correr el día si la máquina no está en Bogotá.
+ */
+function formatBogotaDateOnly(d: Date): string {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}/${d.getFullYear()}`;
+}
+
+/** Días cubiertos con ambos extremos inclusive: del 1 al 30 son 30 días. */
+function vigencyLabel(start: Date, end: Date): string {
+  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  return days === 1 ? '1 dia' : `${days} dias`;
 }
 
 function splitBogotaDateTime(d: Date): { date: string; time: string } {

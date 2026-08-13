@@ -15,5 +15,9 @@ export abstract class MonthlyPlanDataSource {
   ): Promise<Either<Failure, MonthlyPlanEntity>>;
   abstract update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>>;
   abstract cancel(id: string): Promise<Either<Failure, CancelPlanOutcome>>;
-  abstract hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>>;
+  abstract hasActivePlanForPlate(
+    plate: string,
+    range?: { start: Date; end: Date },
+    excludeId?: string,
+  ): Promise<Either<Failure, boolean>>;
 }

@@ -42,7 +42,14 @@ class MockMonthlyPlanRepository extends MonthlyPlanRepository {
   capturedCreateParams: CreateMonthlyPlanParams | null = null;
   capturedShiftId: string | null = null;
 
-  async hasActivePlanForPlate(_plate: string, _excludeId?: string) {
+  capturedOverlapRange: { start: Date; end: Date } | undefined;
+
+  async hasActivePlanForPlate(
+    _plate: string,
+    range?: { start: Date; end: Date },
+    _excludeId?: string,
+  ) {
+    this.capturedOverlapRange = range;
     return this.hasActivePlanResult;
   }
   async createWithPayment(params: CreateMonthlyPlanParams, shiftId: string) {
@@ -178,10 +185,29 @@ describe('CreateMonthlyPlanUseCase', () => {
     expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
   });
 
-  it('ValidationFailure: fecha inicio anterior a hoy', async () => {
+  // Retrodatar el inicio es un caso real: la mensualidad se cobra días
+  // después de que el cliente empezó a usarla.
+  it('permite fecha de inicio anterior a hoy si el plan sigue vigente', async () => {
     const past = new Date();
-    past.setDate(past.getDate() - 1);
-    const result = await usecase.execute(baseParams({ startDate: past, endDate: future(30) }));
+    past.setDate(past.getDate() - 10);
+    const result = await usecase.execute(baseParams({ startDate: past, endDate: future(20) }));
+    expect(result.isRight()).toBeTrue();
+  });
+
+  it('consulta el solapamiento con el rango pedido, no con "hoy"', async () => {
+    const start = future(40);
+    const end = future(70);
+    await usecase.execute(baseParams({ startDate: start, endDate: end }));
+    expect(planRepo.capturedOverlapRange?.start.getDate()).toBe(start.getDate());
+    expect(planRepo.capturedOverlapRange?.end.getDate()).toBe(end.getDate());
+  });
+
+  it('ValidationFailure: plan que ya venció (fecha fin en el pasado)', async () => {
+    const start = new Date();
+    start.setDate(start.getDate() - 40);
+    const end = new Date();
+    end.setDate(end.getDate() - 10);
+    const result = await usecase.execute(baseParams({ startDate: start, endDate: end }));
     expect(result.isLeft()).toBeTrue();
     expect(result.fold(f => f, () => null)).toBeInstanceOf(ValidationFailure);
   });

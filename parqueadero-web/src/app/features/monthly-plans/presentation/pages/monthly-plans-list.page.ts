@@ -14,7 +14,13 @@ import { CancelMonthlyPlanUseCase } from '../../domain/usecases/cancel-monthly-p
 import {
   LIST_MONTHLY_PLANS_TOKEN, CREATE_MONTHLY_PLAN_TOKEN,
   UPDATE_MONTHLY_PLAN_TOKEN, CANCEL_MONTHLY_PLAN_TOKEN,
+  TICKET_RENDERER_TOKEN, CUSTOMER_REPOSITORY_TOKEN, PAYMENT_REPOSITORY_TOKEN,
 } from '../../../../core/di/injection-tokens';
+import {
+  MonthlyPlanReceiptData, TicketRendererPort,
+} from '../../../parking/domain/services/ticket-renderer.port';
+import { CustomerRepository } from '../../../customers/domain/repositories/customer.repository';
+import { PaymentRepository } from '../../../payments/domain/repositories/payment.repository';
 import {
   MonthlyPlanEditDialogComponent, MonthlyPlanDialogData, MonthlyPlanFormValue,
 } from '../components/monthly-plan-edit-dialog.component';
@@ -54,6 +60,12 @@ const STATUS_LABEL: Record<string, string> = {
   active: 'Activo', expiring: 'Por vencer', expired: 'Vencido', cancelled: 'Cancelado',
 };
 
+/** "CC 1234567" para el comprobante; null si el cliente no tiene documento. */
+function formatCustomerDoc(docType?: string, docNumber?: string): string | null {
+  if (!docNumber) return null;
+  return `${(docType ?? '').toUpperCase()} ${docNumber}`.trim();
+}
+
 @Component({
   selector: 'app-monthly-plans-list-page',
   standalone: true,
@@ -73,12 +85,18 @@ export class MonthlyPlansListPageComponent implements OnInit {
 
   protected readonly columns = COLUMNS;
   protected readonly statusOptions = STATUS_OPTIONS;
+  /** Plan cuyo comprobante se está reimprimiendo (deshabilita su botón). */
+  protected readonly reprintingPlanId = signal<string | null>(null);
 
   constructor(
     @Inject(LIST_MONTHLY_PLANS_TOKEN) private readonly listUC: ListMonthlyPlansUseCase,
     @Inject(CREATE_MONTHLY_PLAN_TOKEN) private readonly createUC: CreateMonthlyPlanUseCase,
     @Inject(UPDATE_MONTHLY_PLAN_TOKEN) private readonly updateUC: UpdateMonthlyPlanUseCase,
     @Inject(CANCEL_MONTHLY_PLAN_TOKEN) private readonly cancelUC: CancelMonthlyPlanUseCase,
+    @Inject(TICKET_RENDERER_TOKEN) private readonly ticketRenderer: TicketRendererPort,
+    // Solo para la REIMPRESIÓN: la venta ya trae cliente y método en memoria.
+    @Inject(CUSTOMER_REPOSITORY_TOKEN) private readonly customerRepo: CustomerRepository,
+    @Inject(PAYMENT_REPOSITORY_TOKEN) private readonly paymentRepo: PaymentRepository,
     private readonly dialog: Dialog,
     private readonly toast: ToastService,
     private readonly auth: AuthStateService,
@@ -149,6 +167,10 @@ export class MonthlyPlansListPageComponent implements OnInit {
       this.toast.error('Sesión expirada. Vuelve a iniciar sesión.');
       return;
     }
+    // Caja mutable y no `let`: el plan se asigna dentro del callback y TS
+    // no reconoce esa escritura al leerlo desde `closed`.
+    const sold: { plan: MonthlyPlanEntity | null } = { plan: null };
+
     const ref = this.dialog.open<MonthlyPlanFormValue | null>(MonthlyPlanEditDialogComponent, {
       injector: this.envInjector,
       viewContainerRef: this.vcr,
@@ -167,7 +189,7 @@ export class MonthlyPlansListPageComponent implements OnInit {
           });
           return result.fold(
             (f) => this.failureMsg(f),
-            () => null,
+            (plan) => { sold.plan = plan; return null; },
           );
         },
       } satisfies MonthlyPlanDialogData,
@@ -175,8 +197,80 @@ export class MonthlyPlansListPageComponent implements OnInit {
     ref.closed.subscribe((value) => {
       if (!value) return;
       this.toast.success(`Plan creado para ${value.vehiclePlate} · ingreso registrado`);
+      const plan = sold.plan;
+      // El comprobante es un subproducto: la venta y el ingreso ya están
+      // confirmados en Supabase, así que no se espera ni se bloquea por él.
+      if (plan) {
+        const snap = value.customerSnapshot;
+        void this.printReceipt({
+          plate: plan.vehiclePlate,
+          customerName: snap?.name ?? null,
+          customerDoc: formatCustomerDoc(snap?.docType, snap?.docNumber),
+          planType: plan.planType,
+          startDate: plan.startDate,
+          endDate: plan.endDate,
+          amountCents: plan.amountCents,
+          paymentMethod: value.paymentMethod as PaymentMethod,
+          soldAt: plan.createdAt,
+          planId: plan.id,
+        }, { announceDisabled: false });
+      }
       this.load();
     });
+  }
+
+  /**
+   * Reimprime el comprobante de una venta ya hecha. Resuelve cliente y pago
+   * contra la BD; si alguno falla, imprime igual con esas líneas omitidas —
+   * el papel sigue sirviendo y el operador no queda varado.
+   */
+  protected async reprintReceipt(plan: MonthlyPlanEntity, event: Event): Promise<void> {
+    event.stopPropagation();
+    if (this.reprintingPlanId()) return;
+
+    this.reprintingPlanId.set(plan.id);
+    try {
+      const [customerResult, paymentResult] = await Promise.all([
+        this.customerRepo.findById(plan.customerId),
+        // `gateway_ref` es el único vínculo entre `payments` y el plan.
+        this.paymentRepo.findByGatewayRef(`monthly_plan:${plan.id}`),
+      ]);
+      const customer = customerResult.fold(() => null, (c) => c);
+      const payment = paymentResult.fold(() => null, (p) => p);
+
+      await this.printReceipt({
+        plate: plan.vehiclePlate,
+        customerName: customer?.name ?? null,
+        customerDoc: formatCustomerDoc(customer?.docType, customer?.docNumber),
+        planType: plan.planType,
+        startDate: plan.startDate,
+        endDate: plan.endDate,
+        amountCents: plan.amountCents,
+        paymentMethod: payment?.method ?? null,
+        soldAt: payment?.paidAt ?? plan.createdAt,
+        planId: plan.id,
+        isReprint: true,
+        isCancelled: plan.status === 'cancelled' || plan.isDeleted,
+      }, { announceDisabled: true });
+    } finally {
+      this.reprintingPlanId.set(null);
+    }
+  }
+
+  /**
+   * `announceDisabled` distingue quién pidió el papel: en la venta el toggle
+   * apagado es configuración deliberada y no merece un error; en la
+   * reimpresión el operador lo pidió explícitamente y necesita saber por qué
+   * no salió nada.
+   */
+  private async printReceipt(
+    data: MonthlyPlanReceiptData,
+    opts: { announceDisabled: boolean },
+  ): Promise<void> {
+    const result = await this.ticketRenderer.printMonthlyPlanReceipt(data);
+    if (result.ok) return;
+    if (result.reason === 'printer_not_configured' && !opts.announceDisabled) return;
+    this.toast.error(result.message ?? 'No se pudo imprimir el comprobante por QZ Tray.');
   }
 
   protected openEdit(plan: MonthlyPlanEntity): void {

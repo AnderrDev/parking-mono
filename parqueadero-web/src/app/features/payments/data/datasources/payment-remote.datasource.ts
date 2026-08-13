@@ -120,6 +120,26 @@ export class PaymentRemoteDataSource extends PaymentDataSource {
     }
   }
 
+  /**
+   * `maybeSingle()` y no `single()`: que no exista el pago es un resultado
+   * legítimo (plan viejo, ingreso anulado), no un error del servidor.
+   */
+  async findByGatewayRef(ref: string): Promise<Either<Failure, PaymentEntity | null>> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('payments')
+        .select()
+        .eq('gateway_ref', ref)
+        .eq('_deleted', false)
+        .maybeSingle<PaymentModel>();
+
+      if (error) return left(new ServerFailure(error.message));
+      return right(data ? PaymentMapper.toEntity(data) : null);
+    } catch {
+      return left(new NetworkFailure());
+    }
+  }
+
   async listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>> {
     try {
       const { data, error } = await this.supabase.client

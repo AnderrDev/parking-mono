@@ -163,9 +163,10 @@
           <div class="field-row">
             <div class="field">
               <label class="field__label" for="p-start">Fecha inicio</label>
+              <!-- Sin `min`: se permite retrodatar el inicio para registrar
+                   mensualidades que el cliente ya venía usando. -->
               <input id="p-start" class="field__input" [class.field__input--error]="err('startDate')"
                 type="date" formControlName="startDate"
-                [min]="todayIso"
                 [attr.aria-describedby]="err('startDate') ? 'p-start-err' : null" />
               @if (err('startDate')) {
                 <span id="p-start-err" class="field__error" role="alert">{{ errMsg('startDate') }}</span>

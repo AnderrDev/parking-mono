@@ -38,6 +38,10 @@ export class PaymentRepositoryImpl extends PaymentRepository {
     return this.remoteDs.listByShift(shiftId);
   }
 
+  async findByGatewayRef(ref: string): Promise<Either<Failure, PaymentEntity | null>> {
+    return this.remoteDs.findByGatewayRef(ref);
+  }
+
   async listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>> {
     return this.remoteDs.listByShiftWithVehicle(shiftId);
   }

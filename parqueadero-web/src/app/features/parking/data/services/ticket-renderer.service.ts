@@ -13,6 +13,7 @@ import { ParkingSessionEntity, VehicleType } from '../../domain/entities/parking
 import { TariffEntity, PLAN_UNITS_FILTER } from '../../domain/entities/tariff.entity';
 import {
   ExitReceiptPrintData,
+  MonthlyPlanReceiptData,
   TicketRendererPort,
   TicketRenderResult,
 } from '../../domain/services/ticket-renderer.port';
@@ -23,6 +24,7 @@ import { PaymentMethod } from '../../domain/entities/payment.entity';
 import {
   buildEscPosEntryReceipt,
   buildEscPosExitReceipt,
+  buildEscPosMonthlyPlanReceipt,
   buildEscPosSalesTicket,
 } from './esc-pos-parking-receipt.builder';
 import {
@@ -305,6 +307,38 @@ export class TicketRendererService extends TicketRendererPort {
       ok: false,
       reason: 'printer_not_configured',
       message: 'La impresión de tickets por QZ está desactivada.',
+    };
+  }
+
+  /**
+   * Comprobante de venta de mensualidad. Reusa el toggle del comprobante de
+   * salida (`printExitReceiptEnabled`): ambos son papeles de cobro y el
+   * negocio no distingue los casos al configurar la impresora.
+   *
+   * Spec: specs/features/monthly-plans/print-monthly-plan-receipt.spec.md
+   */
+  async printMonthlyPlanReceipt(data: MonthlyPlanReceiptData): Promise<TicketRenderResult> {
+    const info = await this.getParkingInfo();
+
+    if (info.printExitReceiptEnabled) {
+      try {
+        await this.qzPrinter.print(
+          buildEscPosMonthlyPlanReceipt(data, info),
+          info.printerName,
+          `Parqueadero mensualidad ${data.plate}`,
+        );
+        return { ok: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[print-monthly-plan] QZ failed.', error);
+        return { ok: false, reason: 'qz_error', message };
+      }
+    }
+
+    return {
+      ok: false,
+      reason: 'printer_not_configured',
+      message: 'La impresión de comprobantes por QZ está desactivada.',
     };
   }
 

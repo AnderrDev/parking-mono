@@ -61,5 +61,17 @@ export abstract class MonthlyPlanRepository {
   ): Promise<Either<Failure, MonthlyPlanEntity>>;
   abstract update(params: UpdateMonthlyPlanParams): Promise<Either<Failure, MonthlyPlanEntity>>;
   abstract cancel(id: string): Promise<Either<Failure, CancelPlanOutcome>>;
-  abstract hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>>;
+  /**
+   * ¿La placa ya tiene una mensualidad vigente que choque? Con `range` la
+   * pregunta es por SOLAPAMIENTO con esas fechas — que es lo que castiga la
+   * constraint `monthly_plans_no_overlap`. Sin `range` cae al "¿tiene algún
+   * plan vigente hoy?", que sirve para consultas pero NO para validar una
+   * venta: rechazaría una renovación consecutiva o una retrodatada que no
+   * se solapa con nada.
+   */
+  abstract hasActivePlanForPlate(
+    plate: string,
+    range?: { start: Date; end: Date },
+    excludeId?: string,
+  ): Promise<Either<Failure, boolean>>;
 }

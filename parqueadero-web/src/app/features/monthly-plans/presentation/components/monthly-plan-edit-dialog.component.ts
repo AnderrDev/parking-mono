@@ -23,7 +23,7 @@ import { CustomerEntity, DocType } from '../../../customers/domain/entities/cust
 import { VehicleType } from '../../../parking/domain/entities/parking-session.entity';
 import { PlanTariffUnit } from '../../../parking/domain/entities/tariff.entity';
 import { normalizePlate } from '../../../../shared/utils/plate.utils';
-import { formatIsoDateOnly, parseIsoDateOnly, todayIsoBogota } from '../../../../shared/utils/date.utils';
+import { formatIsoDateOnly, parseIsoDateOnly } from '../../../../shared/utils/date.utils';
 import {
   DOC_TYPES, VEHICLE_TYPES, PLAN_TYPES, PAYMENT_METHODS_PLAN, PLAN_DURATIONS,
 } from '../../../../shared/constants/form-options';
@@ -106,7 +106,6 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
   protected get isEdit(): boolean { return this.data.plan !== null; }
-  protected readonly todayIso = todayIsoBogota();
 
   constructor(
     @Inject(DIALOG_DATA) protected readonly data: MonthlyPlanDialogData,
@@ -167,13 +166,18 @@ export class MonthlyPlanEditDialogComponent implements OnInit {
     }
   }
 
-  /** Vencimiento = inicio + los días de la duración elegida. */
+  /**
+   * Vencimiento = inicio + los días de la duración, MENOS uno: `end_date` es
+   * el último día cubierto y cuenta completo. Sin el `- 1`, una duración de
+   * 30 días vendía 31 (del 12-ago al 11-sep) y el comprobante impreso lo
+   * delataba junto a la etiqueta "30 días" del formulario.
+   */
   private syncEndDate(): void {
     const iso = this.form.get('startDate')?.value as string | null;
     if (!iso) return;
     const days = this.durationDays();
     const end = parseIsoDateOnly(iso);
-    end.setDate(end.getDate() + days);
+    end.setDate(end.getDate() + days - 1);
     this.form.get('endDate')?.setValue(formatIsoDateOnly(end), { emitEvent: false });
   }
 

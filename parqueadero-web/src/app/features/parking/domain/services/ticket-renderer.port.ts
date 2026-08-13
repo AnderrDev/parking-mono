@@ -31,6 +31,34 @@ export interface ExitReceiptPrintData {
   tariffSnapshot: TariffEntity | null;
 }
 
+/**
+ * Comprobante de venta de mensualidad. Las fechas de vigencia son fechas
+ * civiles (columnas DATE) y ambos extremos son inclusivos.
+ */
+export interface MonthlyPlanReceiptData {
+  plate: string;
+  /** null → se omite la línea (no se inventa "Sin cliente"). */
+  customerName: string | null;
+  /** Documento ya formateado, p. ej. "CC 1234567". null → se omite. */
+  customerDoc: string | null;
+  planType: string;
+  startDate: Date;
+  /** Último día cubierto, inclusive. */
+  endDate: Date;
+  amountCents: number;
+  /** null cuando la reimpresión no logró resolver el pago. */
+  paymentMethod: PaymentMethod | null;
+  soldAt: Date;
+  planId: string;
+  /** Marca el papel como copia para que no pase por un segundo cobro. */
+  isReprint?: boolean;
+  /**
+   * El plan fue cancelado. Sin esta marca, la reimpresión de un plan anulado
+   * sale idéntica a una vigente y sirve para entrar sin cobro.
+   */
+  isCancelled?: boolean;
+}
+
 export abstract class TicketRendererPort {
   /** Ticket de ENTRADA (al ingresar vehículo). */
   abstract renderAndPrint(
@@ -45,6 +73,11 @@ export abstract class TicketRendererPort {
 
   /** Ticket de SALIDA (comprobante de cobro). */
   abstract printSalesTicket(detail: InvoiceDetailEntity): Promise<TicketRenderResult>;
+
+  /** Comprobante de venta de MENSUALIDAD (vigencia + cobro). */
+  abstract printMonthlyPlanReceipt(
+    data: MonthlyPlanReceiptData,
+  ): Promise<TicketRenderResult>;
 
   abstract openCashDrawer(): Promise<TicketRenderResult>;
 

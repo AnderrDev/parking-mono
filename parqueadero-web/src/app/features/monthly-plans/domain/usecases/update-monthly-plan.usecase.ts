@@ -5,6 +5,7 @@ import { UseCase } from '../../../../core/base/usecase';
 import { MONTHLY_PLAN_REPOSITORY_TOKEN } from '../../../../core/di/injection-tokens';
 import { MonthlyPlanEntity } from '../../../parking/domain/entities/monthly-plan.entity';
 import { MonthlyPlanRepository, UpdateMonthlyPlanParams } from '../repositories/monthly-plan.repository';
+import { todayDateOnlyBogota } from '../../../../shared/utils/date.utils';
 
 @Injectable()
 export class UpdateMonthlyPlanUseCase extends UseCase<UpdateMonthlyPlanParams, MonthlyPlanEntity> {
@@ -23,15 +24,20 @@ export class UpdateMonthlyPlanUseCase extends UseCase<UpdateMonthlyPlanParams, M
     }
 
     if (params.endDate !== undefined) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Día civil de Colombia, no la medianoche de la máquina: con el reloj
+      // del equipo en UTC, después de las 19:00 de Bogotá "hoy" ya era el
+      // día siguiente y rechazaba vigencias válidas.
+      const today = todayDateOnlyBogota();
       const endDate = new Date(params.endDate);
       endDate.setHours(0, 0, 0, 0);
       if (endDate <= plan.startDate) {
         return left(new ValidationFailure('La fecha de fin debe ser posterior a la fecha de inicio'));
       }
-      if (endDate <= today) {
-        return left(new ValidationFailure('La fecha de fin debe ser posterior a hoy'));
+      // `<` y no `<=`: un plan que vence hoy sigue vigente todo el día, igual
+      // que en `isCurrentlyActive` y en la venta. Recortar la vigencia a hoy
+      // es una edición legítima.
+      if (endDate < today) {
+        return left(new ValidationFailure('La fecha de fin no puede ser anterior a hoy'));
       }
     }
     if (params.amountCents !== undefined && params.amountCents <= 0) {

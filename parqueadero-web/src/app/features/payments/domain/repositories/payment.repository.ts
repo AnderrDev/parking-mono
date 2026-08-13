@@ -57,6 +57,12 @@ export abstract class PaymentRepository {
   abstract create(params: CreatePaymentParams): Promise<Either<Failure, PaymentEntity>>;
   abstract list(params: ListPaymentsParams): Promise<Either<Failure, ListPaymentsResult>>;
   abstract listByShift(shiftId: string): Promise<Either<Failure, PaymentEntity[]>>;
+  /**
+   * Busca el ingreso por su `gateway_ref` — el único vínculo entre `payments`
+   * y una mensualidad (`monthly_plan:<id>`), porque la tabla no tiene FK al
+   * plan. `Right(null)` = no hay pago con esa referencia.
+   */
+  abstract findByGatewayRef(ref: string): Promise<Either<Failure, PaymentEntity | null>>;
   abstract listByShiftWithVehicle(shiftId: string): Promise<Either<Failure, PaymentWithVehicle[]>>;
   abstract sumCashByShift(shiftId: string): Promise<Either<Failure, number>>;
   abstract correctMethod(params: CorrectPaymentMethodParams): Promise<Either<Failure, PaymentEntity>>;

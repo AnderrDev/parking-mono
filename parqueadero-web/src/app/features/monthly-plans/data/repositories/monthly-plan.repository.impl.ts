@@ -49,7 +49,11 @@ export class MonthlyPlanRepositoryImpl extends MonthlyPlanRepository {
     return this.remoteDs.cancel(id);
   }
 
-  async hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>> {
-    return this.remoteDs.hasActivePlanForPlate(plate, excludeId);
+  async hasActivePlanForPlate(
+    plate: string,
+    range?: { start: Date; end: Date },
+    excludeId?: string,
+  ): Promise<Either<Failure, boolean>> {
+    return this.remoteDs.hasActivePlanForPlate(plate, range, excludeId);
   }
 }

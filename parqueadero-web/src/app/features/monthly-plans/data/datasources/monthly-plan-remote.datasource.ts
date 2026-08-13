@@ -199,15 +199,29 @@ export class MonthlyPlanRemoteDataSource extends MonthlyPlanDataSource {
     return daysLeft <= EXPIRING_THRESHOLD_DAYS ? 'expiring' : 'active';
   }
 
-  async hasActivePlanForPlate(plate: string, excludeId?: string): Promise<Either<Failure, boolean>> {
+  async hasActivePlanForPlate(
+    plate: string,
+    range?: { start: Date; end: Date },
+    excludeId?: string,
+  ): Promise<Either<Failure, boolean>> {
     try {
       let query = this.supabase.client
         .from('monthly_plans').select('id', { count: 'exact', head: true })
         .eq('vehicle_plate', plate).in('status', ['active', 'expiring'])
+        .eq('_deleted', false);
+
+      if (range) {
+        // Solapamiento de rangos con ambos extremos inclusivos, igual que
+        // `daterange(start_date, end_date, '[]')` de la constraint: chocan si
+        // cada uno empieza antes de que el otro termine.
+        query = query
+          .lte('start_date', formatIsoDateOnly(range.end))
+          .gte('end_date', formatIsoDateOnly(range.start));
+      } else {
         // Sin el filtro de fecha, un plan vencido hace meses (que nadie marca
         // como `expired`) bloqueaba para siempre la renovación de esa placa.
-        .gte('end_date', todayIsoBogota())
-        .eq('_deleted', false);
+        query = query.gte('end_date', todayIsoBogota());
+      }
       if (excludeId) query = query.neq('id', excludeId);
       const { count, error } = await query;
       if (error) return left(new ServerFailure(error.message));

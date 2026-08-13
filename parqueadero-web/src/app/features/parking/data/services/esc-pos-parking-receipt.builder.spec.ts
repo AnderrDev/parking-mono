@@ -1,5 +1,6 @@
 import {
   buildEscPosExitReceipt,
+  buildEscPosMonthlyPlanReceipt,
   buildEscPosTestReceipt,
   ESC_POS_RECEIPT_COLUMNS,
 } from './esc-pos-parking-receipt.builder';
@@ -45,6 +46,89 @@ describe('ESC/POS parking receipt builder', () => {
     expect(raw).toContain('$ 8.000');
     expect(raw).toContain('Cambio');
     expect(raw).toContain('\x1dV\x00');
+  });
+
+  // Spec: specs/features/monthly-plans/print-monthly-plan-receipt.spec.md
+  it('genera el comprobante de mensualidad con vigencia y total', () => {
+    const raw = buildEscPosMonthlyPlanReceipt(
+      {
+        plate: 'ABC123',
+        customerName: 'Juan Perez',
+        customerDoc: 'CC 1234567',
+        planType: 'basico',
+        // Fechas civiles: medianoche LOCAL, como las arma parseIsoDateOnly.
+        startDate: new Date(2026, 7, 11),
+        endDate: new Date(2026, 8, 10),
+        amountCents: 15000000,
+        paymentMethod: 'efectivo',
+        soldAt: new Date('2026-08-11T15:04:00-05:00'),
+        planId: 'plan-uuid',
+      },
+      parkingInfo,
+    ).join('');
+
+    expect(raw).toContain('COMPROBANTE MENSUALIDAD');
+    expect(raw).toContain('ABC123');
+    expect(raw).toContain('Juan Perez');
+    expect(raw).toContain('CC 1234567');
+    expect(raw).toContain('11/08/2026');
+    expect(raw).toContain('10/09/2026');
+    // 11-ago a 10-sep con ambos extremos inclusive.
+    expect(raw).toContain('31 dias');
+    expect(raw).toContain('Efectivo');
+    expect(raw).toContain('$ 150.000');
+    expect(raw).toContain('plan-uuid');
+    expect(raw).not.toContain('REIMPRESION');
+    expect(raw).toContain('\x1dV\x00');
+  });
+
+  it('marca la reimpresion y omite el pago cuando no se pudo resolver', () => {
+    const raw = buildEscPosMonthlyPlanReceipt(
+      {
+        plate: 'XYZ789',
+        customerName: null,
+        customerDoc: null,
+        planType: 'premium',
+        startDate: new Date(2026, 7, 1),
+        endDate: new Date(2026, 7, 1),
+        amountCents: 5000000,
+        paymentMethod: null,
+        soldAt: new Date('2026-08-01T09:00:00-05:00'),
+        planId: 'plan-uuid',
+        isReprint: true,
+      },
+      parkingInfo,
+    ).join('');
+
+    expect(raw).toContain('REIMPRESION');
+    expect(raw).toContain('1 dia');
+    expect(raw).not.toContain('Pago');
+    expect(raw).not.toContain('Cliente');
+    expect(raw).not.toContain('PLAN CANCELADO');
+  });
+
+  // Sin este banner, la copia de un plan anulado sirve para entrar sin cobro.
+  it('advierte cuando el plan reimpreso está cancelado', () => {
+    const raw = buildEscPosMonthlyPlanReceipt(
+      {
+        plate: 'XYZ789',
+        customerName: 'Ana Gomez',
+        customerDoc: null,
+        planType: 'basico',
+        startDate: new Date(2026, 7, 1),
+        endDate: new Date(2026, 7, 30),
+        amountCents: 15000000,
+        paymentMethod: 'efectivo',
+        soldAt: new Date('2026-08-01T09:00:00-05:00'),
+        planId: 'plan-uuid',
+        isReprint: true,
+        isCancelled: true,
+      },
+      parkingInfo,
+    ).join('');
+
+    expect(raw).toContain('PLAN CANCELADO');
+    expect(raw).toContain('NO da derecho a ingreso');
   });
 
   it('sanitiza acentos para compatibilidad RAW ESC/POS', () => {
