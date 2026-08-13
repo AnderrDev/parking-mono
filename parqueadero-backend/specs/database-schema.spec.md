@@ -276,6 +276,7 @@ INDEXES:
   - INDEX(invoice_id)
   - INDEX(status)
   - INDEX(cashier_shift_id)
+  - INDEX(gateway_ref) WHERE gateway_ref IS NOT NULL   -- 00046: vínculo pago ↔ mensualidad
 ```
 
 ### 10. `cashier_shifts`
