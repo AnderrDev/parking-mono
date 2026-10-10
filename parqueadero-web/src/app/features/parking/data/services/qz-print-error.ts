@@ -1,6 +1,14 @@
-export function getQzPrintErrorMessage(error: unknown, configuredPrinterName: string): string {
+export function getQzPrintErrorMessage(
+  error: unknown,
+  configuredPrinterName: string,
+  selectedPrinterName?: string | null,
+): string {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();
+
+  if (selectedPrinterName) {
+    return `QZ seleccionó la impresora "${selectedPrinterName}", pero no pudo imprimir: ${message}`;
+  }
 
   if (
     normalized.includes('sign') ||

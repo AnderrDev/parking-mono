@@ -104,6 +104,7 @@ export class SettingsPageComponent implements OnInit {
         return false;
       },
       () => {
+        this.ticketPrinter.invalidateCache();
         this.toast.success('Datos del parqueadero actualizados');
         return true;
       },
@@ -162,7 +163,7 @@ export class SettingsPageComponent implements OnInit {
       parkingType: value.parkingType ?? '',
       resolutionNumber: value.resolutionNumber ?? '',
       closingTime: value.closingTime ?? '',
-      printerName: '',
+      printerName: value.printerName?.trim() ?? '',
       printEntryTicketEnabled: value.printEntryTicketEnabled ?? true,
       printExitReceiptEnabled: value.printExitReceiptEnabled ?? true,
       openDrawerOnCashPayment: value.openDrawerOnCashPayment ?? false,
@@ -206,7 +207,6 @@ export class SettingsPageComponent implements OnInit {
             printExitReceiptEnabled: true,
             openDrawerOnCashPayment: false,
             ...parkingInfo,
-            printerName: '',
           });
         }
       },

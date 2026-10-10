@@ -76,9 +76,18 @@
 
           <h3 class="section-title">Impresora térmica y caja monedero</h3>
           <p class="hint">
-            QZ Tray usara la impresora predeterminada instalada en este equipo.
+            Usa «Revisar QZ» para ver el nombre exacto de la impresora. Déjalo vacío para selección automática.
           </p>
           <div class="grid">
+            <label class="field field--full">
+              <span>Impresora para tickets</span>
+              <input type="text" formControlName="printerName" list="qz-detected-printers" placeholder="Automática" />
+              <datalist id="qz-detected-printers">
+                @for (printer of printerDiagnostic()?.printers ?? []; track printer) {
+                  <option [value]="printer"></option>
+                }
+              </datalist>
+            </label>
             <label class="checkbox">
               <input type="checkbox" formControlName="printEntryTicketEnabled" />
               <span>Imprimir ticket de entrada por QZ</span>

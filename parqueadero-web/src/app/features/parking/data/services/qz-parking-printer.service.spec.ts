@@ -1,13 +1,22 @@
 import { chooseAutoDetectedPrinter } from './qz-parking-printer.service';
 
 describe('chooseAutoDetectedPrinter', () => {
-  it('prioriza la impresora predeterminada cuando QZ la reporta', () => {
+  it('prioriza una impresora térmica sobre una predeterminada virtual', () => {
     const result = chooseAutoDetectedPrinter(
-      ['HP LaserJet', 'XP-80C', 'Microsoft Print to PDF'],
-      'HP LaserJet',
+      ['OneNote for Windows 10', 'DIGITAL POS DIG-180'],
+      'OneNote for Windows 10',
     );
 
-    expect(result).toBe('HP LaserJet');
+    expect(result).toBe('DIGITAL POS DIG-180');
+  });
+
+  it('conserva la predeterminada cuando también es térmica', () => {
+    const result = chooseAutoDetectedPrinter(
+      ['XP-80C', 'DIGITAL POS DIG-180'],
+      'DIGITAL POS DIG-180',
+    );
+
+    expect(result).toBe('DIGITAL POS DIG-180');
   });
 
   it('reconoce impresoras DIGITAL POS DIG-180 como térmicas', () => {
@@ -26,6 +35,10 @@ describe('chooseAutoDetectedPrinter', () => {
     );
 
     expect(result).toBe('Contabilidad');
+  });
+
+  it('ignora una predeterminada que QZ no incluye en la lista', () => {
+    expect(chooseAutoDetectedPrinter(['Oficina'], 'Impresora retirada')).toBe('Oficina');
   });
 
   it('usa la primera impresora si no hay térmica ni predeterminada', () => {

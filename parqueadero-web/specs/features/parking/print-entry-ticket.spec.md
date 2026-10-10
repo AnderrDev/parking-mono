@@ -29,7 +29,27 @@ Se eliminó el bloque del consecutivo numérico en rojo a pedido del cliente: el
 
 ## Estrategia de impresión
 
-**`window.print()` con CSS `@page` 80 mm**, no WebUSB/ESC-POS directo. Razones:
+### Selección automática con QZ Tray (implementación actual)
+
+Cuando no se configura un nombre de impresora, QZ Tray enumera las impresoras
+instaladas. Se elige la predeterminada del sistema solo si es térmica; de lo
+contrario se prefiere una impresora térmica detectada (incluida DIGITAL POS).
+Si no hay impresoras térmicas, se usa la predeterminada y, como último recurso,
+la primera de la lista. Un error al consultar la predeterminada no impide usar
+una impresora detectada. La prueba y el diagnóstico de Configuración usan esta
+misma selección.
+Configuración permite guardar el nombre exacto de una impresora detectada por
+QZ en `parking_info.printerName`. Cuando existe, los tickets y la prueba usan
+esa cola en lugar de la selección automática; dejarlo vacío conserva el modo
+automático. El cambio guardado invalida la caché de configuración del ticket.
+Si QZ ya seleccionó una impresora y falla el envío del trabajo, el mensaje de
+error muestra el nombre seleccionado y la causa devuelta por QZ. No se informa
+que faltan impresoras en ese caso.
+
+**Antecedente (v2): `window.print()` con CSS `@page` 80 mm.** La implementación
+actual envía comandos ESC/POS mediante QZ Tray; la descripción histórica de
+`window.print()` que sigue no define la selección de impresora vigente. Razones
+por las que se usó inicialmente:
 - Funciona con cualquier impresora térmica que tenga driver instalado en el SO (Epson TM-T20, Bixolon, Citizen, genéricas chinas), independiente del navegador.
 - "Auto-imprime" sin diálogo si el usuario marcó "imprimir siempre con esta impresora" en Chrome/Edge (`Always print using this destination`).
 - WebUSB ESC/POS exige autorización por dispositivo, solo Chrome/Edge desktop, y se rompe si cambian la impresora — queda como follow-up si después se necesita beep / corte / drawer-kick.

@@ -47,30 +47,34 @@ export class QzParkingPrinterService {
     jobName: string,
     options: QzParkingPrintOptions = {},
   ): Promise<void> {
+    let selectedPrinterName: string | null = null;
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
+      selectedPrinterName = printerName;
       const config = qz.configs.create(printerName, { ...RAW_PRINT_OPTIONS, jobName });
       await qz.print(config, [
         ...(options.openCashDrawer ? [CASH_DRAWER_PULSE] : []),
         ...chunks,
       ]);
     } catch (error) {
-      throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
+      throw new Error(getQzPrintErrorMessage(error, configuredPrinterName, selectedPrinterName), { cause: error });
     }
   }
 
   async openCashDrawer(configuredPrinterName: string): Promise<void> {
+    let selectedPrinterName: string | null = null;
     try {
       const qz = await this.ensureConnected();
       const printerName = await this.findPrinter(configuredPrinterName);
+      selectedPrinterName = printerName;
       const config = qz.configs.create(printerName, {
         ...RAW_PRINT_OPTIONS,
         jobName: 'Parqueadero abrir caja',
       });
       await qz.print(config, [CASH_DRAWER_PULSE]);
     } catch (error) {
-      throw new Error(getQzPrintErrorMessage(error, configuredPrinterName), { cause: error });
+      throw new Error(getQzPrintErrorMessage(error, configuredPrinterName, selectedPrinterName), { cause: error });
     }
   }
 
@@ -156,13 +160,10 @@ export class QzParkingPrinterService {
     const printers = (typeof found === 'string' ? [found] : found).filter(Boolean);
     if (!printers.length) throw new Error('No se encontraron impresoras instaladas');
 
-    const defaultPrinter = await qz.printers.getDefault();
+    const defaultPrinter = await qz.printers.getDefault().catch(() => null);
     const selected = chooseAutoDetectedPrinter(printers, defaultPrinter);
     if (selected) return selected;
-
-    const firstPrinter = printers[0];
-    if (!firstPrinter) throw new Error('No se encontraron impresoras instaladas');
-    return firstPrinter;
+    throw new Error('No se encontraron impresoras instaladas');
   }
 }
 
@@ -174,10 +175,13 @@ export function chooseAutoDetectedPrinter(
   printers: readonly string[],
   defaultPrinter: string | null,
 ): string | null {
-  if (defaultPrinter?.trim()) return defaultPrinter;
+  const installedDefault = printers.find(
+    (name) => name.toLowerCase() === defaultPrinter?.trim().toLowerCase(),
+  );
+  if (installedDefault && isLikelyThermalPrinter(installedDefault)) return installedDefault;
   const thermal = printers.find((name) => isLikelyThermalPrinter(name));
   if (thermal) return thermal;
-  return printers[0] ?? null;
+  return installedDefault ?? printers[0] ?? null;
 }
 
 function isLikelyThermalPrinter(name: string): boolean {

@@ -147,7 +147,7 @@ export class TicketRendererService extends TicketRendererPort {
           parkingType: (v.parkingType as ParkingInfo['parkingType']) ?? '',
           resolutionNumber: v.resolutionNumber ?? '',
           closingTime: v.closingTime ?? '',
-          printerName: '',
+          printerName: v.printerName?.trim() ?? '',
           printEntryTicketEnabled: typeof v['printEntryTicketEnabled'] === 'boolean'
             ? v['printEntryTicketEnabled']
             : true,

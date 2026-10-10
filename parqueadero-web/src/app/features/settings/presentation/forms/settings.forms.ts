@@ -23,7 +23,7 @@ export class SettingsForms {
       parkingType: ['', Validators.maxLength(20)],
       resolutionNumber: ['', Validators.maxLength(40)],
       closingTime: ['', Validators.maxLength(10)],
-      printerName: [''],
+      printerName: ['', Validators.maxLength(200)],
       printEntryTicketEnabled: [true],
       printExitReceiptEnabled: [true],
       openDrawerOnCashPayment: [false],
